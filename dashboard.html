@@ -3,58 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Gestión de Celulares</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Dashboard - D'uro Cell</title>
+    <!-- Boxicons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <style>
-        :root {
-            --primary-color: #4e73df;
-            --secondary-color: #1cc88a;
-            --danger-color: #e74a3b;
-            --warning-color: #f6c23e;
-            --info-color: #36b9cc;
-            --dark-color: #5a5c69;
-            --light-color: #f8f9fc;
-            --sidebar-bg: #2c3e50;
-            --sidebar-active: rgba(255, 255, 255, 0.1);
-            --header-bg: #ffffff;
-            --card-bg: #ffffff;
-            --text-color: #333333;
-            --text-light: #858796;
-            --shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
-        body {
-            background-color: #f8f9fc;
-            color: var(--text-color);
-            min-height: 100vh;
+        html, body {
+            height: 100%;
             overflow-x: hidden;
         }
 
-        .app-container {
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
-            min-height: 100vh;
         }
 
-        /* Barra Lateral */
+        /* Sidebar Navigation */
         .sidebar {
-            width: 14rem;
-            background: var(--sidebar-bg);
+            width: 280px;
+            background: linear-gradient(180deg, #ff6b6b 0%, #ee5a24 100%);
             color: white;
             position: fixed;
             height: 100vh;
             left: 0;
             top: 0;
             z-index: 1000;
-            transition: all 0.3s ease;
             overflow-y: auto;
-            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar.hidden {
@@ -62,71 +46,79 @@
         }
 
         .sidebar-header {
-            padding: 1.5rem 1rem;
+            padding: 30px 20px;
             text-align: center;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            height: 4.375rem;
+            background: rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
-        .sidebar-brand {
-            font-size: 1.2rem;
-            font-weight: 800;
-            color: white;
-            text-decoration: none;
+        .sidebar-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 10px;
         }
 
-        .sidebar-brand-icon {
-            font-size: 1.5rem;
-            margin-right: 0.5rem;
+        .sidebar-header p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 3px;
         }
 
-        .sidebar-divider {
-            border-top: 1px solid rgba(255, 255, 255, 0.15);
-            margin: 1rem 0;
+        .sidebar-menu {
+            padding: 20px 0;
+            flex: 1;
         }
 
-        .nav-item {
+        .menu-item {
             display: flex;
             align-items: center;
-            padding: 0.75rem 1rem;
-            color: rgba(255, 255, 255, 0.8);
+            padding: 15px 25px;
+            color: white;
             text-decoration: none;
             transition: all 0.3s ease;
-            border-left: 0.25rem solid transparent;
+            border-left: 4px solid transparent;
+            position: relative;
             cursor: pointer;
-            margin: 0 0.5rem;
-            border-radius: 0.35rem;
         }
 
-        .nav-item:hover {
-            color: white;
-            background: var(--sidebar-active);
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-left-color: rgba(255, 255, 255, 0.8);
+            padding-left: 30px;
         }
 
-        .nav-item.active {
-            color: white;
-            background: var(--sidebar-active);
-            border-left-color: var(--primary-color);
+        .menu-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-left-color: white;
         }
 
-        .nav-icon {
-            width: 1.5rem;
-            font-size: 0.85rem;
-            margin-right: 0.5rem;
-            text-align: center;
+        .menu-item i {
+            font-size: 1.3rem;
+            margin-right: 15px;
+            width: 25px;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
         }
 
-        .nav-text {
-            font-weight: 600;
-            font-size: 0.85rem;
+        .menu-item:hover i,
+        .menu-item.active i {
+            opacity: 1;
+        }
+
+        .menu-item span {
+            font-size: 1rem;
+            font-weight: 500;
         }
 
         .nav-badge {
             margin-left: auto;
-            background: var(--danger-color);
+            background: #dc3545;
             color: white;
             padding: 0.25rem 0.5rem;
             border-radius: 0.35rem;
@@ -135,67 +127,61 @@
         }
 
         .sidebar-footer {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 1rem;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.1);
+            text-align: center;
+            font-size: 0.8rem;
+            opacity: 0.7;
         }
 
-        .user-info {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 0.35rem;
-        }
-
-        .user-avatar {
-            width: 2.5rem;
-            height: 2.5rem;
-            background: var(--primary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            margin-right: 0.75rem;
-            color: white;
-        }
-
-        .user-details h4 {
-            font-size: 0.85rem;
-            margin-bottom: 0.25rem;
-            color: white;
-        }
-
-        .user-details p {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        /* Botón toggle sidebar para móviles */
-        .sidebar-toggle {
+        .menu-toggle {
             display: none;
             position: fixed;
-            top: 1rem;
-            left: 1rem;
+            top: 20px;
+            left: 20px;
             z-index: 1001;
-            background: var(--sidebar-bg);
+            background: #ff6b6b;
             color: white;
             border: none;
-            padding: 0.75rem;
-            border-radius: 0.35rem;
+            padding: 12px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 1.25rem;
-            box-shadow: var(--shadow);
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
 
-        /* Contenido principal */
+        .menu-toggle:hover {
+            background: #ee5a24;
+            transform: scale(1.05);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Main Content */
         .main-content {
             flex: 1;
-            margin-left: 14rem;
+            margin-left: 280px;
+            min-height: 100vh;
             transition: margin-left 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
 
         .main-content.expanded {
@@ -205,8 +191,9 @@
         /* Header */
         .topbar {
             height: 4.375rem;
-            background: var(--header-bg);
-            box-shadow: var(--shadow);
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
             padding: 0 1.5rem;
@@ -215,99 +202,130 @@
             z-index: 100;
         }
 
+        .topbar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+
         .topbar-title {
             font-size: 1.5rem;
             font-weight: 800;
-            color: var(--dark-color);
+            color: white;
             margin-right: auto;
+            position: relative;
+            z-index: 1;
         }
 
         .topbar-divider {
             width: 1px;
             height: 2.5rem;
-            background: rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.2);
             margin: 0 1rem;
         }
 
         .topbar-nav {
             display: flex;
             align-items: center;
+            position: relative;
+            z-index: 1;
         }
 
         .topbar-nav-item {
             display: flex;
             align-items: center;
             padding: 0 0.75rem;
-            color: var(--dark-color);
+            color: white;
             text-decoration: none;
             font-weight: 600;
             font-size: 0.85rem;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+        }
+
+        .topbar-nav-item:hover {
+            opacity: 1;
         }
 
         .topbar-nav-item i {
             margin-right: 0.5rem;
         }
 
-        /* Barra de navegación horizontal */
+        /* Page Header */
         .page-header {
-            background: var(--header-bg);
+            background: rgba(255, 255, 255, 0.95);
             padding: 1.5rem;
+            margin: 20px;
             margin-bottom: 1.5rem;
-            border-bottom: 1px solid #e3e6f0;
-            border-radius: 0.35rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
         }
 
         .page-title {
             font-size: 1.75rem;
             font-weight: 700;
-            color: var(--dark-color);
+            color: #333;
             margin-bottom: 0.5rem;
         }
 
         .page-subtitle {
             font-size: 1rem;
-            color: var(--text-light);
+            color: #666;
         }
 
         .nav-tabs {
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
+            margin: 20px;
             margin-bottom: 1.5rem;
         }
 
         .nav-tab {
             padding: 0.75rem 1.5rem;
-            border-radius: 0.35rem;
-            background: white;
-            color: var(--dark-color);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
             font-weight: 600;
             font-size: 0.85rem;
-            border: 1px solid #e3e6f0;
+            border: 2px solid #e1e8ed;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            text-decoration: none;
+            backdrop-filter: blur(10px);
         }
 
         .nav-tab:hover {
-            background: #f8f9fc;
-            color: var(--primary-color);
+            background: #f8f9fa;
+            color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
         }
 
         .nav-tab.active {
-            background: var(--primary-color);
+            background-color: hsl(19, 88%, 65%);
+            /* background: linear-gradient(135deg, #667eea 0%, #a24b67 100%); */
             color: white;
-            border-color: var(--primary-color);
+            border-color: #667eea;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
         }
 
         .refresh-btn {
-            background: var(--secondary-color);
+            background-color: 	#28a745;
+            /* background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); */
             color: white;
             border: none;
             padding: 0.75rem 1.5rem;
-            border-radius: 0.35rem;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
             font-size: 0.85rem;
@@ -316,31 +334,35 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3);
         }
 
-        .refresh-btn:hover {
-            background: #17a673;
-            transform: translateY(-1px);
-        }
+        /* .refresh-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(39, 243, 4, 0.598);
+        } */
 
-        /* Contenedor de contenido */
+        /* Content Area */
         .content-area {
-            padding: 1.5rem;
+            padding: 0 20px 20px 20px;
         }
 
-        /* Tarjetas */
+        /* Cards */
         .card {
-            background: var(--card-bg);
-            border-radius: 0.35rem;
-            box-shadow: var(--shadow);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             margin-bottom: 1.5rem;
             border: none;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+            margin: 1rem;
         }
 
         .card-header {
             padding: 1rem 1.5rem;
-            border-bottom: 1px solid #e3e6f0;
-            background: transparent;
+            border-bottom: 1px solid #e1e8ed;
+            background: #f8f9fa;
             display: flex;
             align-items: center;
         }
@@ -348,7 +370,7 @@
         .card-icon {
             width: 3rem;
             height: 3rem;
-            border-radius: 0.35rem;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -360,7 +382,7 @@
         .card-title {
             font-size: 1.25rem;
             font-weight: 700;
-            color: var(--dark-color);
+            color: #333;
             margin-bottom: 0;
         }
 
@@ -368,7 +390,7 @@
             padding: 1.5rem;
         }
 
-        /* Grid de estadísticas */
+        /* Stats Grid */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -376,12 +398,19 @@
         }
 
         .stat-card {
-            background: white;
-            border-radius: 0.35rem;
-            box-shadow: var(--shadow);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             padding: 1.5rem;
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
         }
 
         .stat-card::before {
@@ -394,29 +423,29 @@
         }
 
         .stat-card.primary::before {
-            background: var(--primary-color);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
 
         .stat-card.success::before {
-            background: var(--secondary-color);
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
 
         .stat-card.info::before {
-            background: var(--info-color);
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
         }
 
         .stat-card.warning::before {
-            background: var(--warning-color);
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
         }
 
         .stat-card.danger::before {
-            background: var(--danger-color);
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         }
 
         .stat-title {
             font-size: 0.85rem;
             font-weight: 600;
-            color: var(--text-light);
+            color: #666;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 0.5rem;
@@ -425,7 +454,7 @@
         .stat-value {
             font-size: 1.75rem;
             font-weight: 700;
-            color: var(--dark-color);
+            color: #333;
             margin-bottom: 0.5rem;
         }
 
@@ -436,14 +465,14 @@
         }
 
         .stat-change.positive {
-            color: var(--secondary-color);
+            color: #28a745;
         }
 
         .stat-change.negative {
-            color: var(--danger-color);
+            color: #dc3545;
         }
 
-        /* Gráficos */
+        /* Charts */
         .chart-container {
             position: relative;
             height: 20rem;
@@ -455,7 +484,7 @@
             height: 100%;
         }
 
-        /* Tablas */
+        /* Tables */
         .table-container {
             overflow-x: auto;
         }
@@ -466,22 +495,22 @@
         }
 
         .data-table th {
-            background: #f8f9fc;
-            color: var(--dark-color);
+            background: #f8f9fa;
+            color: #333;
             font-weight: 700;
             padding: 0.75rem 1rem;
             text-align: left;
-            border-bottom: 1px solid #e3e6f0;
+            border-bottom: 1px solid #e1e8ed;
         }
 
         .data-table td {
             padding: 0.75rem 1rem;
-            border-bottom: 1px solid #e3e6f0;
+            border-bottom: 1px solid #e1e8ed;
             vertical-align: middle;
         }
 
         .data-table tr:hover {
-            background: #f8f9fc;
+            background: #f8f9fa;
         }
 
         .badge {
@@ -496,26 +525,26 @@
         }
 
         .badge-primary {
-            background: var(--primary-color);
+            background: #667eea;
             color: white;
         }
 
         .badge-success {
-            background: var(--secondary-color);
+            background: #28a745;
             color: white;
         }
 
         .badge-danger {
-            background: var(--danger-color);
+            background: #dc3545;
             color: white;
         }
 
         .badge-warning {
-            background: var(--warning-color);
+            background: #ffc107;
             color: white;
         }
 
-        /* Barras de progreso */
+        /* Progress Bars */
         .progress {
             height: 1rem;
             background: #eaecf4;
@@ -535,10 +564,10 @@
             color: white;
         }
 
-        /* Alertas */
+        /* Alerts */
         .alert {
             padding: 1rem;
-            border-radius: 0.35rem;
+            border-radius: 12px;
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
@@ -550,61 +579,105 @@
         }
 
         .alert-danger {
-            background: #f8d7da;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
             color: #721c24;
-            border-left: 0.25rem solid #f5c6cb;
+            border-left: 0.25rem solid #dc3545;
         }
 
         .alert-warning {
-            background: #fff3cd;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
             color: #856404;
-            border-left: 0.25rem solid #ffeeba;
+            border-left: 0.25rem solid #ffc107;
         }
 
-        /* Responsive Design */
-        @media (max-width: 992px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            
-            .sidebar.show {
-                transform: translateX(0);
-            }
-            
-            .sidebar-toggle {
-                display: block;
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-            
-            .nav-tabs {
-                flex-direction: column;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Overlay para móviles */
-        .sidebar-overlay {
+        /* View Sections */
+        .view-section {
             display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
         }
 
-        .sidebar-overlay.show {
+        .view-section.active {
             display: block;
         }
 
-        /* Animaciones */
+        /* Row Grid */
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        /* Desktop specific styles */
+        @media (min-width: 993px) {
+            .sidebar {
+                position: fixed;
+                transform: translateX(0);
+                height: 100vh;
+            }
+
+            .main-content {
+                margin-left: 280px;
+                min-height: 100vh;
+            }
+
+            .menu-toggle {
+                display: none;
+            }
+
+            .sidebar-overlay {
+                display: none !important;
+            }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 100%;
+                max-width: 300px;
+                height: 100vh;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+                opacity: 1;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .nav-tabs {
+                flex-direction: column;
+                margin: 10px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .row {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header {
+                margin: 10px;
+                padding-top: 60px;
+            }
+
+            .content-area {
+                padding: 0 10px 10px 10px;
+            }
+        }
+
+        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -615,409 +688,430 @@
         }
 
         /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
         }
 
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Botón toggle para móviles -->
-        <button class="sidebar-toggle" onclick="toggleSidebar()">
-            <i class="fas fa-bars"></i>
-        </button>
-        
-        <!-- Overlay para móviles -->
-        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <!-- Menu Toggle Button -->
+    <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class='bx bx-menu'></i>
+    </button>
 
-        <!-- Barra Lateral -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <a href="#" class="sidebar-brand">
-                    <i class="fas fa-mobile-alt sidebar-brand-icon"></i>
-                    <span>CellManager</span>
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>
+                <i class='bx bx-mobile-alt'></i>
+               DEREJSOFT
+            </h2>
+            <p>Derejsoft - superadmin</p>
+            <p>derejsoft2003@gmail.com</p>
+        </div>
+        <nav class="sidebar-menu">
+            <div class="sidebar-menu">
+                <a href="dashboard.html" class="menu-item active">
+                    <i class='bx bx-tachometer'></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="ventas-simple.html" class="menu-item">
+                    <i class='bx bx-dollar-circle'></i>
+                    <span>Vender</span>
+                </a>
+                <a href="inventario.html" class="menu-item">
+                    <i class='bx bx-package'></i>
+                    <span>Inventario</span>
+                </a>
+                <a href="cuentas-por-cobrar.html" class="menu-item">
+                    <i class='bx bx-credit-card'></i>
+                    <span>Cobrar</span>
+                </a>
+                <a href="registro-clientes.html" class="menu-item">
+                    <i class='bx bx-user-plus'></i>
+                    <span>Clientes</span>
+                </a>
+                <a href="lista-clientes.html" class="menu-item">
+                    <i class='bx bx-group'></i>
+                    <span>Lista Clientes</span>
+                </a>
+                <a href="lista-suplidores.html" class="menu-item">
+                    <i class='bx bx-buildings'></i>
+                    <span>Suplidores</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class='bx bx-clipboard'></i>
+                    <span>Pedidos</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class='bx bx-shopping-bag'></i>
+                    <span>Compras</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class='bx bx-wrench'></i>
+                    <span>Taller</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class='bx bx-trending-up'></i>
+                    <span>Cuadre</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class='bx bx-cog'></i>
+                    <span>Ajustes</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class='bx bx-store'></i>
+                    <span>Comercios</span>
                 </a>
             </div>
+        </nav>
+        <div class="sidebar-footer">
+            <p>Dalecompra v 1.2.2</p>
+        </div>
+    </div>
 
-            <div class="sidebar-divider"></div>
-
-            <nav class="sidebar-nav">
-                <div class="nav-item active" onclick="showView('overview')" data-view="overview">
-                    <i class="fas fa-tachometer-alt nav-icon"></i>
-                    <span class="nav-text">Dashboard</span>
-                </div>
-                <div class="nav-item" onclick="showView('sales')" data-view="sales">
-                    <i class="fas fa-chart-line nav-icon"></i>
-                    <span class="nav-text">Ventas</span>
-                </div>
-                <div class="nav-item" onclick="showView('inventory')" data-view="inventory">
-                    <i class="fas fa-boxes nav-icon"></i>
-                    <span class="nav-text">Inventario</span>
-                </div>
-                <div class="nav-item" onclick="showView('products')" data-view="products">
-                    <i class="fas fa-mobile nav-icon"></i>
-                    <span class="nav-text">Productos</span>
-                </div>
-                <div class="nav-item" onclick="showView('reports')" data-view="reports">
-                    <i class="fas fa-file-alt nav-icon"></i>
-                    <span class="nav-text">Reportes</span>
-                </div>
-
-                <div class="sidebar-divider"></div>
-
-                <div class="nav-item" onclick="showView('alerts')" data-view="alerts">
-                    <i class="fas fa-exclamation-triangle nav-icon"></i>
-                    <span class="nav-text">Alertas</span>
-                    <span class="nav-badge" id="alertBadge">5</span>
-                </div>
-                <div class="nav-item" onclick="showView('settings')" data-view="settings">
-                    <i class="fas fa-cog nav-icon"></i>
-                    <span class="nav-text">Configuración</span>
-                </div>
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-title">Dashboard - Derejsoft</div>
+            <div class="topbar-divider"></div>
+            <nav class="topbar-nav">
+                <a href="#" class="topbar-nav-item">
+                    <i class='bx bx-bell'></i>
+                    <span>Notificaciones</span>
+                </a>
+                <a href="#" class="topbar-nav-item">
+                    <i class='bx bx-envelope'></i>
+                    <span>Mensajes</span>
+                </a>
+                <a href="#" class="topbar-nav-item">
+                    <i class='bx bx-user'></i>
+                    <span>Perfil</span>
+                </a>
             </nav>
-
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <div class="user-details">
-                        <h4>Admin User</h4>
-                        <p>Administrador</p>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- Contenido Principal -->
-        <div class="main-content" id="mainContent">
-            <!-- Topbar -->
-            <div class="topbar">
-                <div class="topbar-title">Dashboard</div>
-                <div class="topbar-divider"></div>
-                <nav class="topbar-nav">
-                    <a href="#" class="topbar-nav-item">
-                        <i class="fas fa-bell"></i>
-                        <span>Notificaciones</span>
-                    </a>
-                    <a href="#" class="topbar-nav-item">
-                        <i class="fas fa-envelope"></i>
-                        <span>Mensajes</span>
-                    </a>
-                    <a href="#" class="topbar-nav-item">
-                        <i class="fas fa-user"></i>
-                        <span>Perfil</span>
-                    </a>
-                </nav>
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title" id="pageTitle">Resumen General</h1>
+            <p class="page-subtitle" id="pageSubtitle">Vista general de las métricas del negocio</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showView('overview')" data-view="overview">
+                <i class='bx bx-tachometer'></i> Resumen
+            </button>
+            <button class="nav-tab" onclick="showView('sales')" data-view="sales">
+                <i class='bx bx-line-chart'></i> Ventas
+            </button>
+            <button class="nav-tab" onclick="showView('inventory')" data-view="inventory">
+                <i class='bx bx-package'></i> Inventario
+            </button>
+            <button class="nav-tab" onclick="showView('products')" data-view="products">
+                <i class='bx bx-mobile'></i> Productos
+            </button>
+            <button class="nav-tab" onclick="showView('alerts')" data-view="alerts">
+                <i class='bx bx-error'></i> Alertas
+            </button>
+            <button class="refresh-btn" onclick="refreshData()">
+                <i class='bx bx-refresh'></i> Actualizar
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Overview Section -->
+            <div id="overview" class="view-section active fade-in">
+                <!-- Statistics -->
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <div class="stat-title">Ventas Hoy</div>
+                        <div class="stat-value" id="dailySales">$0</div>
+                        <div class="stat-change positive">
+                            <i class='bx bx-up-arrow-alt'></i> 12% desde ayer
+                        </div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-title">Ventas Mes</div>
+                        <div class="stat-value" id="monthlySales">$0</div>
+                        <div class="stat-change positive">
+                            <i class='bx bx-up-arrow-alt'></i> 8% desde el mes pasado
+                        </div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-title">Productos en Stock</div>
+                        <div class="stat-value" id="totalStock">0</div>
+                        <div class="stat-change negative">
+                            <i class='bx bx-down-arrow-alt'></i> 5% desde ayer
+                        </div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-title">Stock Bajo</div>
+                        <div class="stat-value" id="lowStockItems">0</div>
+                        <div class="stat-change positive">
+                            <i class='bx bx-up-arrow-alt'></i> 3% desde ayer
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly Sales Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class='bx bx-bar-chart-alt-2'></i>
+                        </div>
+                        <h3 class="card-title">Ventas Semanales</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="weeklySalesChart" class="chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Sales and Top Products -->
+                <div class="row">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <i class='bx bx-shopping-bag'></i>
+                            </div>
+                            <h3 class="card-title">Últimas Ventas</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="data-table" id="recentSalesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th>Hora</th>
+                                            <th>Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Se llenará con JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                                <i class='bx bx-trophy'></i>
+                            </div>
+                            <h3 class="card-title">Productos Más Vendidos</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="data-table" id="topProductsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Producto</th>
+                                            <th>Ventas</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Se llenará con JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Área de contenido -->
-            <div class="content-area">
-                <!-- Encabezado de página -->
-                <div class="page-header">
-                    <h1 class="page-title" id="pageTitle">Resumen General</h1>
-                    <p class="page-subtitle" id="pageSubtitle">Vista general de las métricas del negocio</p>
-                </div>
-
-                <!-- Pestañas de navegación -->
-                <div class="nav-tabs">
-                    <button class="nav-tab active" onclick="showView('overview')" data-view="overview">
-                        <i class="fas fa-tachometer-alt"></i> Resumen
-                    </button>
-                    <button class="nav-tab" onclick="showView('sales')" data-view="sales">
-                        <i class="fas fa-chart-line"></i> Ventas
-                    </button>
-                    <button class="nav-tab" onclick="showView('inventory')" data-view="inventory">
-                        <i class="fas fa-boxes"></i> Inventario
-                    </button>
-                    <button class="nav-tab" onclick="showView('products')" data-view="products">
-                        <i class="fas fa-mobile"></i> Productos
-                    </button>
-                    <button class="nav-tab" onclick="showView('alerts')" data-view="alerts">
-                        <i class="fas fa-exclamation-triangle"></i> Alertas
-                    </button>
-                    <button class="refresh-btn" onclick="refreshData()">
-                        <i class="fas fa-sync-alt"></i> Actualizar
-                    </button>
-                </div>
-
-                <!-- Vistas de contenido -->
-                <div id="overview" class="view-section active fade-in">
-                    <!-- Estadísticas -->
-                    <div class="stats-grid">
-                        <div class="stat-card primary">
-                            <div class="stat-title">Ventas Hoy</div>
-                            <div class="stat-value" id="dailySales">$0</div>
-                            <div class="stat-change positive">
-                                <i class="fas fa-arrow-up"></i> 12% desde ayer
-                            </div>
+            <!-- Sales Section -->
+            <div id="sales" class="view-section fade-in">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class='bx bx-line-chart'></i>
                         </div>
-                        <div class="stat-card success">
-                            <div class="stat-title">Ventas Mes</div>
-                            <div class="stat-value" id="monthlySales">$0</div>
-                            <div class="stat-change positive">
-                                <i class="fas fa-arrow-up"></i> 8% desde el mes pasado
-                            </div>
-                        </div>
-                        <div class="stat-card info">
-                            <div class="stat-title">Productos en Stock</div>
-                            <div class="stat-value" id="totalStock">0</div>
-                            <div class="stat-change negative">
-                                <i class="fas fa-arrow-down"></i> 5% desde ayer
-                            </div>
-                        </div>
-                        <div class="stat-card warning">
-                            <div class="stat-title">Stock Bajo</div>
-                            <div class="stat-value" id="lowStockItems">0</div>
-                            <div class="stat-change positive">
-                                <i class="fas fa-arrow-up"></i> 3% desde ayer
-                            </div>
-                        </div>
+                        <h3 class="card-title">Análisis de Ventas</h3>
                     </div>
-
-                    <!-- Gráfico de ventas -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon" style="background: var(--primary-color);">
-                                <i class="fas fa-chart-bar"></i>
-                            </div>
-                            <h3 class="card-title">Ventas Semanales</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container">
-                                <canvas id="weeklySalesChart" class="chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Últimas ventas y productos más vendidos -->
-                    <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="card-icon" style="background: var(--secondary-color);">
-                                    <i class="fas fa-shopping-cart"></i>
-                                </div>
-                                <h3 class="card-title">Últimas Ventas</h3>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-container">
-                                    <table class="data-table" id="recentSalesTable">
-                                        <thead>
-                                            <tr>
-                                                <th>Producto</th>
-                                                <th>Hora</th>
-                                                <th>Monto</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <!-- Se llenará con JavaScript -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="card-icon" style="background: var(--warning-color);">
-                                    <i class="fas fa-trophy"></i>
-                                </div>
-                                <h3 class="card-title">Productos Más Vendidos</h3>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-container">
-                                    <table class="data-table" id="topProductsTable">
-                                        <thead>
-                                            <tr>
-                                                <th>#</th>
-                                                <th>Producto</th>
-                                                <th>Ventas</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <!-- Se llenará con JavaScript -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="salesChart" class="chart"></canvas>
                         </div>
                     </div>
                 </div>
-
-                <!-- Vista Ventas -->
-                <div id="sales" class="view-section fade-in">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon" style="background: var(--primary-color);">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <h3 class="card-title">Análisis de Ventas</h3>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
+                            <i class='bx bx-table'></i>
                         </div>
-                        <div class="card-body">
-                            <div class="chart-container">
-                                <canvas id="salesChart" class="chart"></canvas>
-                            </div>
-                        </div>
+                        <h3 class="card-title">Detalle de Ventas</h3>
                     </div>
-
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon" style="background: var(--info-color);">
-                                <i class="fas fa-table"></i>
-                            </div>
-                            <h3 class="card-title">Detalle de Ventas</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-container">
-                                <table class="data-table" id="salesTable">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Fecha</th>
-                                            <th>Producto</th>
-                                            <th>Cantidad</th>
-                                            <th>Total</th>
-                                            <th>Estado</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Se llenará con JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="data-table" id="salesTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha</th>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Total</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Se llenará con JavaScript -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Vista Inventario -->
-                <div id="inventory" class="view-section fade-in">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon" style="background: var(--info-color);">
-                                <i class="fas fa-boxes"></i>
-                            </div>
-                            <h3 class="card-title">Estado del Inventario</h3>
+            <!-- Inventory Section -->
+            <div id="inventory" class="view-section fade-in">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
+                            <i class='bx bx-package'></i>
                         </div>
-                        <div class="card-body">
-                            <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                                <div>
-                                    <h4 style="margin-bottom: 1rem;">Disponibilidad</h4>
-                                    <div class="progress" style="margin-bottom: 1rem;">
-                                        <div class="progress-bar" id="inventoryProgress" style="background: var(--primary-color); width: 0%;">0%</div>
+                        <h3 class="card-title">Estado del Inventario</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div>
+                                <h4 style="margin-bottom: 1rem;">Disponibilidad</h4>
+                                <div class="progress" style="margin-bottom: 1rem;">
+                                    <div class="progress-bar" id="inventoryProgress" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 0%;">0%</div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 2rem;">
+                                    <div>
+                                        <div class="stat-title">En Stock</div>
+                                        <div class="stat-value" id="inventoryStock">0</div>
                                     </div>
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 2rem;">
-                                        <div>
-                                            <div class="stat-title">En Stock</div>
-                                            <div class="stat-value" id="inventoryStock">0</div>
-                                        </div>
-                                        <div>
-                                            <div class="stat-title">Vendidos</div>
-                                            <div class="stat-value" id="inventorySold">0</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 style="margin-bottom: 1rem;">Categorías</h4>
-                                    <div class="chart-container" style="height: 200px;">
-                                        <canvas id="inventoryChart" class="chart"></canvas>
+                                    <div>
+                                        <div class="stat-title">Vendidos</div>
+                                        <div class="stat-value" id="inventorySold">0</div>
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="table-container">
-                                <table class="data-table" id="inventoryTable">
-                                    <thead>
-                                        <tr>
-                                            <th>Producto</th>
-                                            <th>Categoría</th>
-                                            <th>Stock</th>
-                                            <th>Precio</th>
-                                            <th>Estado</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Se llenará con JavaScript -->
-                                    </tbody>
-                                </table>
+                            <div>
+                                <h4 style="margin-bottom: 1rem;">Categorías</h4>
+                                <div class="chart-container" style="height: 200px;">
+                                    <canvas id="inventoryChart" class="chart"></canvas>
+                                </div>
                             </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="inventoryTable">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Categoría</th>
+                                        <th>Stock</th>
+                                        <th>Precio</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Se llenará con JavaScript -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Vista Productos -->
-                <div id="products" class="view-section fade-in">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon" style="background: var(--warning-color);">
-                                <i class="fas fa-mobile"></i>
-                            </div>
-                            <h3 class="card-title">Catálogo de Productos</h3>
+            <!-- Products Section -->
+            <div id="products" class="view-section fade-in">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                            <i class='bx bx-mobile'></i>
                         </div>
-                        <div class="card-body">
-                            <div class="table-container">
-                                <table class="data-table" id="productsTable">
-                                    <thead>
-                                        <tr>
-                                            <th>Imagen</th>
-                                            <th>Producto</th>
-                                            <th>Marca</th>
-                                            <th>Precio</th>
-                                            <th>Stock</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Se llenará con JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
+                        <h3 class="card-title">Catálogo de Productos</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="data-table" id="productsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Imagen</th>
+                                        <th>Producto</th>
+                                        <th>Marca</th>
+                                        <th>Precio</th>
+                                        <th>Stock</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Se llenará con JavaScript -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Vista Alertas -->
-                <div id="alerts" class="view-section fade-in">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon" style="background: var(--danger-color);">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <h3 class="card-title">Alertas de Stock</h3>
+            <!-- Alerts Section -->
+            <div id="alerts" class="view-section fade-in">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                            <i class='bx bx-error'></i>
                         </div>
-                        <div class="card-body">
-                            <div id="alertsContainer">
-                                <!-- Se llenará con JavaScript -->
-                            </div>
+                        <h3 class="card-title">Alertas de Stock</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="alertsContainer">
+                            <!-- Se llenará con JavaScript -->
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Vista Configuración -->
-                <div id="settings" class="view-section fade-in">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon" style="background: var(--dark-color);">
-                                <i class="fas fa-cog"></i>
-                            </div>
-                            <h3 class="card-title">Configuración del Sistema</h3>
+            <!-- Settings Section -->
+            <div id="settings" class="view-section fade-in">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #333 0%, #555 100%);">
+                            <i class='bx bx-cog'></i>
                         </div>
-                        <div class="card-body">
-                            <p>Configuración del dashboard y preferencias del usuario.</p>
+                        <h3 class="card-title">Configuración del Sistema</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Configuración del dashboard y preferencias del usuario.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="reports" class="view-section fade-in">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class='bx bx-file'></i>
                         </div>
+                        <h3 class="card-title">Reportes del Sistema</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Generación de reportes y análisis detallados.</p>
                     </div>
                 </div>
             </div>
@@ -1026,7 +1120,7 @@
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <script>
         // Datos simulados del sistema
         const dashboardData = {
@@ -1092,9 +1186,9 @@
 
         // Formatear moneda
         function formatCurrency(amount) {
-            return new Intl.NumberFormat('es-CO', {
+            return new Intl.NumberFormat('es-DO', {
                 style: 'currency',
-                currency: 'COP',
+                currency: 'DOP',
                 minimumFractionDigits: 0
             }).format(amount);
         }
@@ -1105,7 +1199,7 @@
             const overlay = document.querySelector('.sidebar-overlay');
             
             sidebar.classList.toggle('show');
-            overlay.classList.toggle('show');
+            overlay.classList.toggle('active');
         }
 
         // Cambiar vista
@@ -1116,25 +1210,27 @@
             });
             
             // Mostrar la vista seleccionada
-            document.getElementById(viewId).classList.add('active');
+            const targetView = document.getElementById(viewId);
+            if (targetView) {
+                targetView.classList.add('active');
+            }
             
             // Actualizar pestañas de navegación
             document.querySelectorAll('.nav-tab').forEach(tab => {
                 tab.classList.remove('active');
             });
-            document.querySelector(`.nav-tab[data-view="${viewId}"]`).classList.add('active');
-            
-            // Actualizar navegación de la barra lateral
-            document.querySelectorAll('.sidebar .nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            document.querySelector(`.sidebar .nav-item[data-view="${viewId}"]`).classList.add('active');
+            const activeTab = document.querySelector(`.nav-tab[data-view="${viewId}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
             
             // Actualizar título de página
             updatePageTitle(viewId);
             
-            // Actualizar contenido específico de la vista
-            updateViewContent(viewId);
+            // Pequeño delay para asegurar que el DOM esté listo antes de actualizar gráficos
+            setTimeout(() => {
+                updateViewContent(viewId);
+            }, 100);
             
             // Cerrar sidebar en móviles después de seleccionar
             if (window.innerWidth <= 992) {
@@ -1150,7 +1246,8 @@
                 'inventory': 'Gestión de Inventario',
                 'products': 'Catálogo de Productos',
                 'alerts': 'Alertas del Sistema',
-                'settings': 'Configuración'
+                'settings': 'Configuración',
+                'reports': 'Reportes'
             };
             
             const subtitles = {
@@ -1159,7 +1256,8 @@
                 'inventory': 'Estado actual del inventario',
                 'products': 'Listado completo de productos',
                 'alerts': 'Notificaciones importantes',
-                'settings': 'Configuración del sistema'
+                'settings': 'Configuración del sistema',
+                'reports': 'Generación de reportes'
             };
             
             document.getElementById('pageTitle').textContent = titles[viewId] || 'Dashboard';
@@ -1195,79 +1293,83 @@
             document.getElementById('totalStock').textContent = dashboardData.inventory.totalStock;
             document.getElementById('lowStockItems').textContent = dashboardData.inventory.lowStockItems;
             
-            // Actualizar badge de alertas
-            document.getElementById('alertBadge').textContent = dashboardData.lowStockAlerts.length;
-            
             // Crear/actualizar gráfico de ventas semanales
-            if (weeklySalesChart) {
-                weeklySalesChart.destroy();
-            }
-            
-            const weeklyCtx = document.getElementById('weeklySalesChart').getContext('2d');
-            weeklySalesChart = new Chart(weeklyCtx, {
-                type: 'bar',
-                data: {
-                    labels: dashboardData.sales.weekLabels,
-                    datasets: [{
-                        label: 'Ventas diarias',
-                        data: dashboardData.sales.weekly,
-                        backgroundColor: 'rgba(78, 115, 223, 0.8)',
-                        borderColor: 'rgba(78, 115, 223, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatCurrency(value);
+            const weeklyCanvas = document.getElementById('weeklySalesChart');
+            if (weeklyCanvas && weeklyCanvas.getContext) {
+                if (weeklySalesChart) {
+                    weeklySalesChart.destroy();
+                }
+                
+                const weeklyCtx = weeklyCanvas.getContext('2d');
+                weeklySalesChart = new Chart(weeklyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dashboardData.sales.weekLabels,
+                        datasets: [{
+                            label: 'Ventas diarias',
+                            data: dashboardData.sales.weekly,
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value);
+                                    }
                                 }
                             }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return formatCurrency(context.raw);
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return formatCurrency(context.raw);
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+            }
             
             // Actualizar tabla de últimas ventas
             const recentSalesTable = document.querySelector('#recentSalesTable tbody');
-            recentSalesTable.innerHTML = '';
-            
-            dashboardData.recentSales.slice(0, 5).forEach(sale => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${sale.product}</td>
-                    <td>${sale.time}</td>
-                    <td>${formatCurrency(sale.amount)}</td>
-                `;
-                recentSalesTable.appendChild(row);
-            });
+            if (recentSalesTable) {
+                recentSalesTable.innerHTML = '';
+                
+                dashboardData.recentSales.slice(0, 5).forEach(sale => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${sale.product}</td>
+                        <td>${sale.time}</td>
+                        <td>${formatCurrency(sale.amount)}</td>
+                    `;
+                    recentSalesTable.appendChild(row);
+                });
+            }
             
             // Actualizar tabla de productos más vendidos
             const topProductsTable = document.querySelector('#topProductsTable tbody');
-            topProductsTable.innerHTML = '';
-            
-            dashboardData.topProducts.forEach((product, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${product.name}</td>
-                    <td>${product.sales}</td>
-                `;
-                topProductsTable.appendChild(row);
-            });
+            if (topProductsTable) {
+                topProductsTable.innerHTML = '';
+                
+                dashboardData.topProducts.forEach((product, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${product.name}</td>
+                        <td>${product.sales}</td>
+                    `;
+                    topProductsTable.appendChild(row);
+                });
+            }
         }
 
         // Actualizar vista de ventas
@@ -1285,8 +1387,8 @@
                     datasets: [{
                         label: 'Ventas mensuales',
                         data: dashboardData.sales.monthlyTrend,
-                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                        borderColor: 'rgba(78, 115, 223, 1)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
                         borderWidth: 2,
                         tension: 0.3,
                         fill: true
@@ -1340,7 +1442,6 @@
             // Actualizar estadísticas de inventario
             const totalItems = dashboardData.inventory.totalStock + dashboardData.inventory.totalSold;
             const stockPercentage = Math.round((dashboardData.inventory.totalStock / totalItems) * 100);
-            const soldPercentage = Math.round((dashboardData.inventory.totalSold / totalItems) * 100);
             
             document.getElementById('inventoryProgress').textContent = `${stockPercentage}%`;
             document.getElementById('inventoryProgress').style.width = `${stockPercentage}%`;
@@ -1360,10 +1461,10 @@
                     datasets: [{
                         data: dashboardData.inventory.categories.map(c => c.count),
                         backgroundColor: [
-                            'rgba(78, 115, 223, 0.8)',
-                            'rgba(28, 200, 138, 0.8)',
-                            'rgba(54, 185, 204, 0.8)',
-                            'rgba(246, 194, 62, 0.8)'
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(79, 172, 254, 0.8)',
+                            'rgba(255, 107, 107, 0.8)',
+                            'rgba(255, 193, 7, 0.8)'
                         ],
                         borderWidth: 1
                     }]
@@ -1419,11 +1520,11 @@
                     <td>${formatCurrency(product.price)}</td>
                     <td>${stockBadge}</td>
                     <td>
-                        <button style="background: var(--primary-color); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-right: 0.25rem;">
-                            <i class="fas fa-edit"></i>
+                        <button style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-right: 0.25rem;">
+                            <i class='bx bx-edit'></i>
                         </button>
-                        <button style="background: var(--danger-color); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
-                            <i class="fas fa-trash"></i>
+                        <button style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
+                            <i class='bx bx-trash'></i>
                         </button>
                     </td>
                 `;
@@ -1439,7 +1540,7 @@
             if (dashboardData.lowStockAlerts.length === 0) {
                 alertsContainer.innerHTML = `
                     <div class="alert alert-warning">
-                        <i class="fas fa-check-circle alert-icon"></i>
+                        <i class='bx bx-check-circle alert-icon'></i>
                         <div>No hay alertas de stock bajo en este momento.</div>
                     </div>
                 `;
@@ -1450,7 +1551,7 @@
                 const alertDiv = document.createElement('div');
                 alertDiv.className = 'alert alert-danger';
                 alertDiv.innerHTML = `
-                    <i class="fas fa-exclamation-circle alert-icon"></i>
+                    <i class='bx bx-error-circle alert-icon'></i>
                     <div>${alert}</div>
                 `;
                 alertsContainer.appendChild(alertDiv);
@@ -1485,29 +1586,26 @@
             // Mostrar feedback de actualización
             const btn = document.querySelector('.refresh-btn');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i> Actualizado';
-            btn.style.background = 'var(--secondary-color)';
+            btn.innerHTML = '<i class="bx bx-check"></i> Actualizado';
+            btn.style.background = 'linear-gradient(135deg, #28a745 0%, #218838 100%)';
             
             setTimeout(() => {
                 btn.innerHTML = originalText;
-                btn.style.background = 'var(--secondary-color)';
+                btn.style.background = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
             }, 2000);
         }
 
         // Inicializar el dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            // Cargar datos iniciales
-            updateOverview();
+            // Pequeño delay para asegurar que todo el DOM esté cargado
+            setTimeout(() => {
+                // Cargar datos iniciales
+                updateOverview();
+            }, 200);
             
-            // Configurar eventos
+            // Configurar eventos solo para las pestañas
             document.querySelectorAll('.nav-tab').forEach(tab => {
                 tab.addEventListener('click', function() {
-                    showView(this.dataset.view);
-                });
-            });
-            
-            document.querySelectorAll('.sidebar .nav-item').forEach(item => {
-                item.addEventListener('click', function() {
                     showView(this.dataset.view);
                 });
             });
@@ -1519,12 +1617,14 @@
                 
                 if (window.innerWidth > 992) {
                     sidebar.classList.remove('show');
-                    overlay.classList.remove('show');
+                    overlay.classList.remove('active');
                 }
                 
-                // Re-renderizar gráficos si es necesario
-                const activeView = document.querySelector('.view-section.active').id;
-                updateViewContent(activeView);
+                // Re-renderizar gráficos después de redimensionar
+                setTimeout(() => {
+                    const activeView = document.querySelector('.view-section.active').id;
+                    updateViewContent(activeView);
+                }, 300);
             });
         });
     </script>
