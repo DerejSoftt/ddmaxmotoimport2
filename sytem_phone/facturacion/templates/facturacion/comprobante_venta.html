@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante de Venta</title>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        /* Botón de impresión */
+        .print-btn {
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .print-btn:hover {
+            background: #1a252f;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .print-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Comprobante */
+        .comprobante {
+            width: 80mm;
+            background: white;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed #ccc;
+        }
+        
+        .empresa {
+            font-weight: bold;
+            font-size: 18px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .linea {
+            border-top: 1px solid #000;
+            margin: 8px 0;
+        }
+        
+        .detalle-producto {
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        
+        .total {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px dashed #ccc;
+            font-size: 11px;
+            color: #777;
+        }
+        
+        /* Estilos para impresión */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+            
+            .container {
+                max-width: none;
+            }
+            
+            .print-btn {
+                display: none;
+            }
+            
+            .comprobante {
+                width: 80mm;
+                box-shadow: none;
+                border-radius: 0;
+                padding: 10px;
+                margin: 0;
+            }
+        }
+        
+        /* Información de ejemplo */
+        .info-label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="print-btn" onclick="window.print()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            IMPRIMIR COMPROBANTE
+        </button>
+        
+        <div class="comprobante">
+            <div class="header">
+                <div class="empresa">D'URO CELL</div>
+                <div>Tel: (809) 123-4567</div>
+                <div>Calle Principal #123, Santo Domingo</div>
+            </div>
+            
+            <div class="linea"></div>
+            
+            <div>
+                <span class="info-label">FACTURA:</span> {{ venta.numero_factura }}<br>
+                <span class="info-label">Fecha:</span> {{ venta.fecha_venta|date:"d/m/Y H:i" }}<br>
+                <span class="info-label">Vendedor:</span> {{ venta.vendedor.get_full_name }}<br>
+                <span class="info-label">Cliente:</span> {{ venta.cliente_nombre }}<br>
+                <span class="info-label">Documento:</span> {{ venta.cliente_documento }}
+            </div>
+            
+            <div class="linea"></div>
+            
+            <div>
+                <strong>PRODUCTOS</strong><br>
+                {% for detalle in detalles %}
+                    <div class="detalle-producto">
+                        {{ detalle.producto.nombre_producto }}<br>
+                        {{ detalle.cantidad }} x RD$ {{ detalle.precio_unitario }} = RD$ {{ detalle.subtotal }}
+                        {% if detalle.producto.imei_serial %}
+                            <br>IMEI: {{ detalle.producto.imei_serial }}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <div class="linea"></div>
+            
+            <div>
+                Subtotal: RD$ {{ venta.subtotal }}<br>
+                {% if venta.descuento_monto > 0 %}
+                    Descuento ({{ venta.descuento_porcentaje }}%): -RD$ {{ venta.descuento_monto }}<br>
+                {% endif %}
+                <strong>TOTAL: RD$ {{ venta.total }}</strong><br>
+                <br>
+                Tipo: {{ venta.get_tipo_venta_display }}<br>
+                Método: {{ venta.get_metodo_pago_display }}<br>
+                {% if venta.tipo_venta == 'contado' and venta.metodo_pago == 'efectivo' %}
+                    Recibido: RD$ {{ venta.efectivo_recibido }}<br>
+                    Cambio: RD$ {{ venta.cambio }}<br>
+                {% endif %}
+            </div>
+            
+            <div class="linea"></div>
+            
+            <div class="footer">
+                ¡Gracias por su compra!<br>
+                Garantía según política de la tienda<br>
+                Presentar esta factura para garantía
+            </div>
+        </div>
+    </div>
+</body>
+</html>
