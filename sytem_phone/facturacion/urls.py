@@ -35,7 +35,11 @@ urlpatterns = [
     #   path('historial-ventas/', views.historial_ventas, name='historial_ventas'),
     path('comprobante-venta/<int:venta_id>/', views.comprobante_venta, name='comprobante_venta'),
     path('buscar-productos/', views.buscar_productos_similares, name='buscar_productos'),
+    path('cuentas-por-cobrar/registrar-pago/', views.registrar_pago, name='registrar_pago'),
+    path('cuentas-por-cobrar/<int:cuenta_id>/', views.detalle_cuenta, name='detalle_cuenta'),
+    
+]
     
 
-      
-]
+
+

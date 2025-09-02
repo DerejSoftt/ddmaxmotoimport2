@@ -1386,7 +1386,7 @@
         <input type="hidden" name="sale_items" id="sale-items-field">
     </form>
 
-    <script>
+  <script>
 // Funciones para el sidebar
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
@@ -1726,6 +1726,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 item.style.backgroundColor = '';
                 item.style.borderLeft = '';
             });
+            
+            // Limpiar información del cliente
+            const clientInfoDisplay = document.querySelector('.client-info-display');
+            if (clientInfoDisplay) clientInfoDisplay.remove();
         } else {
             DOM.cashPaymentBtn.classList.remove('active');
             DOM.creditPaymentBtn.classList.add('active');
@@ -1795,6 +1799,56 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
+    // Función para validar límite de crédito
+    const validarLimiteCredito = () => {
+        if (state.paymentType === 'credito' && state.selectedClient) {
+            const limiteCredito = state.selectedClient.credit_limit;
+            if (state.finalTotal > limiteCredito) {
+                showAlert(
+                    `⚠️ Límite de crédito excedido\n` +
+                    `Límite del cliente: ${formatCurrency(limiteCredito)}\n` +
+                    `Total de la venta: ${formatCurrency(state.finalTotal)}\n` +
+                    `Excedente: ${formatCurrency(state.finalTotal - limiteCredito)}`,
+                    'error'
+                );
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // Función para mostrar información del cliente seleccionado
+    const mostrarInfoCliente = () => {
+        // Remover info anterior si existe
+        const oldInfo = document.querySelector('.client-info-display');
+        if (oldInfo) oldInfo.remove();
+        
+        if (state.selectedClient) {
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'client-info-display';
+            infoDiv.style.cssText = `
+                padding: 12px;
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                border-radius: 10px;
+                margin-top: 15px;
+                border-left: 4px solid #667eea;
+                font-size: 0.9rem;
+                line-height: 1.4;
+            `;
+            
+            const saldoDisponible = state.selectedClient.credit_limit - state.finalTotal;
+            const claseSaldo = saldoDisponible < 0 ? 'credit-limit-danger' : 'credit-limit-warning';
+            
+            infoDiv.innerHTML = `
+                <strong>Cliente seleccionado:</strong> ${state.selectedClient.full_name}<br>
+                <strong>Límite de crédito:</strong> ${formatCurrency(state.selectedClient.credit_limit)}<br>
+                <strong>Saldo disponible:</strong> <span class="${claseSaldo}">${formatCurrency(saldoDisponible)}</span>
+            `;
+            
+            DOM.clientInfoContainer.appendChild(infoDiv);
+        }
+    };
+
     // Función para procesar la venta con AJAX
     const procesarVenta = async () => {
         if (state.saleItems.length === 0) {
@@ -1807,9 +1861,8 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         
-        if (state.paymentType === 'credito' && state.finalTotal > state.selectedClient.credit_limit) {
-            showAlert(`El monto de la venta excede el límite de crédito del cliente (RD$${state.selectedClient.credit_limit.toFixed(2)})`, 'error');
-            return;
+        if (state.paymentType === 'credito' && !validarLimiteCredito()) {
+            return; // Detener si excede el límite de crédito
         }
         
         if (state.paymentType === 'contado' && !DOM.cashClientName.value.trim()) {
@@ -1869,7 +1922,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = await response.json();
             
             if (result.success) {
-                showAlert('Venta procesada correctamente', 'success');
+                let mensaje = 'Venta procesada correctamente';
+                
+                // Mensaje adicional para ventas a crédito
+                if (state.paymentType === 'credito') {
+                    mensaje += '\n✅ Cuenta por cobrar creada automáticamente';
+                }
+                
+                showAlert(mensaje, 'success');
                 
                 // Limpiar la venta actual
                 state.saleItems = [];
@@ -1935,6 +1995,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 item.style.backgroundColor = '';
                 item.style.borderLeft = '';
             });
+            
+            // Limpiar información del cliente
+            const clientInfoDisplay = document.querySelector('.client-info-display');
+            if (clientInfoDisplay) clientInfoDisplay.remove();
         }
     });
 
@@ -1977,6 +2041,14 @@ document.addEventListener("DOMContentLoaded", () => {
             };
             
             DOM.clientSearch.value = state.selectedClient.full_name;
+            
+            // Mostrar información del cliente
+            mostrarInfoCliente();
+            
+            // Validar límite de crédito automáticamente
+            if (state.paymentType === 'credito') {
+                validarLimiteCredito();
+            }
         }
     });
 
@@ -2054,6 +2126,12 @@ document.addEventListener("DOMContentLoaded", () => {
         clearProductSearch();
         updateTotal();
         renderSaleItems();
+        
+        // Actualizar información del cliente si es crédito
+        if (state.paymentType === 'credito' && state.selectedClient) {
+            mostrarInfoCliente();
+            validarLimiteCredito();
+        }
     });
 
     // Evento para cerrar caja
@@ -2081,6 +2159,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateTotal();
     renderSaleItems();
 });
-    </script>
+</script>
 </body>
 </html>

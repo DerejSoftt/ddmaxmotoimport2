@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404 
-from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock
+from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar
 from django.contrib import messages
 
 from django.http import JsonResponse
@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import json
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
-from django.db.models import Q
+
 from django.utils import timezone
 from datetime import date, timedelta
 from django.contrib.auth.decorators import login_required
@@ -31,6 +31,8 @@ import random
 import string
 import time
 from django.db.models import Max
+from django.db.models import Sum, Q, F
+from datetime import datetime, timedelta
 
 
 # Create your views her
@@ -387,6 +389,153 @@ def ventas(request):
         messages.error(request, f'Error al cargar la página de ventas: {str(e)}')
         return redirect('inicio')
 
+# @csrf_exempt
+# @require_POST
+# @transaction.atomic
+# def procesar_venta(request):
+#     try:
+#         data = request.POST
+#         user = request.user
+        
+#         # Función segura para conversión a Decimal
+#         def safe_decimal(value, default=0):
+#             if value is None or value == '':
+#                 return Decimal(default)
+#             try:
+#                 return Decimal(str(value).replace(',', '.'))
+#             except (InvalidOperation, ValueError):
+#                 return Decimal(default)
+        
+#         # Convertir valores
+#         payment_type = data.get('payment_type', 'contado')
+#         payment_method = data.get('payment_method', 'efectivo')
+#         subtotal = safe_decimal(data.get('subtotal', 0))
+#         discount_percentage = safe_decimal(data.get('discount_percentage', 0))
+#         discount_amount = safe_decimal(data.get('discount_amount', 0))
+#         total = safe_decimal(data.get('total', 0))
+#         cash_received = safe_decimal(data.get('cash_received', 0))
+#         change_amount = safe_decimal(data.get('change_amount', 0))
+        
+#         # Validaciones
+#         if payment_type not in ['contado', 'credito']:
+#             return JsonResponse({'success': False, 'message': 'Tipo de pago inválido'})
+        
+#         if payment_method not in ['efectivo', 'tarjeta', 'transferencia']:
+#             return JsonResponse({'success': False, 'message': 'Método de pago inválido'})
+        
+#         # Procesar información del cliente
+#         client_id = data.get('client_id')
+#         client_name = data.get('client_name', '').strip()
+#         client_document = data.get('client_document', '').strip()
+        
+#         cliente = None
+#         if payment_type == 'credito':
+#             if not client_id:
+#                 return JsonResponse({'success': False, 'message': 'Debe seleccionar un cliente para ventas a crédito'})
+            
+#             try:
+#                 cliente = Cliente.objects.get(id=client_id, status=True)
+#                 if total > cliente.credit_limit:
+#                     return JsonResponse({
+#                         'success': False, 
+#                         'message': f'El monto excede el límite de crédito del cliente (RD${cliente.credit_limit})'
+#                     })
+#             except Cliente.DoesNotExist:
+#                 return JsonResponse({'success': False, 'message': 'Cliente no válido'})
+#         else:
+#             if not client_name:
+#                 return JsonResponse({'success': False, 'message': 'Debe ingresar el nombre del cliente'})
+        
+#         # Procesar items de la venta
+#         sale_items_json = data.get('sale_items')
+#         if not sale_items_json:
+#             return JsonResponse({'success': False, 'message': 'No hay productos en la venta'})
+        
+#         sale_items = json.loads(sale_items_json)
+#         if not sale_items:
+#             return JsonResponse({'success': False, 'message': 'No hay productos en la venta'})
+        
+#         # Verificar stock antes de procesar la venta
+#         for item in sale_items:
+#             try:
+#                 producto = EntradaProducto.objects.get(id=item['productId'], activo=True)
+#                 cantidad_solicitada = int(item['quantity'])
+                
+#                 if not producto.tiene_stock_suficiente(cantidad_solicitada):
+#                     return JsonResponse({
+#                         'success': False, 
+#                         'message': f'Stock insuficiente para {producto.nombre_producto}. Disponible: {producto.cantidad}'
+#                     })
+#             except EntradaProducto.DoesNotExist:
+#                 return JsonResponse({'success': False, 'message': f'Producto no encontrado: {item.get("name", "Desconocido")}'})
+#             except (ValueError, KeyError):
+#                 return JsonResponse({'success': False, 'message': f'Cantidad inválida para producto: {item.get("name", "Desconocido")}'})
+        
+#         # Crear la venta
+#         venta = Venta(
+#             vendedor=user,
+#             cliente=cliente,
+#             cliente_nombre=client_name,
+#             cliente_documento=client_document,
+#             tipo_venta=payment_type,
+#             metodo_pago=payment_method,
+#             subtotal=subtotal,
+#             descuento_porcentaje=discount_percentage,
+#             descuento_monto=discount_amount,
+#             total=total,
+#             efectivo_recibido=cash_received,
+#             cambio=change_amount,
+#             completada=True
+#         )
+#         venta.save()
+        
+#         # Procesar detalles de venta y descontar stock
+#         for item in sale_items:
+#             producto = EntradaProducto.objects.get(id=item['productId'])
+#             cantidad = int(item['quantity'])
+#             precio_unitario = safe_decimal(item['price'])
+            
+#             # Descontar stock con manejo de error por si no existe el método
+#             try:
+#                 if not producto.restar_stock(
+#                     cantidad=cantidad,
+#                     usuario=user,
+#                     motivo="Venta",
+#                     referencia=venta.numero_factura
+#                 ):
+#                     raise Exception(f'Error al procesar stock para {producto.nombre_producto}')
+#             except AttributeError:
+#                 # Si el método registrar_movimiento_stock no existe, usar versión simple
+#                 if not producto.tiene_stock_suficiente(cantidad):
+#                     raise Exception(f'Stock insuficiente para {producto.nombre_producto}')
+                
+#                 cantidad_anterior = producto.cantidad
+#                 producto.cantidad -= cantidad
+#                 producto.save(update_fields=['cantidad'])
+                
+#                 print(f"Stock actualizado (método simple): {producto.nombre_producto} -{cantidad} unidades")
+            
+#             # Crear detalle de venta
+#             detalle = DetalleVenta(
+#                 venta=venta,
+#                 producto=producto,
+#                 cantidad=cantidad,
+#                 precio_unitario=precio_unitario,
+#                 subtotal=safe_decimal(item['subtotal'])
+#             )
+#             detalle.save()
+        
+#         return JsonResponse({
+#             'success': True, 
+#             'message': 'Venta procesada correctamente',
+#             'venta_id': venta.id,
+#             'numero_factura': venta.numero_factura
+#         })
+        
+#     except Exception as e:
+#         transaction.set_rollback(True)
+#         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
+
 @csrf_exempt
 @require_POST
 @transaction.atomic
@@ -522,6 +671,26 @@ def procesar_venta(request):
                 subtotal=safe_decimal(item['subtotal'])
             )
             detalle.save()
+        
+        # ===== NUEVO: CREAR CUENTA POR COBRAR SI ES VENTA A CRÉDITO =====
+        if payment_type == 'credito' and cliente:
+            # Calcular fecha de vencimiento (30 días a partir de hoy)
+            fecha_vencimiento = timezone.now().date() + timedelta(days=30)
+            
+            # Crear la cuenta por cobrar
+            cuenta_por_cobrar = CuentaPorCobrar(
+                venta=venta,
+                cliente=cliente,
+                monto_total=total,
+                monto_pagado=Decimal('0.00'),  # Inicialmente no se ha pagado nada
+                fecha_vencimiento=fecha_vencimiento,
+                estado='pendiente',
+                observaciones=f"Venta a crédito - Factura: {venta.numero_factura}"
+            )
+            cuenta_por_cobrar.save()
+            
+            print(f"Cuenta por cobrar creada: {cuenta_por_cobrar}")
+        # ===== FIN DE NUEVO CÓDIGO =====
         
         return JsonResponse({
             'success': True, 
@@ -1319,8 +1488,228 @@ def buscar_productos_similares(request):
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
 
 
+
+
+
 def cuentaporcobrar(request):
-    return render(request, "facturacion/cuentaporcobrar.html")
+    # Obtener parámetros de filtrado
+    search = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Filtrar cuentas por cobrar
+    cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').all()
+    
+    if search:
+        cuentas = cuentas.filter(
+            Q(cliente__full_name__icontains=search) |
+            Q(venta__numero_factura__icontains=search) |
+            Q(cliente__identification_number__icontains=search)
+        )
+    
+    if status_filter:
+        cuentas = cuentas.filter(estado=status_filter)
+    
+    if date_from:
+        cuentas = cuentas.filter(venta__fecha_venta__gte=date_from)
+    
+    if date_to:
+        cuentas = cuentas.filter(venta__fecha_venta__lte=date_to)
+    
+    # Calcular estadísticas
+    total_pendiente = cuentas.filter(estado='pendiente').aggregate(
+        total=Sum(F('monto_total') - F('monto_pagado'))
+    )['total'] or Decimal('0.00')
+    
+    total_vencido = cuentas.filter(estado='vencida').aggregate(
+        total=Sum(F('monto_total') - F('monto_pagado'))
+    )['total'] or Decimal('0.00')
+    
+    # Pagos del mes actual
+    mes_actual = timezone.now().month
+    año_actual = timezone.now().year
+    pagos_mes = PagoCuentaPorCobrar.objects.filter(
+        fecha_pago__month=mes_actual,
+        fecha_pago__year=año_actual
+    ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+    
+    total_por_cobrar = cuentas.exclude(estado='pagada').aggregate(
+        total=Sum(F('monto_total') - F('monto_pagado'))
+    )['total'] or Decimal('0.00')
+    
+    # Preparar datos para el template
+    cuentas_data = []
+    for cuenta in cuentas:
+        # Obtener productos de la venta de manera segura
+        productos = []
+        try:
+            # Intentar obtener los detalles de la venta
+            if hasattr(cuenta, 'venta') and cuenta.venta:
+                # Verificar si la venta tiene detalles
+                if hasattr(cuenta.venta, 'detalles'):
+                    for detalle in cuenta.venta.detalles.all():
+                        nombre_producto = 'Servicio'
+                        if hasattr(detalle, 'producto') and detalle.producto:
+                            nombre_producto = detalle.producto.nombre
+                        
+                        productos.append({
+                            'nombre': nombre_producto,
+                            'cantidad': float(detalle.cantidad) if hasattr(detalle, 'cantidad') else 1,
+                            'precio': float(detalle.precio) if hasattr(detalle, 'precio') else float(cuenta.monto_total)
+                        })
+                else:
+                    # Si no hay detalles, usar información básica
+                    productos.append({
+                        'nombre': 'Producto/Servicio',
+                        'cantidad': 1,
+                        'precio': float(cuenta.monto_total)
+                    })
+            else:
+                # Si no hay venta asociada
+                productos.append({
+                    'nombre': 'Información no disponible',
+                    'cantidad': 1,
+                    'precio': float(cuenta.monto_total)
+                })
+        except Exception as e:
+            # En caso de cualquier error
+            productos.append({
+                'nombre': f'Error al cargar: {str(e)}',
+                'cantidad': 1,
+                'precio': float(cuenta.monto_total)
+            })
+        
+        cuentas_data.append({
+            'id': cuenta.id,
+            'invoiceNumber': cuenta.venta.numero_factura if cuenta.venta else 'N/A',
+            'clientName': cuenta.cliente.full_name if cuenta.cliente else 'Cliente no disponible',
+            'clientPhone': cuenta.cliente.primary_phone if cuenta.cliente and cuenta.cliente.primary_phone else 'N/A',
+            'products': productos,
+            'saleDate': cuenta.venta.fecha_venta.strftime('%Y-%m-%d') if cuenta.venta and cuenta.venta.fecha_venta else '',
+            'dueDate': cuenta.fecha_vencimiento.strftime('%Y-%m-%d') if cuenta.fecha_vencimiento else '',
+            'totalAmount': float(cuenta.monto_total),
+            'paidAmount': float(cuenta.monto_pagado),
+            'status': cuenta.estado,
+            'observations': cuenta.observaciones or ''
+        })
+    
+    # Convertir a JSON para pasarlo al template - asegurando que sea seguro
+    cuentas_json = json.dumps(cuentas_data)
+    
+    context = {
+        'cuentas_json': cuentas_json,
+        'total_pendiente': float(total_pendiente),
+        'total_vencido': float(total_vencido),
+        'pagos_mes': float(pagos_mes),
+        'total_por_cobrar': float(total_por_cobrar),
+        'search': search,
+        'status_filter': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, "facturacion/cuentaporcobrar.html", context)
+
+
+def registrar_pago(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            cuenta_id = data.get('cuenta_id')
+            monto = Decimal(data.get('monto'))
+            metodo_pago = data.get('metodo_pago')
+            referencia = data.get('referencia', '')
+            observaciones = data.get('observaciones', '')
+            
+            cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
+            
+            # Validar que el monto no exceda el saldo pendiente
+            saldo_pendiente = cuenta.saldo_pendiente
+            if monto > saldo_pendiente:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'El monto excede el saldo pendiente de RD${saldo_pendiente}'
+                })
+            
+            # Crear el pago
+            pago = PagoCuentaPorCobrar(
+                cuenta=cuenta,
+                monto=monto,
+                metodo_pago=metodo_pago,
+                referencia=referencia,
+                observaciones=observaciones
+            )
+            pago.save()
+            
+            # Actualizar la cuenta
+            cuenta.monto_pagado += monto
+            
+            # Actualizar el estado
+            if cuenta.monto_pagado >= cuenta.monto_total:
+                cuenta.estado = 'pagada'
+            elif cuenta.monto_pagado > 0:
+                cuenta.estado = 'parcial'
+            
+            cuenta.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Pago registrado exitosamente'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al registrar pago: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+def detalle_cuenta(request, cuenta_id):
+    cuenta = get_object_or_404(
+        CuentaPorCobrar.objects.select_related('venta', 'cliente'), 
+        id=cuenta_id
+    )
+    
+    pagos = PagoCuentaPorCobrar.objects.filter(cuenta=cuenta).order_by('-fecha_pago')
+    
+    data = {
+        'id': cuenta.id,
+        'factura': cuenta.venta.numero_factura,
+        'cliente': cuenta.cliente.full_name,
+        'telefono': cuenta.cliente.primary_phone or 'N/A',
+        'productos': [
+            {
+                'nombre': item.producto.nombre if hasattr(item, 'producto') else 'Servicio',
+                'cantidad': item.cantidad,
+                'precio': item.precio
+            }
+            for item in cuenta.venta.detalles.all()
+        ],
+        'fecha_venta': cuenta.venta.fecha_venta.strftime('%Y-%m-%d'),
+        'fecha_vencimiento': cuenta.fecha_vencimiento.strftime('%Y-%m-%d'),
+        'monto_total': float(cuenta.monto_total),
+        'monto_pagado': float(cuenta.monto_pagado),
+        'saldo_pendiente': float(cuenta.saldo_pendiente),
+        'estado': cuenta.get_estado_display(),
+        'observaciones': cuenta.observaciones or 'N/A',
+        'pagos': [
+            {
+                'fecha': pago.fecha_pago.strftime('%Y-%m-%d %H:%M'),
+                'monto': float(pago.monto),
+                'metodo': pago.get_metodo_pago_display(),
+                'referencia': pago.referencia or 'N/A',
+                'observaciones': pago.observaciones or 'N/A'
+            }
+            for pago in pagos
+        ]
+    }
+    
+    return JsonResponse(data)
+
+
+
 
 def gestiondesuplidores(request):
     proveedores = Proveedor.objects.all().order_by('nombre_empresa')

@@ -5,93 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comprobante de Venta</title>
     <style>
-        /* Estilos generales */
+        /* Estilos optimizados para impresión térmica 80mm */
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
             margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
+            padding: 0;
+            width: 80mm;
         }
         
         .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 400px;
+            width: 80mm;
+            padding: 5px;
+            box-sizing: border-box;
         }
         
-        /* Botón de impresión */
+        /* Botón de impresión - Solo visible en pantalla */
         .print-btn {
             background: #2c3e50;
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 16px;
-            font-weight: 600;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 14px;
             cursor: pointer;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            margin-bottom: 10px;
+            width: 80mm;
+            text-align: center;
         }
         
         .print-btn:hover {
             background: #1a252f;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-        }
-        
-        .print-btn:active {
-            transform: translateY(0);
         }
         
         /* Comprobante */
         .comprobante {
             width: 80mm;
             background: white;
-            padding: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            margin-bottom: 30px;
+            padding: 5px;
+            box-sizing: border-box;
         }
         
         .header {
             text-align: center;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 2px dashed #ccc;
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px dashed #ccc;
+            font-size: 11px;
         }
         
         .empresa {
             font-weight: bold;
-            font-size: 18px;
-            color: #2c3e50;
-            margin-bottom: 5px;
+            font-size: 14px;
+            margin-bottom: 3px;
         }
         
         .linea {
-            border-top: 1px solid #000;
-            margin: 8px 0;
+            border-top: 1px dashed #000;
+            margin: 5px 0;
         }
         
         .detalle-producto {
-            margin: 5px 0;
-            padding: 5px 0;
-            border-bottom: 1px dashed #eee;
+            margin: 3px 0;
+            padding: 3px 0;
+            font-size: 11px;
+            border-bottom: 1px dotted #eee;
         }
         
         .total {
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
         }
         
         .text-right {
@@ -100,22 +83,24 @@
         
         .footer {
             text-align: center;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 2px dashed #ccc;
-            font-size: 11px;
-            color: #777;
+            margin-top: 8px;
+            padding-top: 5px;
+            border-top: 1px dashed #ccc;
+            font-size: 10px;
+            color: #555;
+        }
+        
+        .info-label {
+            font-weight: bold;
         }
         
         /* Estilos para impresión */
         @media print {
             body {
-                background: none;
+                width: 80mm;
+                font-size: 11px;
+                margin: 0;
                 padding: 0;
-            }
-            
-            .container {
-                max-width: none;
             }
             
             .print-btn {
@@ -124,28 +109,20 @@
             
             .comprobante {
                 width: 80mm;
-                box-shadow: none;
-                border-radius: 0;
-                padding: 10px;
+                padding: 0;
                 margin: 0;
             }
-        }
-        
-        /* Información de ejemplo */
-        .info-label {
-            font-weight: bold;
-            color: #2c3e50;
+            
+            .container {
+                padding: 0;
+                margin: 0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <button class="print-btn" onclick="window.print()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                <rect x="6" y="14" width="12" height="8"></rect>
-            </svg>
             IMPRIMIR COMPROBANTE
         </button>
         
