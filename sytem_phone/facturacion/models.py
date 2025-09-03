@@ -548,7 +548,6 @@ class DetalleVenta(models.Model):
 
 
 
-
 class CuentaPorCobrar(models.Model):
     ESTADOS = (
         ('pendiente', 'Pendiente'),
@@ -557,14 +556,13 @@ class CuentaPorCobrar(models.Model):
         ('parcial', 'Pago Parcial'),
     )
 
-    
-    
     venta = models.OneToOneField('Venta', on_delete=models.CASCADE, related_name='cuenta_por_cobrar')
     cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='cuentas_por_cobrar')
     monto_total = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto Total")
     monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Monto Pagado")
     fecha_vencimiento = models.DateField(verbose_name="Fecha de Vencimiento")
     estado = models.CharField(max_length=10, choices=ESTADOS, default='pendiente')
+    productos = models.TextField(verbose_name="Productos de la Venta", blank=True)  # NUEVO CAMPO
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)

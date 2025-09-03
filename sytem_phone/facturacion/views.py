@@ -535,7 +535,6 @@ def ventas(request):
 #     except Exception as e:
 #         transaction.set_rollback(True)
 #         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
-
 @csrf_exempt
 @require_POST
 @transaction.atomic
@@ -672,25 +671,36 @@ def procesar_venta(request):
             )
             detalle.save()
         
-        # ===== NUEVO: CREAR CUENTA POR COBRAR SI ES VENTA A CRÉDITO =====
+        # ===== CREAR CUENTA POR COBRAR SI ES VENTA A CRÉDITO =====
         if payment_type == 'credito' and cliente:
             # Calcular fecha de vencimiento (30 días a partir de hoy)
             fecha_vencimiento = timezone.now().date() + timedelta(days=30)
+            
+            # Crear string con los productos de la venta
+            productos_str = ""
+            for item in sale_items:
+                try:
+                    producto = EntradaProducto.objects.get(id=item['productId'])
+                    productos_str += f"{producto.nombre_producto} x{item['quantity']} - RD${float(item['price']):.2f}\n"
+                except EntradaProducto.DoesNotExist:
+                    productos_str += f"Producto ID:{item['productId']} x{item['quantity']} - RD${float(item['price']):.2f}\n"
             
             # Crear la cuenta por cobrar
             cuenta_por_cobrar = CuentaPorCobrar(
                 venta=venta,
                 cliente=cliente,
                 monto_total=total,
-                monto_pagado=Decimal('0.00'),  # Inicialmente no se ha pagado nada
+                monto_pagado=Decimal('0.00'),
                 fecha_vencimiento=fecha_vencimiento,
+                productos=productos_str,  # GUARDAR PRODUCTOS
                 estado='pendiente',
-                observaciones=f"Venta a crédito - Factura: {venta.numero_factura}"
+                observaciones=f"Venta a crédito - Factura: {venta.numero_factura}\nCliente: {cliente.full_name}"
             )
             cuenta_por_cobrar.save()
             
             print(f"Cuenta por cobrar creada: {cuenta_por_cobrar}")
-        # ===== FIN DE NUEVO CÓDIGO =====
+            print(f"Productos en la cuenta: {productos_str}")
+        # ===== FIN DE CREACIÓN DE CUENTA POR COBRAR =====
         
         return JsonResponse({
             'success': True, 
@@ -701,6 +711,8 @@ def procesar_venta(request):
         
     except Exception as e:
         transaction.set_rollback(True)
+        import traceback
+        print(f"Error completo: {traceback.format_exc()}")
         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
 
 def buscar_productos(request):
@@ -1541,53 +1553,99 @@ def cuentaporcobrar(request):
     # Preparar datos para el template
     cuentas_data = []
     for cuenta in cuentas:
-        # Obtener productos de la venta de manera segura
+        # Obtener productos de la venta
         productos = []
-        try:
-            # Intentar obtener los detalles de la venta
-            if hasattr(cuenta, 'venta') and cuenta.venta:
-                # Verificar si la venta tiene detalles
-                if hasattr(cuenta.venta, 'detalles'):
+        
+        # Primero intentar usar el campo productos (JSON) si existe
+        if cuenta.productos:
+            try:
+                productos_json = json.loads(cuenta.productos)
+                for producto in productos_json:
+                    productos.append({
+                        'nombre': producto.get('nombre', 'Producto'),
+                        'cantidad': producto.get('cantidad', 1),
+                        'precio': float(producto.get('precio', 0))
+                    })
+            except json.JSONDecodeError:
+                # Si no es JSON válido, tratar como texto plano
+                productos.append({
+                    'nombre': cuenta.productos,
+                    'cantidad': 1,
+                    'precio': float(cuenta.monto_total)
+                })
+        else:
+            # Si no hay productos en el campo, intentar obtener de la venta
+            try:
+                if cuenta.venta and hasattr(cuenta.venta, 'detalles'):
                     for detalle in cuenta.venta.detalles.all():
                         nombre_producto = 'Servicio'
                         if hasattr(detalle, 'producto') and detalle.producto:
                             nombre_producto = detalle.producto.nombre
+                        elif hasattr(detalle, 'servicio') and detalle.servicio:
+                            nombre_producto = detalle.servicio.nombre
+                        elif hasattr(detalle, 'descripcion') and detalle.descripcion:
+                            nombre_producto = detalle.descripcion
+                        
+                        precio = 0
+                        if hasattr(detalle, 'precio'):
+                            precio = float(detalle.precio)
+                        elif hasattr(detalle, 'precio_unitario'):
+                            precio = float(detalle.precio_unitario)
+                        
+                        cantidad = 1
+                        if hasattr(detalle, 'cantidad'):
+                            cantidad = float(detalle.cantidad)
                         
                         productos.append({
                             'nombre': nombre_producto,
-                            'cantidad': float(detalle.cantidad) if hasattr(detalle, 'cantidad') else 1,
-                            'precio': float(detalle.precio) if hasattr(detalle, 'precio') else float(cuenta.monto_total)
+                            'cantidad': cantidad,
+                            'precio': precio
                         })
                 else:
-                    # Si no hay detalles, usar información básica
+                    # Si no hay venta o detalles
                     productos.append({
                         'nombre': 'Producto/Servicio',
                         'cantidad': 1,
                         'precio': float(cuenta.monto_total)
                     })
-            else:
-                # Si no hay venta asociada
+            except Exception as e:
+                # En caso de cualquier error
                 productos.append({
-                    'nombre': 'Información no disponible',
+                    'nombre': f'Error: {str(e)}',
                     'cantidad': 1,
                     'precio': float(cuenta.monto_total)
                 })
-        except Exception as e:
-            # En caso de cualquier error
-            productos.append({
-                'nombre': f'Error al cargar: {str(e)}',
-                'cantidad': 1,
-                'precio': float(cuenta.monto_total)
-            })
+        
+        # Obtener información del cliente de manera segura
+        client_name = 'Cliente no disponible'
+        client_phone = 'N/A'
+        
+        if cuenta.cliente:
+            client_name = cuenta.cliente.full_name or 'Cliente sin nombre'
+            client_phone = cuenta.cliente.primary_phone or 'N/A'
+        
+        # Obtener información de la factura de manera segura
+        invoice_number = 'N/A'
+        sale_date = ''
+        
+        if cuenta.venta:
+            invoice_number = cuenta.venta.numero_factura or 'N/A'
+            if cuenta.venta.fecha_venta:
+                sale_date = cuenta.venta.fecha_venta.strftime('%Y-%m-%d')
+        
+        # Obtener fecha de vencimiento
+        due_date = ''
+        if cuenta.fecha_vencimiento:
+            due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
         
         cuentas_data.append({
             'id': cuenta.id,
-            'invoiceNumber': cuenta.venta.numero_factura if cuenta.venta else 'N/A',
-            'clientName': cuenta.cliente.full_name if cuenta.cliente else 'Cliente no disponible',
-            'clientPhone': cuenta.cliente.primary_phone if cuenta.cliente and cuenta.cliente.primary_phone else 'N/A',
+            'invoiceNumber': invoice_number,
+            'clientName': client_name,
+            'clientPhone': client_phone,
             'products': productos,
-            'saleDate': cuenta.venta.fecha_venta.strftime('%Y-%m-%d') if cuenta.venta and cuenta.venta.fecha_venta else '',
-            'dueDate': cuenta.fecha_vencimiento.strftime('%Y-%m-%d') if cuenta.fecha_vencimiento else '',
+            'saleDate': sale_date,
+            'dueDate': due_date,
             'totalAmount': float(cuenta.monto_total),
             'paidAmount': float(cuenta.monto_pagado),
             'status': cuenta.estado,
@@ -1610,7 +1668,6 @@ def cuentaporcobrar(request):
     }
     
     return render(request, "facturacion/cuentaporcobrar.html", context)
-
 
 def registrar_pago(request):
     if request.method == 'POST':

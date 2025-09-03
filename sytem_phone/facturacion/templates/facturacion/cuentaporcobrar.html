@@ -1208,7 +1208,7 @@
         document.body.classList.remove('sidebar-open');
     }
 
-    // ===== FUNCIONES UTilitarias =====
+    // ===== FUNCIONES UTILITARIAS =====
     function formatDate(dateString) {
         if (!dateString) return 'N/A';
         try {
@@ -1237,6 +1237,23 @@
             'parcial': 'Pago Parcial'
         };
         return statusNames[status] || status;
+    }
+
+    // Función para obtener el token CSRF
+    function getCSRFToken() {
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 
     // ===== FUNCIONES PRINCIPALES =====
@@ -1456,6 +1473,12 @@
         document.body.style.overflow = 'hidden';
     }
 
+    function openPaymentModalFromDetails() {
+        const accountId = document.getElementById('payFromDetailsBtn').getAttribute('data-account-id');
+        openPaymentModal(parseInt(accountId));
+        closeDetailsModal();
+    }
+
     function closePaymentModal() {
         document.getElementById('paymentModal').classList.remove('active');
         document.body.style.overflow = 'auto';
@@ -1466,6 +1489,8 @@
         const accountId = document.getElementById('paymentAccountId').value;
         const amount = parseFloat(document.getElementById('paymentAmountInput').value);
         const method = document.getElementById('paymentMethod').value;
+        const reference = document.getElementById('paymentReference').value;
+        const observations = document.getElementById('paymentObservations').value;
         
         // Validaciones básicas
         if (!amount || amount <= 0) {
@@ -1479,14 +1504,36 @@
             return;
         }
         
-        // Simular pago exitoso
-        alert(`Pago de RD$ ${amount.toLocaleString('es-DO')} registrado exitosamente.`);
-        closePaymentModal();
-        
-        // Recargar página para ver cambios
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
+        // Enviar pago al servidor
+        fetch('registrar-pago/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                cuenta_id: accountId,
+                monto: amount,
+                metodo_pago: method,
+                referencia: reference,
+                observaciones: observations
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                closePaymentModal();
+                // Recargar la página para ver los cambios
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al registrar el pago');
+        });
     }
 
     function exportData() {
