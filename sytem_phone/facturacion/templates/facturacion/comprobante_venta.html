@@ -1,90 +1,89 @@
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comprobante de Venta</title>
+    <title>Comprobante de Venta - D'URO CELL</title>
     <style>
-        /* Estilos optimizados para impresión térmica 80mm */
-        body {
-            font-family: 'Arial', sans-serif;
-            font-size: 12px;
+        /* Reset completo para eliminar márgenes predeterminados */
+        * {
             margin: 0;
             padding: 0;
-            width: 80mm;
-        }
-        
-        .container {
-            width: 80mm;
-            padding: 5px;
             box-sizing: border-box;
         }
         
-        /* Botón de impresión - Solo visible en pantalla */
+        /* Estilos para vista en pantalla */
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
         .print-btn {
             background: #2c3e50;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 12px 20px;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 16px;
             cursor: pointer;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             width: 80mm;
             text-align: center;
+            transition: background 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         
         .print-btn:hover {
             background: #1a252f;
         }
         
-        /* Comprobante */
         .comprobante {
-            width: 80mm;
+            width: 70mm;
             background: white;
-            padding: 5px;
-            box-sizing: border-box;
+            padding: 5px 25px 5px 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            margin: 0 auto;
         }
         
         .header {
             text-align: center;
-            margin-bottom: 5px;
-            padding-bottom: 5px;
+            margin-bottom: 3px;
+            padding-bottom: 3px;
             border-bottom: 1px dashed #ccc;
-            font-size: 11px;
         }
         
         .empresa {
             font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 3px;
+            font-size: 16px;
+            margin-bottom: 2px;
+            color: #2c3e50;
         }
         
         .linea {
             border-top: 1px dashed #000;
-            margin: 5px 0;
+            margin: 4px 0;
         }
         
         .detalle-producto {
             margin: 3px 0;
             padding: 3px 0;
-            font-size: 11px;
-            border-bottom: 1px dotted #eee;
-        }
-        
-        .total {
-            font-weight: bold;
             font-size: 12px;
-        }
-        
-        .text-right {
-            text-align: right;
+            border-bottom: 1px dotted #eee;
         }
         
         .footer {
             text-align: center;
-            margin-top: 8px;
-            padding-top: 5px;
+            margin-top: 6px;
+            padding-top: 4px;
             border-top: 1px dashed #ccc;
             font-size: 10px;
             color: #555;
@@ -92,97 +91,171 @@
         
         .info-label {
             font-weight: bold;
+            color: #2c3e50;
         }
         
-        /* Estilos para impresión */
+        .info-section {
+            margin: 4px 0;
+        }
+        
+        /* Estilos para impresión - optimizados para 80mm */
         @media print {
-            body {
-                width: 80mm;
-                font-size: 11px;
-                margin: 0;
-                padding: 0;
+            * {
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+            
+            body, html {
+                width: 80mm !important;
+                height: auto;
+                background: white !important;
+                display: block !important;
+                font-size: 12px !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
             .print-btn {
-                display: none;
+                display: none !important;
             }
             
             .comprobante {
-                width: 80mm;
-                padding: 0;
-                margin: 0;
+                width: 70mm !important;
+                padding: 2px 22px 2px 2px !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
             }
             
-            .container {
-                padding: 0;
-                margin: 0;
+            .header {
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+                margin-bottom: 1px !important;
+                padding-bottom: 1px !important;
+            }
+            
+            .empresa {
+                font-size: 15px !important;
+                margin-bottom: 1px !important;
+            }
+            
+            .linea {
+                margin: 2px 0 !important;
+            }
+            
+            .detalle-producto {
+                margin: 2px 0 !important;
+                padding: 2px 0 !important;
+                font-size: 11px !important;
+            }
+            
+            .info-section {
+                margin: 2px 0 !important;
+                font-size: 11px !important;
+            }
+            
+            .footer {
+                margin-top: 4px !important;
+                padding-top: 2px !important;
+                font-size: 9px !important;
+            }
+            
+            @page {
+                size: 80mm auto;
+                margin: 2mm 2mm 2mm 2mm !important;
+                padding: 0 !important;
+                margin-left: 0 !important;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <button class="print-btn" onclick="window.print()">
-            IMPRIMIR COMPROBANTE
-        </button>
+    <button class="print-btn" onclick="imprimirComprobante()">
+        🖨️ IMPRIMIR COMPROBANTE
+    </button>
+    
+    <div class="comprobante">
+        <div class="header">
+            <div class="empresa">D'URO CELL</div>
+            <div>Tel: (809) 123-4567</div>
+            <div>Calle Principal #123, Santo Domingo</div>
+        </div>
         
-        <div class="comprobante">
-            <div class="header">
-                <div class="empresa">D'URO CELL</div>
-                <div>Tel: (809) 123-4567</div>
-                <div>Calle Principal #123, Santo Domingo</div>
-            </div>
-            
-            <div class="linea"></div>
-            
-            <div>
-                <span class="info-label">FACTURA:</span> {{ venta.numero_factura }}<br>
-                <span class="info-label">Fecha:</span> {{ venta.fecha_venta|date:"d/m/Y H:i" }}<br>
-                <span class="info-label">Vendedor:</span> {{ venta.vendedor.get_full_name }}<br>
-                <span class="info-label">Cliente:</span> {{ venta.cliente_nombre }}<br>
-                <span class="info-label">Documento:</span> {{ venta.cliente_documento }}
-            </div>
-            
-            <div class="linea"></div>
-            
-            <div>
-                <strong>PRODUCTOS</strong><br>
-                {% for detalle in detalles %}
-                    <div class="detalle-producto">
-                        {{ detalle.producto.nombre_producto }}<br>
-                        {{ detalle.cantidad }} x RD$ {{ detalle.precio_unitario }} = RD$ {{ detalle.subtotal }}
-                        {% if detalle.producto.imei_serial %}
-                            <br>IMEI: {{ detalle.producto.imei_serial }}
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            </div>
-            
-            <div class="linea"></div>
-            
-            <div>
-                Subtotal: RD$ {{ venta.subtotal }}<br>
-                {% if venta.descuento_monto > 0 %}
-                    Descuento ({{ venta.descuento_porcentaje }}%): -RD$ {{ venta.descuento_monto }}<br>
-                {% endif %}
-                <strong>TOTAL: RD$ {{ venta.total }}</strong><br>
-                <br>
-                Tipo: {{ venta.get_tipo_venta_display }}<br>
-                Método: {{ venta.get_metodo_pago_display }}<br>
-                {% if venta.tipo_venta == 'contado' and venta.metodo_pago == 'efectivo' %}
-                    Recibido: RD$ {{ venta.efectivo_recibido }}<br>
-                    Cambio: RD$ {{ venta.cambio }}<br>
+        <div class="linea"></div>
+        
+        <div class="info-section">
+            <span class="info-label">FACTURA:</span> {{ venta.numero_factura }}<br>
+            <span class="info-label">Fecha:</span> {{ venta.fecha_venta|date:"d/m/Y H:i" }}<br>
+            <span class="info-label">Vendedor:</span> {{ venta.vendedor.get_full_name|default:venta.vendedor.username }}<br>
+            <span class="info-label">Cliente:</span> {{ venta.cliente_nombre }}<br>
+            {% if venta.cliente_documento %}
+            <span class="info-label">Documento:</span> {{ venta.cliente_documento }}
+            {% endif %}
+        </div>
+        
+        <div class="linea"></div>
+        
+        <div class="info-section">
+            <strong>PRODUCTOS</strong><br>
+            {% for detalle in detalles %}
+            <div class="detalle-producto">
+                {{ detalle.producto.nombre_producto }}<br>
+                {{ detalle.cantidad }} X {{ detalle.precio_unitario|floatformat:2|intcomma }} => {{ detalle.subtotal|floatformat:2|intcomma }}
+                {% if detalle.producto.imei_serial %}
+                <div>IMEI: {{ detalle.producto.imei_serial }}</div>
                 {% endif %}
             </div>
-            
-            <div class="linea"></div>
-            
-            <div class="footer">
-                ¡Gracias por su compra!<br>
-                Garantía según política de la tienda<br>
-                Presentar esta factura para garantía
-            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="linea"></div>
+        
+        <div class="info-section">
+            Subtotal: RD$ {{ venta.subtotal|floatformat:2|intcomma }}<br>
+            {% if venta.descuento_monto > 0 %}
+            Descuento ({{ venta.descuento_porcentaje|floatformat:2 }}%)<br>
+            {% comment %} Descuento ({{ venta.descuento_porcentaje|floatformat:2 }}%): -RD$ {{ venta.descuento_monto|floatformat:2|intcomma }}<br> {% endcomment %}
+            {% endif %}
+            <strong>TOTAL: RD$ {{ venta.total|floatformat:2|intcomma }}</strong><br>
+            <br>
+            Tipo: {{ venta.get_tipo_venta_display }}<br>
+            Método: {{ venta.get_metodo_pago_display }}<br>
+            {% if venta.tipo_venta == 'contado' and venta.metodo_pago == 'efectivo' %}
+            Recibido: RD$ {{ venta.efectivo_recibido|floatformat:2|intcomma }}<br>
+            Cambio: RD$ {{ venta.cambio|floatformat:2|intcomma }}<br>
+            {% endif %}
+        </div>
+        
+        <div class="linea"></div>
+        
+        <div class="footer">
+            ¡Gracias por su compra!<br>
+            Garantía según política de la tienda<br>
+            Presentar esta factura para garantía
         </div>
     </div>
+
+    <script>
+        function imprimirComprobante() {
+            // Ocultar el botón antes de imprimir
+            document.querySelector('.print-btn').style.display = 'none';
+            
+            // Usar setTimeout para asegurar que el DOM se actualice antes de imprimir
+            setTimeout(function() {
+                window.print();
+                
+                // Restaurar el botón después de imprimir
+                setTimeout(function() {
+                    document.querySelector('.print-btn').style.display = 'block';
+                }, 500);
+            }, 100);
+        }
+        
+        // Configuración para reducir el salto de papel después de imprimir
+        window.onafterprint = function() {
+            console.log("Impresión completada.");
+        };
+    </script>
 </body>
 </html>
