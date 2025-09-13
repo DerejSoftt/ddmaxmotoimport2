@@ -737,6 +737,10 @@
                         <h3><i class='bx bx-credit-card-front'></i> Tarjeta</h3>
                         <p id="card-sales">RD${{ ventas_tarjeta|floatformat:2 }}</p>
                     </div>
+                    <div class="summary-item">
+    <h3><i class='bx bx-money'></i> Efectivo en Caja</h3>
+    <p id="cash-sales">RD${{ efectivo_en_caja|floatformat:2 }}</p>
+</div>
                 </div>
 
                 <!-- Grid Container con formulario -->
@@ -781,7 +785,7 @@
                             <label for="expected-total" class="form-label">
                                 <i class='bx bx-calculator'></i> Total Esperado
                             </label>
-                            <input type="text" id="expected-total" class="form-control" readonly value="RD${{ total_ventas|floatformat:2 }}">
+                            <input type="text" id="expected-total" class="form-control" readonly value="RD${{ total_esperado|floatformat:2 }}">
                         </div>
 
                         <div class="form-group">

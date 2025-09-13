@@ -1962,17 +1962,27 @@ def cierredecaja(request):
         venta__in=ventas_periodo
     ).distinct().count()
     
+    # CALCULAR EL TOTAL ESPERADO (MONTO INICIAL + TOTAL VENTAS)
+    total_esperado = caja_abierta.monto_inicial + total_ventas
+    
+    # CALCULAR EL EFECTIVO TOTAL EN CAJA (MONTO INICIAL + VENTAS EN EFECTIVO)
+    efectivo_en_caja = caja_abierta.monto_inicial + ventas_efectivo
+    
     # Log para depuración
     logger.info(f"Caja abierta: {caja_abierta}")
     logger.info(f"Ventas encontradas: {cantidad_ventas}")
     logger.info(f"Total ventas: {total_ventas}")
     logger.info(f"Ventas efectivo: {ventas_efectivo}")
     logger.info(f"Ventas tarjeta: {ventas_tarjeta}")
+    logger.info(f"Total esperado: {total_esperado}")
+    logger.info(f"Efectivo total en caja: {efectivo_en_caja}")
     
     context = {
         'caja_abierta': caja_abierta,
         'total_ventas': total_ventas,
+        'total_esperado': total_esperado,  # Nuevo campo para el total esperado
         'ventas_efectivo': ventas_efectivo,
+        'efectivo_en_caja': efectivo_en_caja,  # Efectivo total en caja
         'ventas_tarjeta': ventas_tarjeta,
         'ventas_transferencia': ventas_transferencia,
         'total_ventas_contado': total_ventas_contado,
@@ -1983,9 +1993,6 @@ def cierredecaja(request):
     }
     
     return render(request, "facturacion/cierredecaja.html", context)
-
-
-
 
 @login_required
 def procesar_cierre_caja(request):
