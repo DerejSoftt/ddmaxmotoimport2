@@ -2,6 +2,7 @@
 venv/
 env/
 venv/
+telefono/
 # Base de datos mysql
 .cnf
 .env
@@ -12,6 +13,3 @@ __pycache__/
 
 null/
 env/
-*.sql
-*.sqlite3
-
