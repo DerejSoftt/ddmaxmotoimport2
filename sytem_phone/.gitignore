@@ -1,6 +1,7 @@
 #entorno virtual
 venv/
 env/
+venv/
 # Base de datos mysql
 .cnf
 .env
