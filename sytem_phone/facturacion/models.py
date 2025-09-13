@@ -668,3 +668,23 @@ class MovimientoStock(models.Model):
     
     def __str__(self):
         return f"{self.producto} - {self.tipo_movimiento} - {self.cantidad}"
+    
+
+
+    # Añade este modelo a tu models.py
+class CierreCaja(models.Model):
+    caja = models.ForeignKey(Caja, on_delete=models.CASCADE)
+    monto_efectivo_real = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_tarjeta_real = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_esperado = models.DecimalField(max_digits=10, decimal_places=2)
+    diferencia = models.DecimalField(max_digits=10, decimal_places=2)
+    observaciones = models.TextField(blank=True, null=True)
+    fecha_cierre = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'cierre_caja'
+        verbose_name = 'Cierre de Caja'
+        verbose_name_plural = 'Cierres de Caja'
+    
+    def __str__(self):
+        return f"Cierre {self.id} - {self.caja.usuario.username} - {self.fecha_cierre.strftime('%Y-%m-%d')}"

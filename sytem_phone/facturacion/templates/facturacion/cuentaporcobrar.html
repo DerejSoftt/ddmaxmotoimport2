@@ -690,6 +690,43 @@
             border-bottom: none;
         }
 
+        /* Estilos para filas agrupadas */
+        .client-row {
+            background-color: #f8f9fa !important;
+            font-weight: bold;
+        }
+
+        .invoice-row {
+            background-color: #fafafa;
+            display: none;
+        }
+
+        .invoice-row.expanded {
+            display: table-row;
+        }
+
+        .invoice-row td:first-child {
+            padding-left: 30px !important;
+        }
+
+        .product-row {
+            background-color: #f5f5f5;
+            display: none;
+        }
+
+        .product-row.expanded {
+            display: table-row;
+        }
+
+        .product-row td {
+            padding-left: 60px !important;
+            font-size: 0.85rem;
+        }
+
+        .client-row:hover, .invoice-row:hover, .product-row:hover {
+            background-color: #e9ecef !important;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -861,52 +898,57 @@
             <span>Inicio</span>
         </a>
         
-        <a href="ventas.html" class="menu-item">
+        <a href="{% url 'ventas'  %}" class="menu-item">
             <i class='bx bx-dollar-circle'></i>
             <span>Facturacion</span>
         </a>
         
-        <a href="registrodecliente.html" class="menu-item ">
+        <a href="{% url 'registrodecliente'  %}" class="menu-item ">
             <i class='bx bx-user-plus'></i>
             <span>Resgistrar Clientes</span>
         </a>
 
-        <a href="entrada.html" class="menu-item">
+        <a href="{% url 'listadecliente'  %}" class="menu-item">
             <i class='bx bx-shopping-bag'></i>
-            <span>Entrada de mercancia</span>
+            <span>Clientes</span>
         </a>
        
-        <a href="cuentaporcobrar.html" class="menu-item active" >
+        <a href="{% url 'cuentaporcobrar'  %}" class="menu-item active" >
             <i class='bx bx-credit-card'></i>
-            <span>Cuentas por Cobrar</span>
+            <span>Cuenta Por Cobrar</span>
         </a>
 
-        <a href="#" class="menu-item">
+        <a href="{% url 'entrada'  %}" class="menu-item">
             <i class='bx bx-bar-chart-alt-2'></i>
-            <span>Reportes</span>
+            <span>Entrada De Mecancia</span>
         </a>
        
-        <a href="listadecliente.html" class="menu-item ">
+        <a href="{% url 'inventario'  %}" class="menu-item ">
             <i class='bx bx-user'></i>
-            <span> Clientes</span>
+            <span> Inventario</span>
         </a>
 
-        <a href="#" class="menu-item">
+        <a href="{% url 'registrosuplidores'  %}" class="menu-item">
             <i class='bx bx-trending-up'></i>
-            <span>Cuadre</span>
+            <span>Registrar suplidores</span>
         </a>
         
-        <a href="gestiondesuplidores.html" class="menu-item">
+        <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
             <i class='bx bx-store'></i>
             <span>suplidores</span>
         </a>
 
-        <a href="#" class="menu-item">
+        <a href="{% url 'reavastecer'  %}" class="menu-item">
             <i class='bx bx-cog'></i>
-            <span>Ajustes</span>
+            <span>Ajuste Inventario</span>
+        </a>
+
+        <a href="{% url 'dashboard'  %}" class="menu-item">
+            <i class='bx bx-cog'></i>
+            <span>dashboard</span>
         </a>
        
-        <a href="login.html" class="menu-item">
+        <a href="{% url 'index'  %}" class="menu-item">
             <i class='bx bx-log-out'></i>
             <span>Cerrar Sesión</span>
         </a>
@@ -1014,14 +1056,11 @@
                     <table class="table" id="accountsTable">
                         <thead>
                             <tr>
-                                <th>Factura</th>
                                 <th>Cliente</th>
                                 <th>Teléfono</th>
-                                <th>Producto</th>
-                                <th>Fecha Venta</th>
-                                <th>Vencimiento</th>
-                                <th>Monto Pendiente</th>
-                                <th>Estado</th>
+                                <th>Facturas Pendientes</th>
+                                <th>Monto Total Pendiente</th>
+                                <th>Estado General</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -1171,440 +1210,591 @@
 </div>
 
 <script>
-    // ===== CONFIGURACIÓN INICIAL =====
-    console.log('Inicializando sistema de cuentas por cobrar...');
+ // ===== CONFIGURACIÓN INICIAL =====
+console.log('Inicializando sistema de cuentas por cobrar...');
+
+// Cargar datos desde Django
+let accounts = [];
+try {
+    accounts = JSON.parse('{{ cuentas_json|escapejs }}');
+    console.log('Datos cargados:', accounts.length, 'cuentas');
+} catch (error) {
+    console.error('Error al parsear datos:', error);
+    accounts = [];
+}
+
+let filteredAccounts = [...accounts];
+let groupedClients = [];
+
+// ===== FUNCIONES DEL SIDEBAR =====
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.querySelector('.sidebar-overlay');
     
-    // Cargar datos desde Django
-    let accounts = [];
+    sidebar.classList.toggle('active');
+    sidebarOverlay.classList.toggle('active');
+    
+    if (window.innerWidth <= 768) {
+        document.body.classList.toggle('sidebar-open');
+    }
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.querySelector('.sidebar-overlay');
+    
+    sidebar.classList.remove('active');
+    sidebarOverlay.classList.remove('active');
+    document.body.classList.remove('sidebar-open');
+}
+
+// ===== FUNCIONES UTILITARIAS =====
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
     try {
-        accounts = JSON.parse('{{ cuentas_json|escapejs }}');
-        console.log('Datos cargados:', accounts.length, 'cuentas');
+        const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+        return new Date(dateString).toLocaleDateString('es-DO', options);
     } catch (error) {
-        console.error('Error al parsear datos:', error);
-        accounts = [];
+        return 'Fecha inválida';
+    }
+}
+
+function getStatusClass(status) {
+    const statusClasses = {
+        'pendiente': 'status-pending',
+        'vencida': 'status-overdue',
+        'pagada': 'status-paid',
+        'parcial': 'status-pending'
+    };
+    return statusClasses[status] || '';
+}
+
+function getStatusName(status) {
+    const statusNames = {
+        'pendiente': 'Pendiente',
+        'vencida': 'Vencida',
+        'pagada': 'Pagada',
+        'parcial': 'Pago Parcial'
+    };
+    return statusNames[status] || status;
+}
+
+// Función para obtener el token CSRF
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// ===== FUNCIONES PARA AGRUPAR POR CLIENTE =====
+function groupAccountsByClient(accountsData) {
+    const clientsMap = {};
+    
+    accountsData.forEach(account => {
+        const clientKey = `${account.clientName}-${account.clientPhone}`;
+        
+        if (!clientsMap[clientKey]) {
+            clientsMap[clientKey] = {
+                clientName: account.clientName,
+                clientPhone: account.clientPhone,
+                invoices: [],
+                totalPending: 0,
+                status: 'pagada',
+                isExpanded: false
+            };
+        }
+        
+        const pendingBalance = account.totalAmount - account.paidAmount;
+        
+        // Buscar si ya existe esta factura para preservar el estado de expansión
+        const existingInvoice = clientsMap[clientKey].invoices.find(inv => inv.id === account.id);
+        const isInvoiceExpanded = existingInvoice ? existingInvoice.isExpanded : false;
+        
+        clientsMap[clientKey].invoices.push({
+            id: account.id,
+            invoiceNumber: account.invoiceNumber,
+            products: account.products,
+            saleDate: account.saleDate,
+            dueDate: account.dueDate,
+            totalAmount: account.totalAmount,
+            paidAmount: account.paidAmount,
+            pendingBalance: pendingBalance,
+            status: account.status,
+            observations: account.observations,
+            isExpanded: isInvoiceExpanded
+        });
+        
+        clientsMap[clientKey].totalPending += pendingBalance;
+        
+        // Actualizar estado general
+        if (account.status === 'vencida') {
+            clientsMap[clientKey].status = 'vencida';
+        } else if (account.status === 'pendiente' && clientsMap[clientKey].status !== 'vencida') {
+            clientsMap[clientKey].status = 'pendiente';
+        } else if (account.status === 'parcial' && clientsMap[clientKey].status === 'pagada') {
+            clientsMap[clientKey].status = 'parcial';
+        }
+    });
+    
+    return Object.values(clientsMap);
+}
+
+// ===== FUNCIONES PRINCIPALES =====
+function updateStats(accountsData = accounts) {
+    console.log('Actualizando estadísticas...');
+    
+    let pendingAmount = 0;
+    let overdueAmount = 0;
+    let paidThisMonthAmount = 0;
+    let totalReceivableAmount = 0;
+
+    accountsData.forEach(account => {
+        const pendingBalance = account.totalAmount - account.paidAmount;
+        totalReceivableAmount += pendingBalance;
+
+        if (account.status === 'pendiente') {
+            pendingAmount += pendingBalance;
+        } else if (account.status === 'vencida') {
+            overdueAmount += pendingBalance;
+        }
+        
+        // Simulación de pagos este mes (en un sistema real esto vendría del backend)
+        if (account.status === 'pagada') {
+            const saleDate = new Date(account.saleDate);
+            const now = new Date();
+            if (saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear()) {
+                paidThisMonthAmount += account.totalAmount;
+            }
+        }
+    });
+
+    // Actualizar UI
+    document.getElementById('pendingAmount').textContent = `RD$ ${pendingAmount.toLocaleString('es-DO')}`;
+    document.getElementById('overdueAmount').textContent = `RD$ ${overdueAmount.toLocaleString('es-DO')}`;
+    document.getElementById('paidThisMonthAmount').textContent = `RD$ ${paidThisMonthAmount.toLocaleString('es-DO')}`;
+    document.getElementById('totalReceivableAmount').textContent = `RD$ ${totalReceivableAmount.toLocaleString('es-DO')}`;
+    
+    console.log('Estadísticas actualizadas');
+}
+
+function renderTable(data = accounts) {
+    console.log('Renderizando tabla agrupada por cliente...');
+    const tableBody = document.getElementById('tableBody');
+    const noDataMessage = document.getElementById('noDataMessage');
+
+    if (!data || data.length === 0) {
+        tableBody.innerHTML = '';
+        noDataMessage.style.display = 'block';
+        console.log('No hay datos para mostrar');
+        return;
+    }
+
+    noDataMessage.style.display = 'none';
+    
+    // Agrupar cuentas por cliente - preservar estado existente
+    const newGroupedClients = groupAccountsByClient(data);
+    
+    // Preservar el estado de expansión de los clientes existentes
+    if (groupedClients.length > 0) {
+        newGroupedClients.forEach(newClient => {
+            const existingClient = groupedClients.find(c => 
+                c.clientName === newClient.clientName && 
+                c.clientPhone === newClient.clientPhone
+            );
+            
+            if (existingClient) {
+                newClient.isExpanded = existingClient.isExpanded;
+                
+                // Preservar estado de expansión de facturas
+                newClient.invoices.forEach(newInvoice => {
+                    const existingInvoice = existingClient.invoices.find(i => i.id === newInvoice.id);
+                    if (existingInvoice) {
+                        newInvoice.isExpanded = existingInvoice.isExpanded;
+                    }
+                });
+            }
+        });
     }
     
-    let filteredAccounts = [...accounts];
-
-    // ===== FUNCIONES DEL SIDEBAR =====
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+    groupedClients = newGroupedClients;
+    
+    let tableRowsHTML = '';
+    groupedClients.forEach(client => {
+        const isClientExpanded = client.isExpanded;
         
-        sidebar.classList.toggle('active');
-        sidebarOverlay.classList.toggle('active');
+        tableRowsHTML += `
+            <tr class="client-row" data-client-key="${client.clientName}-${client.clientPhone}">
+                <td><strong>${client.clientName}</strong></td>
+                <td>${client.clientPhone}</td>
+                <td>${client.invoices.length} factura(s)</td>
+                <td class="currency"><strong>RD$ ${client.totalPending.toLocaleString('es-DO')}</strong></td>
+                <td>
+                    <span class="status-badge ${getStatusClass(client.status)}">
+                        ${getStatusName(client.status)}
+                    </span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <button class="btn btn-info" onclick="toggleClientInvoices('${client.clientName}-${client.clientPhone}')" title="${isClientExpanded ? 'Ocultar' : 'Mostrar'} facturas">
+                            <i class='bx bx-${isClientExpanded ? 'minus' : 'plus'}'></i>
+                            ${isClientExpanded ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                        <button class="btn btn-success" onclick="payAllInvoices('${client.clientName}-${client.clientPhone}')" title="Pagar todas" ${client.totalPending <= 0 ? 'disabled' : ''}>
+                            <i class='bx bx-dollar'></i>
+                            Pagar Todo
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
         
-        if (window.innerWidth <= 768) {
-            document.body.classList.toggle('sidebar-open');
-        }
-    }
-
-    function closeSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
-        
-        sidebar.classList.remove('active');
-        sidebarOverlay.classList.remove('active');
-        document.body.classList.remove('sidebar-open');
-    }
-
-    // ===== FUNCIONES UTILITARIAS =====
-    function formatDate(dateString) {
-        if (!dateString) return 'N/A';
-        try {
-            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-            return new Date(dateString).toLocaleDateString('es-DO', options);
-        } catch (error) {
-            return 'Fecha inválida';
-        }
-    }
-
-    function getStatusClass(status) {
-        const statusClasses = {
-            'pendiente': 'status-pending',
-            'vencida': 'status-overdue',
-            'pagada': 'status-paid',
-            'parcial': 'status-pending'
-        };
-        return statusClasses[status] || '';
-    }
-
-    function getStatusName(status) {
-        const statusNames = {
-            'pendiente': 'Pendiente',
-            'vencida': 'Vencida',
-            'pagada': 'Pagada',
-            'parcial': 'Pago Parcial'
-        };
-        return statusNames[status] || status;
-    }
-
-    // Función para obtener el token CSRF
-    function getCSRFToken() {
-        const name = 'csrftoken';
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    // ===== FUNCIONES PRINCIPALES =====
-    function updateStats(accountsData = accounts) {
-        console.log('Actualizando estadísticas...');
-        
-        let pendingAmount = 0;
-        let overdueAmount = 0;
-        let paidThisMonthAmount = 0;
-        let totalReceivableAmount = 0;
-
-        accountsData.forEach(account => {
-            const pendingBalance = account.totalAmount - account.paidAmount;
-            totalReceivableAmount += pendingBalance;
-
-            if (account.status === 'pendiente') {
-                pendingAmount += pendingBalance;
-            } else if (account.status === 'vencida') {
-                overdueAmount += pendingBalance;
-            }
-            
-            // Simulación de pagos este mes (en un sistema real esto vendría del backend)
-            if (account.status === 'pagada') {
-                const saleDate = new Date(account.saleDate);
-                const now = new Date();
-                if (saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear()) {
-                    paidThisMonthAmount += account.totalAmount;
-                }
-            }
-        });
-
-        // Actualizar UI
-        document.getElementById('pendingAmount').textContent = `RD$ ${pendingAmount.toLocaleString('es-DO')}`;
-        document.getElementById('overdueAmount').textContent = `RD$ ${overdueAmount.toLocaleString('es-DO')}`;
-        document.getElementById('paidThisMonthAmount').textContent = `RD$ ${paidThisMonthAmount.toLocaleString('es-DO')}`;
-        document.getElementById('totalReceivableAmount').textContent = `RD$ ${totalReceivableAmount.toLocaleString('es-DO')}`;
-        
-        console.log('Estadísticas actualizadas');
-    }
-
-    function renderTable(data = accounts) {
-        console.log('Renderizando tabla...');
-        const tableBody = document.getElementById('tableBody');
-        const noDataMessage = document.getElementById('noDataMessage');
-
-        if (!data || data.length === 0) {
-            tableBody.innerHTML = '';
-            noDataMessage.style.display = 'block';
-            console.log('No hay datos para mostrar');
-            return;
-        }
-
-        noDataMessage.style.display = 'none';
-        
-        let tableRowsHTML = '';
-        data.forEach(account => {
-            const pendingBalance = account.totalAmount - account.paidAmount;
-            const isExpanded = account.isExpanded || false;
-
-            tableRowsHTML += `
-                <tr data-account-id="${account.id}">
-                    <td><strong>${account.invoiceNumber}</strong></td>
-                    <td>${account.clientName}</td>
-                    <td>${account.clientPhone}</td>
-                    <td>
-                        ${account.products && account.products.length > 0 ? account.products[0].nombre : 'N/A'}
-                        ${account.products && account.products.length > 1 ? `
-                            <button class="product-toggle-btn" onclick="toggleProductList(${account.id})">
-                                <i class='bx bx-${isExpanded ? 'minus' : 'plus'}'></i>
-                            </button>
-                        ` : ''}
-                    </td>
-                    <td>${formatDate(account.saleDate)}</td>
-                    <td>${formatDate(account.dueDate)}</td>
-                    <td class="currency">RD$ ${pendingBalance.toLocaleString('es-DO')}</td>
-                    <td>
-                        <span class="status-badge ${getStatusClass(account.status)}">
-                            ${getStatusName(account.status)}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="actions">
-                            <button class="btn btn-info" onclick="viewDetails(${account.id})" title="Ver Detalles">
-                                <i class='bx bx-info-circle'></i>
-                            </button>
-                            ${pendingBalance > 0 ? `
-                            <button class="btn btn-success" onclick="openPaymentModal(${account.id})" title="Registrar Pago">
-                                <i class='bx bx-dollar'></i>
-                            </button>
+        // Filas para las facturas (mostrar si está expandido)
+        if (isClientExpanded) {
+            client.invoices.forEach(invoice => {
+                const isInvoiceExpanded = invoice.isExpanded;
+                const hasMultipleProducts = invoice.products && invoice.products.length > 1;
+                
+                tableRowsHTML += `
+                    <tr class="invoice-row expanded" data-client-key="${client.clientName}-${client.clientPhone}" data-invoice-id="${invoice.id}">
+                        <td colspan="2"></td>
+                        <td>
+                            <strong>Factura: ${invoice.invoiceNumber}</strong>
+                            ${hasMultipleProducts ? `
+                                <button class="product-toggle-btn" onclick="toggleInvoiceProducts(${invoice.id}, '${client.clientName}-${client.clientPhone}')">
+                                    <i class='bx bx-${isInvoiceExpanded ? 'minus' : 'plus'}'></i>
+                                </button>
                             ` : ''}
-                        </div>
-                    </td>
-                </tr>
-                ${account.products && account.products.length > 1 ? `
-                <tr class="product-list-row ${isExpanded ? 'expanded' : ''}" id="product-list-row-${account.id}">
-                    <td colspan="9" class="product-list-cell">
-                        <strong>Productos de la Factura ${account.invoiceNumber}:</strong>
-                        <ul>
-                            ${account.products.map(p => `
-                                <li>${p.nombre} (x${p.cantidad}) - RD$ ${p.precio.toLocaleString('es-DO')}</li>
-                            `).join('')}
-                        </ul>
-                    </td>
-                </tr>
-                ` : ''}
-            `;
-        });
-
-        tableBody.innerHTML = tableRowsHTML;
-        console.log('Tabla renderizada:', data.length, 'filas');
-    }
-
-    function toggleProductList(id) {
-        const account = accounts.find(acc => acc.id === id);
-        if (account) {
-            account.isExpanded = !account.isExpanded;
-            renderTable(filteredAccounts);
+                        </td>
+                        <td class="currency">RD$ ${invoice.pendingBalance.toLocaleString('es-DO')}</td>
+                        <td>
+                            <span class="status-badge ${getStatusClass(invoice.status)}">
+                                ${getStatusName(invoice.status)}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-info" onclick="viewDetails(${invoice.id})" title="Ver Detalles">
+                                    <i class='bx bx-info-circle'></i>
+                                </button>
+                                ${invoice.pendingBalance > 0 ? `
+                                <button class="btn btn-success" onclick="openPaymentModal(${invoice.id})" title="Registrar Pago">
+                                    <i class='bx bx-dollar'></i>
+                                </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                
+                // Filas para productos de la factura (si hay más de uno y está expandido)
+                if (hasMultipleProducts && isInvoiceExpanded) {
+                    tableRowsHTML += `
+                        <tr class="product-row expanded" data-invoice-id="${invoice.id}">
+                            <td colspan="6" class="product-list-cell">
+                                <strong>Productos de la Factura ${invoice.invoiceNumber}:</strong>
+                                <ul>
+                                    ${invoice.products.map(p => `
+                                        <li>${p.nombre} (x${p.cantidad}) - RD$ ${p.precio.toLocaleString('es-DO')}</li>
+                                    `).join('')}
+                                </ul>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
         }
-    }
+    });
 
-    function applyFilters() {
-        console.log('Aplicando filtros...');
-        const searchTerm = document.getElementById('searchClient').value.toLowerCase().trim();
-        const statusFilter = document.getElementById('statusFilter').value;
-        const dateFrom = document.getElementById('dateFrom').value;
-        const dateTo = document.getElementById('dateTo').value;
+    tableBody.innerHTML = tableRowsHTML;
+    console.log('Tabla renderizada:', groupedClients.length, 'clientes');
+}
 
-        filteredAccounts = accounts.filter(account => {
-            // Búsqueda
-            const matchesSearch = !searchTerm || 
-                account.clientName.toLowerCase().includes(searchTerm) ||
-                account.invoiceNumber.toLowerCase().includes(searchTerm) ||
-                (account.products && account.products.some(p => p.nombre.toLowerCase().includes(searchTerm))) ||
-                account.clientPhone.toLowerCase().includes(searchTerm);
-            
-            // Filtro por estado
-            const matchesStatus = !statusFilter || account.status === statusFilter;
-
-            // Filtro por fecha
-            let matchesDateFrom = true;
-            let matchesDateTo = true;
-            
-            if (dateFrom && account.saleDate) {
-                matchesDateFrom = new Date(account.saleDate) >= new Date(dateFrom);
-            }
-            
-            if (dateTo && account.saleDate) {
-                matchesDateTo = new Date(account.saleDate) <= new Date(dateTo);
-            }
-            
-            return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
-        });
-        
+function toggleClientInvoices(clientKey) {
+    console.log('Toggle client:', clientKey);
+    
+    // Encontrar el cliente en groupedClients
+    const clientIndex = groupedClients.findIndex(c => `${c.clientName}-${c.clientPhone}` === clientKey);
+    
+    if (clientIndex !== -1) {
+        groupedClients[clientIndex].isExpanded = !groupedClients[clientIndex].isExpanded;
+        console.log('Client expanded:', groupedClients[clientIndex].isExpanded);
         renderTable(filteredAccounts);
-        updateStats(filteredAccounts);
-        console.log('Filtros aplicados:', filteredAccounts.length, 'resultados');
+    } else {
+        console.error('Cliente no encontrado:', clientKey);
     }
+}
 
-    function viewDetails(id) {
-        console.log('Viendo detalles de cuenta:', id);
-        const account = accounts.find(acc => acc.id === id);
-        if (!account) {
-            alert('Cuenta no encontrada');
-            return;
+function toggleInvoiceProducts(invoiceId, clientKey) {
+    console.log('Toggle invoice:', invoiceId, 'for client:', clientKey);
+    
+    const clientIndex = groupedClients.findIndex(c => `${c.clientName}-${c.clientPhone}` === clientKey);
+    
+    if (clientIndex !== -1) {
+        const invoiceIndex = groupedClients[clientIndex].invoices.findIndex(i => i.id === invoiceId);
+        
+        if (invoiceIndex !== -1) {
+            groupedClients[clientIndex].invoices[invoiceIndex].isExpanded = 
+                !groupedClients[clientIndex].invoices[invoiceIndex].isExpanded;
+            console.log('Invoice expanded:', groupedClients[clientIndex].invoices[invoiceIndex].isExpanded);
+            renderTable(filteredAccounts);
+        } else {
+            console.error('Factura no encontrada:', invoiceId);
         }
+    } else {
+        console.error('Cliente no encontrado:', clientKey);
+    }
+}
 
-        // Llenar modal de detalles
-        document.getElementById('detailId').textContent = account.id;
-        document.getElementById('detailInvoiceNumber').textContent = account.invoiceNumber;
-        document.getElementById('detailClientName').textContent = account.clientName;
-        document.getElementById('detailClientPhone').textContent = account.clientPhone;
+function payAllInvoices(clientKey) {
+    const client = groupedClients.find(c => `${c.clientName}-${c.clientPhone}` === clientKey);
+    
+    if (client && confirm(`¿Está seguro de que desea pagar todas las facturas pendientes de ${client.clientName} por un total de RD$ ${client.totalPending.toLocaleString('es-DO')}?`)) {
+        // Aquí implementarías la lógica para pagar todas las facturas
+        alert(`Funcionalidad de pago total para ${client.clientName} será implementada próximamente.`);
+    }
+}
+
+function applyFilters() {
+    console.log('Aplicando filtros...');
+    const searchTerm = document.getElementById('searchClient').value.toLowerCase().trim();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+
+    filteredAccounts = accounts.filter(account => {
+        // Búsqueda
+        const matchesSearch = !searchTerm || 
+            account.clientName.toLowerCase().includes(searchTerm) ||
+            account.invoiceNumber.toLowerCase().includes(searchTerm) ||
+            (account.products && account.products.some(p => p.nombre.toLowerCase().includes(searchTerm))) ||
+            account.clientPhone.toLowerCase().includes(searchTerm);
         
-        const productListUl = document.getElementById('detailProductList');
-        productListUl.innerHTML = account.products.map(p => `
-            <li>${p.nombre} (x${p.cantidad}) - RD$ ${p.precio.toLocaleString('es-DO')}</li>
-        `).join('');
+        // Filtro por estado
+        const matchesStatus = !statusFilter || account.status === statusFilter;
 
-        document.getElementById('detailSaleDate').textContent = formatDate(account.saleDate);
-        document.getElementById('detailDueDate').textContent = formatDate(account.dueDate);
-        document.getElementById('detailTotalAmount').textContent = `RD$ ${account.totalAmount.toLocaleString('es-DO')}`;
-        document.getElementById('detailPaidAmount').textContent = `RD$ ${account.paidAmount.toLocaleString('es-DO')}`;
+        // Filtro por fecha
+        let matchesDateFrom = true;
+        let matchesDateTo = true;
         
-        const pendingBalance = account.totalAmount - account.paidAmount;
-        document.getElementById('detailPendingAmount').textContent = `RD$ ${pendingBalance.toLocaleString('es-DO')}`;
-        
-        document.getElementById('detailStatus').textContent = getStatusName(account.status);
-        document.getElementById('detailStatus').className = `detail-value status-badge ${getStatusClass(account.status)}`;
-        document.getElementById('detailObservations').textContent = account.observations || 'N/A';
-
-        // Configurar botón de pago
-        const payButton = document.getElementById('payFromDetailsBtn');
-        payButton.setAttribute('data-account-id', account.id);
-        payButton.style.display = pendingBalance <= 0 ? 'none' : 'inline-flex';
-
-        // Mostrar modal
-        document.getElementById('detailsModal').classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeDetailsModal() {
-        document.getElementById('detailsModal').classList.remove('active');
-        document.body.style.overflow = 'auto';
-    }
-
-    function openPaymentModal(id) {
-        console.log('Abriendo modal de pago para cuenta:', id);
-        const account = accounts.find(acc => acc.id === id);
-        if (!account) return;
-
-        const pendingBalance = account.totalAmount - account.paidAmount;
-        document.getElementById('paymentModalPendingAmount').textContent = `RD$ ${pendingBalance.toLocaleString('es-DO')}`;
-        document.getElementById('paymentAccountId').value = id;
-        document.getElementById('paymentAmountInput').value = pendingBalance.toFixed(2);
-        document.getElementById('paymentAmountError').style.display = 'none';
-
-        document.getElementById('paymentModal').classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function openPaymentModalFromDetails() {
-        const accountId = document.getElementById('payFromDetailsBtn').getAttribute('data-account-id');
-        openPaymentModal(parseInt(accountId));
-        closeDetailsModal();
-    }
-
-    function closePaymentModal() {
-        document.getElementById('paymentModal').classList.remove('active');
-        document.body.style.overflow = 'auto';
-        document.getElementById('paymentForm').reset();
-    }
-
-    function submitPayment() {
-        const accountId = document.getElementById('paymentAccountId').value;
-        const amount = parseFloat(document.getElementById('paymentAmountInput').value);
-        const method = document.getElementById('paymentMethod').value;
-        const reference = document.getElementById('paymentReference').value;
-        const observations = document.getElementById('paymentObservations').value;
-        
-        // Validaciones básicas
-        if (!amount || amount <= 0) {
-            document.getElementById('paymentAmountError').textContent = 'Ingrese un monto válido mayor a 0.';
-            document.getElementById('paymentAmountError').style.display = 'block';
-            return;
+        if (dateFrom && account.saleDate) {
+            matchesDateFrom = new Date(account.saleDate) >= new Date(dateFrom);
         }
         
-        if (!method) {
-            alert('Seleccione un método de pago');
-            return;
+        if (dateTo && account.saleDate) {
+            matchesDateTo = new Date(account.saleDate) <= new Date(dateTo);
         }
         
-        // Enviar pago al servidor
-        fetch('registrar-pago/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken(),
-            },
-            body: JSON.stringify({
-                cuenta_id: accountId,
-                monto: amount,
-                metodo_pago: method,
-                referencia: reference,
-                observaciones: observations
-            })
+        return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+    });
+    
+    renderTable(filteredAccounts);
+    updateStats(filteredAccounts);
+    console.log('Filtros aplicados:', filteredAccounts.length, 'resultados');
+}
+
+function viewDetails(id) {
+    console.log('Viendo detalles de cuenta:', id);
+    const account = accounts.find(acc => acc.id === id);
+    if (!account) {
+        alert('Cuenta no encontrada');
+        return;
+    }
+
+    // Llenar modal de detalles
+    document.getElementById('detailId').textContent = account.id;
+    document.getElementById('detailInvoiceNumber').textContent = account.invoiceNumber;
+    document.getElementById('detailClientName').textContent = account.clientName;
+    document.getElementById('detailClientPhone').textContent = account.clientPhone;
+    
+    const productListUl = document.getElementById('detailProductList');
+    productListUl.innerHTML = account.products.map(p => `
+        <li>${p.nombre} (x${p.cantidad}) - RD$ ${p.precio.toLocaleString('es-DO')}</li>
+    `).join('');
+
+    document.getElementById('detailSaleDate').textContent = formatDate(account.saleDate);
+    document.getElementById('detailDueDate').textContent = formatDate(account.dueDate);
+    document.getElementById('detailTotalAmount').textContent = `RD$ ${account.totalAmount.toLocaleString('es-DO')}`;
+    document.getElementById('detailPaidAmount').textContent = `RD$ ${account.paidAmount.toLocaleString('es-DO')}`;
+    
+    const pendingBalance = account.totalAmount - account.paidAmount;
+    document.getElementById('detailPendingAmount').textContent = `RD$ ${pendingBalance.toLocaleString('es-DO')}`;
+    
+    document.getElementById('detailStatus').textContent = getStatusName(account.status);
+    document.getElementById('detailStatus').className = `detail-value status-badge ${getStatusClass(account.status)}`;
+    document.getElementById('detailObservations').textContent = account.observations || 'N/A';
+
+    // Configurar botón de pago
+    const payButton = document.getElementById('payFromDetailsBtn');
+    payButton.setAttribute('data-account-id', account.id);
+    payButton.style.display = pendingBalance <= 0 ? 'none' : 'inline-flex';
+
+    // Mostrar modal
+    document.getElementById('detailsModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDetailsModal() {
+    document.getElementById('detailsModal').classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
+function openPaymentModal(id) {
+    console.log('Abriendo modal de pago para cuenta:', id);
+    const account = accounts.find(acc => acc.id === id);
+    if (!account) return;
+
+    const pendingBalance = account.totalAmount - account.paidAmount;
+    document.getElementById('paymentModalPendingAmount').textContent = `RD$ ${pendingBalance.toLocaleString('es-DO')}`;
+    document.getElementById('paymentAccountId').value = id;
+    document.getElementById('paymentAmountInput').value = pendingBalance.toFixed(2);
+    document.getElementById('paymentAmountError').style.display = 'none';
+
+    document.getElementById('paymentModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function openPaymentModalFromDetails() {
+    const accountId = document.getElementById('payFromDetailsBtn').getAttribute('data-account-id');
+    openPaymentModal(parseInt(accountId));
+    closeDetailsModal();
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentModal').classList.remove('active');
+    document.body.style.overflow = 'auto';
+    document.getElementById('paymentForm').reset();
+}
+
+function submitPayment() {
+    const accountId = document.getElementById('paymentAccountId').value;
+    const amount = parseFloat(document.getElementById('paymentAmountInput').value);
+    const method = document.getElementById('paymentMethod').value;
+    const reference = document.getElementById('paymentReference').value;
+    const observations = document.getElementById('paymentObservations').value;
+    
+    // Validaciones básicas
+    if (!amount || amount <= 0) {
+        document.getElementById('paymentAmountError').textContent = 'Ingrese un monto válido mayor a 0.';
+        document.getElementById('paymentAmountError').style.display = 'block';
+        return;
+    }
+    
+    if (!method) {
+        alert('Seleccione un método de pago');
+        return;
+    }
+    
+    // Enviar pago al servidor
+    fetch('registrar-pago/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({
+            cuenta_id: accountId,
+            monto: amount,
+            metodo_pago: method,
+            referencia: reference,
+            observaciones: observations
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                closePaymentModal();
-                // Recargar la página para ver los cambios
-                window.location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al registrar el pago');
-        });
-    }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            closePaymentModal();
+            // Recargar la página para ver los cambios
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al registrar el pago');
+    });
+}
 
-    function exportData() {
-        console.log('Exportando datos...');
-        let csvContent = "data:text/csv;charset=utf-8,";
-        const headers = ["Factura", "Cliente", "Teléfono", "Productos", "Fecha Venta", "Vencimiento", "Monto Total", "Monto Pagado", "Monto Pendiente", "Estado", "Observaciones"];
-        csvContent += headers.join(";") + "\n";
+function exportData() {
+    console.log('Exportando datos...');
+    let csvContent = "data:text/csv;charset=utf-8,";
+    const headers = ["Cliente", "Teléfono", "Factura", "Productos", "Fecha Venta", "Vencimiento", "Monto Total", "Monto Pagado", "Monto Pendiente", "Estado", "Observaciones"];
+    csvContent += headers.join(";") + "\n";
 
-        accounts.forEach(account => {
-            const pendingBalance = account.totalAmount - account.paidAmount;
-            const productos = account.products.map(p => `${p.nombre} (x${p.cantidad})`).join(" | ");
-            
-            let row = [
-                account.invoiceNumber,
-                account.clientName,
-                account.clientPhone,
-                productos,
-                formatDate(account.saleDate),
-                formatDate(account.dueDate),
-                account.totalAmount.toLocaleString('es-DO'),
-                account.paidAmount.toLocaleString('es-DO'),
-                pendingBalance.toLocaleString('es-DO'),
-                getStatusName(account.status),
-                (account.observations || '').replace(/(\r\n|\n|\r)/gm, " ").replace(/;/g, ",")
-            ];
-            csvContent += row.join(";") + "\n";
-        });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "cuentas_por_cobrar.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    accounts.forEach(account => {
+        const pendingBalance = account.totalAmount - account.paidAmount;
+        const productos = account.products.map(p => `${p.nombre} (x${p.cantidad})`).join(" | ");
         
-        alert('Datos exportados a cuentas_por_cobrar.csv');
-    }
-
-    // ===== INICIALIZACIÓN =====
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM cargado, inicializando...');
-        
-        // Configurar event listeners
-        document.getElementById('searchClient').addEventListener('input', applyFilters);
-        document.getElementById('statusFilter').addEventListener('change', applyFilters);
-        document.getElementById('dateFrom').addEventListener('change', applyFilters);
-        document.getElementById('dateTo').addEventListener('change', applyFilters);
-        
-        // Cerrar modales al hacer clic fuera
-        document.getElementById('detailsModal').addEventListener('click', function(e) {
-            if (e.target === this) closeDetailsModal();
-        });
-        
-        document.getElementById('paymentModal').addEventListener('click', function(e) {
-            if (e.target === this) closePaymentModal();
-        });
-        
-        // Renderizar datos iniciales
-        renderTable();
-        updateStats();
-        
-        console.log('Sistema inicializado correctamente');
+        let row = [
+            account.clientName,
+            account.clientPhone,
+            account.invoiceNumber,
+            productos,
+            formatDate(account.saleDate),
+            formatDate(account.dueDate),
+            account.totalAmount.toLocaleString('es-DO'),
+            account.paidAmount.toLocaleString('es-DO'),
+            pendingBalance.toLocaleString('es-DO'),
+            getStatusName(account.status),
+            (account.observations || '').replace(/(\r\n|\n|\r)/gm, " ").replace(/;/g, ",")
+        ];
+        csvContent += row.join(";") + "\n";
     });
 
-    // Manejar redimensionamiento de ventana
-    window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            closeSidebar();
-        }
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "cuentas_por_cobrar.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert('Datos exportados a cuentas_por_cobrar.csv');
+}
+
+// ===== INICIALIZACIÓN =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando...');
+    
+    // Configurar event listeners
+    document.getElementById('searchClient').addEventListener('input', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+    document.getElementById('dateFrom').addEventListener('change', applyFilters);
+    document.getElementById('dateTo').addEventListener('change', applyFilters);
+    
+    // Cerrar modales al hacer clic fuera
+    document.getElementById('detailsModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDetailsModal();
     });
+    
+    document.getElementById('paymentModal').addEventListener('click', function(e) {
+        if (e.target === this) closePaymentModal();
+    });
+    
+    // Renderizar datos iniciales
+    renderTable();
+    updateStats();
+    
+    console.log('Sistema inicializado correctamente');
+});
+
+// Manejar redimensionamiento de ventana
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        closeSidebar();
+    }
+});
 </script>
 </body>
 </html>

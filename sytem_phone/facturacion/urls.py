@@ -37,7 +37,12 @@ urlpatterns = [
     path('buscar-productos/', views.buscar_productos_similares, name='buscar_productos'),
     path('registrar-pago/', views.registrar_pago, name='registrar_pago'),
     path('cuentas-por-cobrar/<int:cuenta_id>/', views.detalle_cuenta, name='detalle_cuenta'),
-    
+    path('cierredecaja', views.cierredecaja, name='cierredecaja'),
+    path('procesar-cierre/', views.procesar_cierre_caja, name='procesar_cierre_caja'),
+    path('cuadre', views.cuadre, name='cuadre'),
+    path('reavastecer', views.reavastecer, name='reavastecer'),
+    path('actualizar-stock/', views.actualizar_stock, name='actualizar_stock'),
+
 ]
     
 

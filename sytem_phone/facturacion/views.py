@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404 
-from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar
+from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja
 from django.contrib import messages
 
 from django.http import JsonResponse
@@ -33,7 +33,9 @@ import time
 from django.db.models import Max
 from django.db.models import Sum, Q, F
 from datetime import datetime, timedelta
-
+import pandas as pd
+from decimal import Decimal, InvalidOperation
+import logging
 
 # Create your views her
 def index(request):
@@ -1906,3 +1908,311 @@ def registrosuplidores(request):
     
     # Si es GET, mostrar el formulario vacío
     return render(request, "facturacion/registrosuplidores.html")
+
+
+logger = logging.getLogger(__name__)
+
+@login_required
+def cierredecaja(request):
+    # Verificar si hay una caja abierta
+    caja_abierta = Caja.objects.filter(usuario=request.user, estado='abierta').first()
+    
+    if not caja_abierta:
+        messages.error(request, 'No hay una caja abierta. Debe abrir una caja primero.')
+        return redirect('iniciocaja')
+    
+    # Obtener ventas desde la apertura de caja para el usuario actual
+    ventas_periodo = Venta.objects.filter(
+        vendedor=request.user,
+        fecha_venta__gte=caja_abierta.fecha_apertura,
+        completada=True,
+        anulada=False
+    )
+    
+    # Calcular totales usando agregación de Django
+    total_ventas = ventas_periodo.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+    # Calcular ventas por método de pago
+    ventas_efectivo = ventas_periodo.filter(
+        metodo_pago='efectivo'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+    ventas_tarjeta = ventas_periodo.filter(
+        metodo_pago='tarjeta'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+    ventas_transferencia = ventas_periodo.filter(
+        metodo_pago='transferencia'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+    # Obtener información adicional para el reporte
+    total_ventas_contado = ventas_periodo.filter(
+        tipo_venta='contado'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+    total_ventas_credito = ventas_periodo.filter(
+        tipo_venta='credito'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+    # Obtener cantidad de ventas
+    cantidad_ventas = ventas_periodo.count()
+    
+    # Obtener información de clientes
+    clientes_count = Cliente.objects.filter(
+        venta__in=ventas_periodo
+    ).distinct().count()
+    
+    # Log para depuración
+    logger.info(f"Caja abierta: {caja_abierta}")
+    logger.info(f"Ventas encontradas: {cantidad_ventas}")
+    logger.info(f"Total ventas: {total_ventas}")
+    logger.info(f"Ventas efectivo: {ventas_efectivo}")
+    logger.info(f"Ventas tarjeta: {ventas_tarjeta}")
+    
+    context = {
+        'caja_abierta': caja_abierta,
+        'total_ventas': total_ventas,
+        'ventas_efectivo': ventas_efectivo,
+        'ventas_tarjeta': ventas_tarjeta,
+        'ventas_transferencia': ventas_transferencia,
+        'total_ventas_contado': total_ventas_contado,
+        'total_ventas_credito': total_ventas_credito,
+        'cantidad_ventas': cantidad_ventas,
+        'clientes_hoy': clientes_count,
+        'hoy': timezone.now().date(),
+    }
+    
+    return render(request, "facturacion/cierredecaja.html", context)
+
+
+
+
+@login_required
+def procesar_cierre_caja(request):
+    if request.method == 'POST':
+        # Obtener la caja abierta actual
+        caja_abierta = Caja.objects.filter(usuario=request.user, estado='abierta').first()
+        
+        if not caja_abierta:
+            messages.error(request, 'No hay una caja abierta para cerrar.')
+            return redirect('cierredecaja')
+        
+        # Obtener ventas desde la apertura de caja
+        ventas_periodo = Venta.objects.filter(
+            vendedor=request.user,
+            fecha_venta__gte=caja_abierta.fecha_apertura,
+            completada=True,
+            anulada=False
+        )
+        
+        total_esperado = ventas_periodo.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        
+        # Obtener datos del formulario
+        monto_efectivo_real = request.POST.get('cash-amount')
+        monto_tarjeta_real = request.POST.get('card-amount') or '0'
+        observaciones = request.POST.get('observations', '')
+        
+        # Validaciones
+        if not monto_efectivo_real:
+            messages.error(request, 'Debe ingresar el monto en efectivo real.')
+            return redirect('cierredecaja')
+        
+        try:
+            # Convertir a Decimal en lugar de float
+            monto_efectivo_real = Decimal(monto_efectivo_real)
+            monto_tarjeta_real = Decimal(monto_tarjeta_real)
+        except (ValueError, InvalidOperation):
+            messages.error(request, 'Los montos deben ser valores numéricos válidos.')
+            return redirect('cierredecaja')
+        
+        # Calcular diferencia (todos son Decimal ahora)
+        total_real = monto_efectivo_real + monto_tarjeta_real
+        diferencia = total_real - total_esperado
+        
+        # Actualizar la caja
+        caja_abierta.monto_final = total_real
+        caja_abierta.fecha_cierre = timezone.now()
+        caja_abierta.estado = 'cerrada'
+        caja_abierta.observaciones = observaciones
+        caja_abierta.save()
+        
+        # Crear registro de cierre
+        cierre = CierreCaja.objects.create(
+            caja=caja_abierta,
+            monto_efectivo_real=monto_efectivo_real,
+            monto_tarjeta_real=monto_tarjeta_real,
+            total_esperado=total_esperado,
+            diferencia=diferencia,
+            observaciones=observaciones
+        )
+        
+        # Guardar información en sesión para mostrar en el cuadre
+        request.session['cierre_info'] = {
+            'fecha': timezone.now().date().strftime('%d/%m/%Y'),
+            'hora_cierre': timezone.now().strftime('%H:%M:%S'),
+            'monto_efectivo_real': float(monto_efectivo_real),
+            'monto_tarjeta_real': float(monto_tarjeta_real),
+            'total_esperado': float(total_esperado),
+            'diferencia': float(diferencia),
+            'observaciones': observaciones,
+            'ventas_count': ventas_periodo.count(),
+            'clientes_count': Cliente.objects.filter(
+                venta__in=ventas_periodo
+            ).distinct().count()
+        }
+        
+        messages.success(request, f'Caja cerrada exitosamente. Diferencia: RD${diferencia:,.2f}')
+        return redirect('cuadre')
+    
+    return redirect('cierredecaja')
+
+
+
+
+
+
+
+
+@login_required
+def cuadre(request):
+    # Obtener la caja abierta actual o la última cerrada
+    caja_actual = Caja.objects.filter(estado='abierta').first()
+    
+    if not caja_actual:
+        # Si no hay caja abierta, usar la última cerrada
+        caja_actual = Caja.objects.filter(estado='cerrada').order_by('-fecha_cierre').first()
+    
+    context = {
+        'caja': None,
+        'ventas': {},
+        'cierre': None
+    }
+    
+    if caja_actual:
+        # Obtener ventas de esta caja (período de la caja)
+        ventas = Venta.objects.filter(
+            fecha_venta__gte=caja_actual.fecha_apertura,
+            completada=True,
+            anulada=False
+        )
+        
+        if caja_actual.fecha_cierre:
+            ventas = ventas.filter(fecha_venta__lte=caja_actual.fecha_cierre)
+        
+        # Obtener cierre de caja si existe
+        cierre = CierreCaja.objects.filter(caja=caja_actual).first()
+        
+        # Calcular totales por método de pago
+        ventas_efectivo = ventas.filter(metodo_pago='efectivo').aggregate(total=Sum('total'))['total'] or 0
+        ventas_tarjeta = ventas.filter(metodo_pago='tarjeta').aggregate(total=Sum('total'))['total'] or 0
+        ventas_transferencia = ventas.filter(metodo_pago='transferencia').aggregate(total=Sum('total'))['total'] or 0
+        ventas_credito = ventas.filter(tipo_venta='credito').aggregate(total=Sum('total'))['total'] or 0
+        
+        # CALCULAR MONTO CONTADO (Monto Inicial + Ventas en Efectivo)
+        monto_inicial = float(caja_actual.monto_inicial)
+        monto_contado = monto_inicial + float(ventas_efectivo)
+        
+        # Preparar datos para el template
+        context = {
+            'caja': {
+                'fecha_apertura': caja_actual.fecha_apertura,
+                'fecha_cierre': caja_actual.fecha_cierre,
+                'usuario': caja_actual.usuario.username,
+                'monto_inicial': monto_inicial,
+                'monto_final': float(caja_actual.monto_final) if caja_actual.monto_final else None,
+                'observaciones': caja_actual.observaciones
+            },
+            'ventas': {
+                'efectivo': float(ventas_efectivo),
+                'tarjeta': float(ventas_tarjeta),
+                'transferencia': float(ventas_transferencia),
+                'credito': float(ventas_credito),
+                'total': float(ventas_efectivo + ventas_tarjeta + ventas_transferencia )
+            }
+        }
+        
+        if cierre:
+            # Usar el monto contado calculado en lugar del monto_efectivo_real
+            context['cierre'] = {
+                'monto_efectivo_real': monto_contado,  # Aquí usamos el monto contado calculado
+                'diferencia': float(cierre.diferencia),
+                'diferencia_absoluta': abs(float(cierre.diferencia)),
+                'observaciones': cierre.observaciones
+            }
+        else:
+            # Si no hay cierre, mostrar el monto contado calculado
+            context['cierre'] = {
+                'monto_efectivo_real': monto_contado,
+                'diferencia': 0,
+                'diferencia_absoluta': 0,
+                'observaciones': ''
+            }
+    
+    return render(request, 'facturacion\cuadre.html', context)
+
+
+
+def reavastecer(request):
+    # Obtener todos los productos activos
+    productos = EntradaProducto.objects.filter(activo=True)
+    
+    # Preparar datos para el template
+    productos_data = []
+    for producto in productos:
+        productos_data.append({
+            'id': producto.id,
+            'name': producto.nombre_producto,
+            'brand': producto.get_marca_display(),
+            'model': f"{producto.modelo} {producto.capacidad if producto.capacidad else ''}",
+            'stock': producto.cantidad,
+            'price': float(producto.costo_venta),
+            'min_stock': producto.cantidad_minima
+        })
+    
+    context = {
+        'productos': productos_data,
+        'total_productos': productos.count(),
+        'productos_stock_bajo': productos.filter(cantidad__lte=models.F('cantidad_minima')).count(),
+        'valor_total': sum(p.cantidad * p.costo_venta for p in productos)
+    }
+    
+    return render(request, "facturacion/reavastecer.html", context)
+
+@csrf_exempt
+@require_POST
+def actualizar_stock(request):
+    try:
+        data = json.loads(request.body)
+        producto_id = data.get('producto_id')
+        nueva_cantidad = data.get('nueva_cantidad')
+        
+        # Validar datos
+        if not producto_id or nueva_cantidad is None:
+            return JsonResponse({'success': False, 'error': 'Datos incompletos'})
+        
+        # Buscar y actualizar el producto
+        producto = EntradaProducto.objects.get(id=producto_id, activo=True)
+        
+        # Guardar cantidad anterior para el movimiento de stock
+        cantidad_anterior = producto.cantidad
+        
+        # Actualizar cantidad
+        producto.cantidad = nueva_cantidad
+        producto.save()
+        
+        # Registrar movimiento de stock
+        producto.registrar_movimiento_stock(
+            tipo_movimiento='ajuste',
+            cantidad=abs(cantidad_anterior - nueva_cantidad),
+            cantidad_anterior=cantidad_anterior,
+            cantidad_nueva=nueva_cantidad,
+            motivo="Ajuste manual desde sistema de reabastecimiento",
+            usuario=request.user if request.user.is_authenticated else None
+        )
+        
+        return JsonResponse({'success': True, 'nuevo_stock': producto.cantidad})
+    
+    except EntradaProducto.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Producto no encontrado'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

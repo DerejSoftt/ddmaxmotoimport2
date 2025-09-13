@@ -595,6 +595,38 @@
         .sidebar::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.5);
         }
+
+        /* Mensajes de Django */
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+        }
+
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+
+        .alert-info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
     </style>
 </head>
 <body>
@@ -613,8 +645,8 @@
                 <i class='bx bx-mobile-alt'></i>
                 DEREJSOFT
             </h2>
-            <p>Usuario: SuperAdmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ request.user.username }}</p>
+            <p>{{ request.user.email }}</p>
         </div>
         <div class="sidebar-menu">
             <a href="#" class="menu-item">
@@ -657,7 +689,7 @@
                 <i class='bx bx-cog'></i>
                 <span>Ajustes</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
@@ -678,23 +710,32 @@
                 <p>Finaliza la jornada y registra los montos reales</p>
             </div>
             <div class="content-container">
+                <!-- Mostrar mensajes de Django -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
                 <!-- Resumen en fila horizontal -->
                 <div class="summary-grid">
                     <div class="summary-item">
                         <h3><i class='bx bx-user'></i> Usuario Activo</h3>
-                        <p id="current-user">admin</p>
+                        <p id="current-user">{{ request.user.username }}</p>
                     </div>
                     <div class="summary-item">
                         <h3><i class='bx bx-credit-card'></i> Total Ventas</h3>
-                        <p id="total-sales">RD$0.00</p>
+                        <p id="total-sales">RD${{ total_ventas|floatformat:2 }}</p>
                     </div>
                     <div class="summary-item">
                         <h3><i class='bx bx-money'></i> Efectivo</h3>
-                        <p id="cash-sales">RD$0.00</p>
+                        <p id="cash-sales">RD${{ ventas_efectivo|floatformat:2 }}</p>
                     </div>
                     <div class="summary-item">
                         <h3><i class='bx bx-credit-card-front'></i> Tarjeta</h3>
-                        <p id="card-sales">RD$0.00</p>
+                        <p id="card-sales">RD${{ ventas_tarjeta|floatformat:2 }}</p>
                     </div>
                 </div>
 
@@ -705,26 +746,28 @@
                         <div class="card-header">
                             <h2><i class='bx bx-edit'></i> Datos de Cierre</h2>
                         </div>
-                        <form id="close-register-form">
+                        <form id="close-register-form" method="POST" action="{% url 'procesar_cierre_caja' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="total_esperado" value="{{ total_ventas }}">
                             <div class="form-group">
                                 <label for="cash-amount" class="form-label">
                                     <i class='bx bx-money'></i> Monto en Efectivo Real
                                 </label>
-                                <input type="number" id="cash-amount" class="form-control" step="0.01" min="0" required>
+                                <input type="number" id="cash-amount" name="cash-amount" class="form-control" step="0.01" min="0" required>
                             </div>
 
                             <div class="form-group">
                                 <label for="card-amount" class="form-label">
                                     <i class='bx bx-credit-card'></i> Monto en Tarjeta Real (opcional)
                                 </label>
-                                <input type="number" id="card-amount" class="form-control" step="0.01" min="0">
+                                <input type="number" id="card-amount" name="card-amount" class="form-control" step="0.01" min="0">
                             </div>
 
                             <div class="form-group">
                                 <label for="close-date" class="form-label">
                                     <i class='bx bx-calendar'></i> Fecha de Cierre
                                 </label>
-                                <input type="text" id="close-date" class="form-control" readonly>
+                                <input type="text" id="close-date" class="form-control" readonly value="{{ hoy|date:'d/m/Y' }}">
                             </div>
                         </form>
                     </div>
@@ -738,7 +781,7 @@
                             <label for="expected-total" class="form-label">
                                 <i class='bx bx-calculator'></i> Total Esperado
                             </label>
-                            <input type="text" id="expected-total" class="form-control" readonly>
+                            <input type="text" id="expected-total" class="form-control" readonly value="RD${{ total_ventas|floatformat:2 }}">
                         </div>
 
                         <div class="form-group">
@@ -766,7 +809,7 @@
                         <label for="observations" class="form-label">
                             <i class='bx bx-note'></i> Observaciones (opcional)
                         </label>
-                        <textarea id="observations" class="form-control"></textarea>
+                        <textarea id="observations" name="observations" class="form-control"></textarea>
                     </div>
 
                     <div class="btn-container">
@@ -798,22 +841,6 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Datos de ventas (simulados, en un sistema real vendrían de localStorage o una API)
-            const salesData = {
-                todaySales: [
-                    { id: 1, amount: 1250.50, paymentMethod: "cash", date: new Date() },
-                    { id: 2, amount: 750.25, paymentMethod: "card", date: new Date() },
-                    { id: 3, amount: 320.75, paymentMethod: "cash", date: new Date() },
-                    { id: 4, amount: 450.00, paymentMethod: "card", date: new Date() },
-                    { id: 5, amount: 680.00, paymentMethod: "cash", date: new Date() }
-                ],
-                registerStatus: {
-                    isOpen: true,
-                    openingDate: new Date(),
-                    user: "admin"
-                }
-            };
-
             // Elementos del DOM
             const DOM = {
                 form: document.getElementById("close-register-form"),
@@ -941,40 +968,10 @@
                 DOM.closeTime.value = formatTime(now);
             }
 
-            // Función para calcular totales de ventas
-            function calculateSalesTotals() {
-                // Calcular ventas totales
-                const totalSales = salesData.todaySales.reduce((total, sale) => total + sale.amount, 0);
-                
-                // Calcular ventas en efectivo
-                const cashSales = salesData.todaySales
-                    .filter(sale => sale.paymentMethod === "cash")
-                    .reduce((total, sale) => total + sale.amount, 0);
-                
-                // Calcular ventas con tarjeta
-                const cardSales = salesData.todaySales
-                    .filter(sale => sale.paymentMethod === "card")
-                    .reduce((total, sale) => total + sale.amount, 0);
-
-                // Actualizar resumen
-                DOM.totalSales.textContent = formatCurrency(totalSales);
-                DOM.cashSales.textContent = formatCurrency(cashSales);
-                DOM.cardSales.textContent = formatCurrency(cardSales);
-                DOM.expectedTotal.value = formatCurrency(totalSales);
-
-                // Actualizar usuario
-                DOM.currentUser.textContent = salesData.registerStatus.user;
-                
-                return {
-                    total: totalSales,
-                    cash: cashSales,
-                    card: cardSales
-                };
-            }
-
             // Función para calcular diferencia
             function calculateDifference() {
-                const expected = salesData.todaySales.reduce((total, sale) => total + sale.amount, 0);
+                // Obtener el total esperado del valor del campo (eliminando "RD$")
+                const expected = parseFloat(DOM.expectedTotal.value.replace(/[^0-9.-]+/g, "")) || 0;
                 const cash = parseFloat(DOM.cashAmount.value) || 0;
                 const card = parseFloat(DOM.cardAmount.value) || 0;
                 const difference = (cash + card) - expected;
@@ -997,19 +994,9 @@
                 }
             }
 
-            // Función para simular el cierre de caja
+            // Función para procesar el cierre de caja
             function closeRegister(event) {
                 event.preventDefault();
-
-                // Validar que haya una caja abierta
-                if (!salesData.registerStatus.isOpen) {
-                    showAlert(
-                        'Caja no abierta', 
-                        'No hay una caja abierta para cerrar. Por favor abra una caja primero.', 
-                        'error'
-                    );
-                    return;
-                }
 
                 // Validar campos obligatorios
                 if (!DOM.cashAmount.value) {
@@ -1031,34 +1018,8 @@
                     `¿Está seguro que desea cerrar la caja con los siguientes datos?\n\nEfectivo: ${DOM.cashAmount.value}\nTarjeta: ${DOM.cardAmount.value || '0.00'}\nDiferencia: ${DOM.difference.value}`,
                     'info',
                     function() {
-                        // Crear objeto de cierre con la hora actual
-                        const now = new Date();
-                        const closingData = {
-                            date: now,
-                            user: salesData.registerStatus.user,
-                            sales: salesData.todaySales,
-                            expectedTotal: salesData.todaySales.reduce((total, sale) => total + sale.amount, 0),
-                            cashAmount: parseFloat(DOM.cashAmount.value) || 0,
-                            cardAmount: parseFloat(DOM.cardAmount.value) || 0,
-                            difference: parseFloat(DOM.difference.value.replace(/[^0-9.-]+/g,"")) || 0,
-                            observations: DOM.observations.value,
-                            closingTime: DOM.closeTime.value
-                        };
-
-                        // Simular guardado en localStorage
-                        localStorage.setItem("lastClosing", JSON.stringify(closingData));
-                        salesData.registerStatus.isOpen = false;
-
-                        // Mostrar mensaje de éxito
-                        showAlert(
-                            'Cierre exitoso', 
-                            `La caja se ha cerrado correctamente a las ${DOM.closeTime.value}. Redirigiendo al cuadre de caja...`, 
-                            'success',
-                            function() {
-                                // Redirigir a cuadre de caja
-                                window.location.href = 'cuadre.html';
-                            }
-                        );
+                        // Enviar el formulario
+                        DOM.form.submit();
                     }
                 );
             }
@@ -1071,16 +1032,9 @@
 
             // Inicialización
             function init() {
-                // Establecer fecha actual
-                const now = new Date();
-                DOM.closeDate.value = formatDate(now);
-                
                 // Iniciar y actualizar la hora cada segundo
                 updateCurrentTime();
                 setInterval(updateCurrentTime, 1000);
-
-                // Calcular totales iniciales
-                calculateSalesTotals();
             }
 
             init();

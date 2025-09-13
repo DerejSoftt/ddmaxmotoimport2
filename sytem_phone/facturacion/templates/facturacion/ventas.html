@@ -1104,11 +1104,11 @@
                 <i class='bx bx-home-alt'></i>
                 <span>Inicio</span>
             </a>
-            <a href="ventas.html" class="menu-item">
+            <a href="{% url 'ventas' %}" class="menu-item active">
                 <i class='bx bx-package'></i>
                 <span>facturacion</span>
             </a>
-            <a href="registrodecliente.html" class="menu-item active">
+            <a href="{% url 'registrodecliente'  %}" class="menu-item">
                 <i class='bx bx-dollar-circle'></i>
                 <span>Registrar Cliente</span>
             </a>
@@ -1116,31 +1116,35 @@
                 <i class='bx bx-user-plus'></i>
                 <span>Clientes</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'entrada'  %}" class="menu-item">
                 <i class='bx bx-shopping-bag'></i>
-                <span>Compras</span>
+                <span>Entrada mercancia</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Cuenta por Cobrar</span>
+            </a>
+            <a href="{% url 'inventario'  %}" class="menu-item">
                 <i class='bx bx-credit-card'></i>
-                <span>Cuentas por Cobrar</span>
+                <span>Inventario</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'registrosuplidores'  %}" class="menu-item">
                 <i class='bx bx-bar-chart-alt-2'></i>
-                <span>Reportes</span>
+                <span>Registrar Suplidores</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
-                <span>Cuadre</span>
+                <span>Suplidores</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'reavastecer'  %}" class="menu-item">
                 <i class='bx bx-store'></i>
-                <span>Proveedores</span>
+                <span>Ajuste Inventario</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
-                <span>Ajustes</span>
+                <span>Dashboard</span>
             </a>
-            <a href="" class="menu-item">
+            <a href="{% url 'index'  %}" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
@@ -2144,7 +2148,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     DOM.confirmCloseRegister.addEventListener('click', () => {
-        window.location.href = "{% url 'iniciocaja' %}";
+        window.location.href = "{% url 'cierredecaja' %}";
     });
 
     // Evento para completar venta

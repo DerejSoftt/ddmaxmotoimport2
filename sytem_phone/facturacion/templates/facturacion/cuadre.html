@@ -45,7 +45,7 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Sidebar Navigation */
+      /* Sidebar Navigation */
         .sidebar {
             width: 280px;
             background: var(--secondary-gradient);
@@ -823,6 +823,7 @@
             font-weight: 600;
             color: var(--text-primary);
         }
+        
     </style>
 </head>
 <body>
@@ -841,19 +842,19 @@
                 <i class='bx bx-mobile-alt'></i>
                 D'uro Cell
             </h2>
-            <p>Usuario: SuperAdmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ request.user.username }}</p>
+            <p>{{ request.user.email }}</p>
         </div>
         <div class="sidebar-menu">
             <a href="#" class="menu-item">
                 <i class='bx bx-home-alt'></i>
                 <span>Inicio</span>
             </a>
-            <a href="area-ventas.html" class="menu-item">
+            <a href="" class="menu-item">
                 <i class='bx bx-dollar-circle'></i>
                 <span>Ventas</span>
             </a>
-            <a href="cierre-caja.html" class="menu-item">
+            <a href="" class="menu-item">
                 <i class='bx bx-money'></i>
                 <span>Cierre</span>
             </a>
@@ -885,7 +886,7 @@
                 <i class='bx bx-cog'></i>
                 <span>Ajustes</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
@@ -916,20 +917,28 @@
                         <div class="date-time-container">
                             <div class="summary-item">
                                 <h3><i class='bx bx-calendar'></i> Fecha de Apertura</h3>
-                                <p id="opening-date">05/08/2025</p>
+                                <p id="opening-date">
+                                    {% if caja %}{{ caja.fecha_apertura|date:"d/m/Y" }}{% else %}No disponible{% endif %}
+                                </p>
                             </div>
                             <div class="summary-item">
                                 <h3><i class='bx bx-time'></i> Hora de Apertura</h3>
-                                <p id="opening-time">08:00 AM</p>
+                                <p id="opening-time">
+                                    {% if caja %}{{ caja.fecha_apertura|date:"h:i A" }}{% else %}No disponible{% endif %}
+                                </p>
                             </div>
                             <div class="summary-item">
                                 <h3><i class='bx bx-time-five'></i> Hora de Cierre</h3>
-                                <p id="closing-time">06:00 PM</p>
+                                <p id="closing-time">
+                                    {% if caja and caja.fecha_cierre %}{{ caja.fecha_cierre|date:"h:i A" }}{% else %}No cerrado{% endif %}
+                                </p>
                             </div>
                         </div>
                         <div class="summary-item">
                             <h3><i class='bx bx-user'></i> Responsable</h3>
-                            <p id="responsible-user">Admin</p>
+                            <p id="responsible-user">
+                                {% if caja %}{{ caja.usuario }}{% else %}No disponible{% endif %}
+                            </p>
                         </div>
                     </div>
 
@@ -940,20 +949,36 @@
                         </div>
                         <div class="summary-item">
                             <h3><i class='bx bx-wallet'></i> Monto Inicial</h3>
-                            <p id="initial-amount">RD$1,000.00</p>
+                            <p id="initial-amount">
+                                {% if caja %}RD${{ caja.monto_inicial|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                            </p>
                         </div>
                         <div class="summary-item">
                             <h3><i class='bx bx-money'></i> Monto Contado</h3>
-                            <p id="counted-amount">RD$5,320.50</p>
+                            <p id="counted-amount">
+                                {% if cierre %}RD${{ cierre.monto_efectivo_real|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                            </p>
                         </div>
                         <div class="summary-item">
                             <h3><i class='bx bx-credit-card'></i> Crédito</h3>
-                            <p id="credit-amount">RD$500.00</p>
+                            <p id="credit-amount">
+                                {% if ventas %}RD${{ ventas.credito|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                            </p>
                         </div>
                         <div class="summary-item">
                             <h3><i class='bx bx-transfer'></i> Diferencia</h3>
-                            <div id="difference-display" class="status status-success pulse-effect">
-                                <i class='bx bx-check-circle'></i> <span>Sobrante de RD$120.50</span>
+                            <div id="difference-display" class="status">
+                                {% if cierre %}
+                                    {% if cierre.diferencia > 0 %}
+                                        <i class='bx bx-check-circle'></i> Sobrante de RD${{ cierre.diferencia|floatformat:2 }}
+                                    {% elif cierre.diferencia < 0 %}
+                                        <i class='bx bx-error-circle'></i> Faltante de RD${{ cierre.diferencia_absoluta|floatformat:2 }}
+                                    {% else %}
+                                        <i class='bx bx-check-circle'></i> Perfecto, no hay diferencia
+                                    {% endif %}
+                                {% else %}
+                                    <i class='bx bx-loader-alt bx-spin'></i> Calculando...
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -966,24 +991,34 @@
                     </div>
                     <div class="summary-item">
                         <h3><i class='bx bx-dollar-circle'></i> Total General</h3>
-                        <p id="total-sales">RD$4,200.00</p>
+                        <p id="total-sales">
+                            {% if ventas %}RD${{ ventas.total|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                        </p>
                     </div>
                     
                     <div class="payment-method">
                         <span class="label"><i class='bx bx-money'></i> Efectivo</span>
-                        <span class="value" id="cash-sales">RD$2,450.50</span>
+                        <span class="value" id="cash-sales">
+                            {% if ventas %}RD${{ ventas.efectivo|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                        </span>
                     </div>
                     <div class="payment-method">
                         <span class="label"><i class='bx bx-credit-card'></i> Tarjeta</span>
-                        <span class="value" id="card-sales">RD$1,200.00</span>
+                        <span class="value" id="card-sales">
+                            {% if ventas %}RD${{ ventas.tarjeta|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                        </span>
                     </div>
                     <div class="payment-method">
                         <span class="label"><i class='bx bx-transfer'></i> Transferencia</span>
-                        <span class="value" id="transfer-sales">RD$450.00</span>
+                        <span class="value" id="transfer-sales">
+                            {% if ventas %}RD${{ ventas.transferencia|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                        </span>
                     </div>
                     <div class="payment-method">
                         <span class="label"><i class='bx bx-credit-card'></i> Crédito</span>
-                        <span class="value" id="credit-sales">RD$500.00</span>
+                        <span class="value" id="credit-sales">
+                            {% if ventas %}RD${{ ventas.credito|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                        </span>
                     </div>
                 </div>
 
@@ -993,7 +1028,15 @@
                         <h2><i class='bx bx-note'></i> Observaciones</h2>
                     </div>
                     <div class="summary-item">
-                        <p id="observations">Se recibió un pago con billete de alta denominación que requirió cambio especial. Todo correcto al finalizar la jornada.</p>
+                        <p id="observations">
+                            {% if caja and caja.observaciones %}
+                                {{ caja.observaciones }}
+                            {% elif cierre and cierre.observaciones %}
+                                {{ cierre.observaciones }}
+                            {% else %}
+                                No hay observaciones registradas.
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 
@@ -1005,7 +1048,7 @@
                     <button class="btn btn-secondary" onclick="printReport()">
                         <i class='bx bx-printer'></i> Imprimir Cuadre
                     </button>
-                    <a href="inicio-caja.html" class="btn btn-outline">
+                    <a href="" class="btn btn-outline">
                         <i class='bx bx-arrow-back'></i> Volver al Inicio
                     </a>
                 </div>
@@ -1015,21 +1058,27 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Datos del cuadre de caja (simulados, en un sistema real vendrían de localStorage o una API)
+            // Datos pasados desde Django
             const registerData = {
-                openingDate: new Date('2025-08-05T08:00:00'),
-                closingDate: new Date('2025-08-05T18:00:00'),
-                user: "Admin",
-                initialAmount: 1000.00,
-                countedAmount: 5320.50,
-                creditAmount: 500.00,
-                sales: [
-                    { method: "cash", amount: 2450.50 },
-                    { method: "card", amount: 1200.00 },
-                    { method: "transfer", amount: 450.00 },
-                    { method: "credit", amount: 500.00 }
-                ],
-                observations: "Se recibió un pago con billete de alta denominación que requirió cambio especial. Todo correcto al finalizar la jornada."
+                caja: {% if caja %}{
+                    fechaApertura: "{{ caja.fecha_apertura|date:'c' }}",
+                    fechaCierre: "{{ caja.fecha_cierre|date:'c' }}" || null,
+                    usuario: "{{ caja.usuario }}",
+                    montoInicial: {{ caja.monto_inicial }},
+                    observaciones: "{{ caja.observaciones|default:'' }}"
+                }{% else %}null{% endif %},
+                ventas: {% if ventas %}{
+                    efectivo: {{ ventas.efectivo }},
+                    tarjeta: {{ ventas.tarjeta }},
+                    transferencia: {{ ventas.transferencia }},
+                    credito: {{ ventas.credito }},
+                    total: {{ ventas.total }}
+                }{% else %}null{% endif %},
+                cierre: {% if cierre %}{
+                    montoEfectivoReal: {{ cierre.monto_efectivo_real }},
+                    diferencia: {{ cierre.diferencia }},
+                    observaciones: "{{ cierre.observaciones|default:'' }}"
+                }{% else %}null{% endif %}
             };
 
             // Elementos del DOM
@@ -1078,7 +1127,8 @@
             }
 
             // Función para formatear fecha
-            function formatDate(date) {
+            function formatDate(dateString) {
+                const date = new Date(dateString);
                 return date.toLocaleDateString('es-DO', {
                     day: '2-digit',
                     month: '2-digit',
@@ -1087,7 +1137,8 @@
             }
 
             // Función para formatear hora
-            function formatTime(date) {
+            function formatTime(dateString) {
+                const date = new Date(dateString);
                 return date.toLocaleTimeString('es-DO', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -1126,48 +1177,58 @@
 
             // Función para calcular totales con animaciones
             function calculateTotals() {
-                const totalSales = registerData.sales.reduce((total, sale) => total + sale.amount, 0);
-                const difference = registerData.countedAmount - (registerData.initialAmount + (totalSales - registerData.creditAmount));
+                if (!registerData.caja || !registerData.ventas) {
+                    showNotification('No hay datos de caja disponibles', 'danger');
+                    return;
+                }
                 
                 // Actualizar información de fecha y hora
-                DOM.openingDate.textContent = formatDate(registerData.openingDate);
-                DOM.openingTime.textContent = formatTime(registerData.openingDate);
-                DOM.closingTime.textContent = registerData.closingDate ? formatTime(registerData.closingDate) : "No cerrado";
-                DOM.responsibleUser.textContent = registerData.user;
+                DOM.openingDate.textContent = formatDate(registerData.caja.fechaApertura);
+                DOM.openingTime.textContent = formatTime(registerData.caja.fechaApertura);
+                DOM.closingTime.textContent = registerData.caja.fechaCierre ? 
+                    formatTime(registerData.caja.fechaCierre) : "No cerrado";
+                DOM.responsibleUser.textContent = registerData.caja.usuario;
                 
                 // Animar números principales
-                setTimeout(() => animateNumber(DOM.initialAmount, registerData.initialAmount), 200);
-                setTimeout(() => animateNumber(DOM.countedAmount, registerData.countedAmount), 400);
-                setTimeout(() => animateNumber(DOM.creditAmount, registerData.creditAmount), 450);
-                setTimeout(() => animateNumber(DOM.totalSales, totalSales), 600);
+                setTimeout(() => animateNumber(DOM.initialAmount, registerData.caja.montoInicial), 200);
+                
+                if (registerData.cierre) {
+                    setTimeout(() => animateNumber(DOM.countedAmount, registerData.cierre.montoEfectivoReal), 400);
+                }
+                
+                setTimeout(() => animateNumber(DOM.creditAmount, registerData.ventas.credito), 450);
+                setTimeout(() => animateNumber(DOM.totalSales, registerData.ventas.total), 600);
                 
                 // Actualizar diferencia con efecto
                 setTimeout(() => {
-                    if (difference > 0) {
-                        DOM.differenceDisplay.className = "status status-success pulse-effect";
-                        DOM.differenceDisplay.innerHTML = `<i class='bx bx-check-circle'></i> <span>Sobrante de ${formatCurrency(difference)}</span>`;
-                    } else if (difference < 0) {
-                        DOM.differenceDisplay.className = "status status-danger pulse-effect";
-                        DOM.differenceDisplay.innerHTML = `<i class='bx bx-error-circle'></i> <span>Faltante de ${formatCurrency(Math.abs(difference))}</span>`;
+                    if (registerData.cierre) {
+                        if (registerData.cierre.diferencia > 0) {
+                            DOM.differenceDisplay.className = "status status-success pulse-effect";
+                            DOM.differenceDisplay.innerHTML = `<i class='bx bx-check-circle'></i> <span>Sobrante de ${formatCurrency(registerData.cierre.diferencia)}</span>`;
+                        } else if (registerData.cierre.diferencia < 0) {
+                            DOM.differenceDisplay.className = "status status-danger pulse-effect";
+                            DOM.differenceDisplay.innerHTML = `<i class='bx bx-error-circle'></i> <span>Faltante de ${formatCurrency(Math.abs(registerData.cierre.diferencia))}</span>`;
+                        } else {
+                            DOM.differenceDisplay.className = "status status-success pulse-effect";
+                            DOM.differenceDisplay.innerHTML = `<i class='bx bx-check-circle'></i> <span>Perfecto, no hay diferencia</span>`;
+                        }
                     } else {
-                        DOM.differenceDisplay.className = "status status-success pulse-effect";
-                        DOM.differenceDisplay.innerHTML = `<i class='bx bx-check-circle'></i> <span>Perfecto, no hay diferencia</span>`;
+                        DOM.differenceDisplay.className = "status status-warning";
+                        DOM.differenceDisplay.innerHTML = `<i class='bx bx-time'></i> <span>Caja aún no cerrada</span>`;
                     }
                 }, 800);
                 
                 // Animar métodos de pago
-                registerData.sales.forEach((sale, index) => {
-                    setTimeout(() => {
-                        if (sale.method === "cash") animateNumber(DOM.cashSales, sale.amount);
-                        if (sale.method === "card") animateNumber(DOM.cardSales, sale.amount);
-                        if (sale.method === "transfer") animateNumber(DOM.transferSales, sale.amount);
-                        if (sale.method === "credit") animateNumber(DOM.creditSales, sale.amount);
-                    }, 1000 + (index * 150));
-                });
+                setTimeout(() => animateNumber(DOM.cashSales, registerData.ventas.efectivo), 1000);
+                setTimeout(() => animateNumber(DOM.cardSales, registerData.ventas.tarjeta), 1150);
+                setTimeout(() => animateNumber(DOM.transferSales, registerData.ventas.transferencia), 1300);
+                setTimeout(() => animateNumber(DOM.creditSales, registerData.ventas.credito), 1450);
                 
                 // Actualizar observaciones con efecto de escritura
                 setTimeout(() => {
-                    const text = registerData.observations || "No hay observaciones registradas";
+                    const text = registerData.caja.observaciones || 
+                                (registerData.cierre ? registerData.cierre.observaciones : "") || 
+                                "No hay observaciones registradas";
                     DOM.observations.textContent = "";
                     let i = 0;
                     function typeWriter() {
@@ -1286,52 +1347,16 @@
                 });
             });
 
-            // Efecto de partículas en el header
-            function createParticle() {
-                const header = document.querySelector('.header');
-                const particle = document.createElement('div');
-                particle.style.cssText = `
-                    position: absolute;
-                    width: 4px;
-                    height: 4px;
-                    background: rgba(255,255,255,0.6);
-                    border-radius: 50%;
-                    pointer-events: none;
-                    animation: float-particle 3s ease-out forwards;
-                `;
-                
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.top = '100%';
-                header.appendChild(particle);
-                
-                setTimeout(() => {
-                    if (particle.parentNode) {
-                        particle.parentNode.removeChild(particle);
-                    }
-                }, 3000);
-            }
-
-            // Añadir keyframes para partículas
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes float-particle {
-                    to {
-                        transform: translateY(-100px);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-
-            // Crear partículas periódicamente
-            setInterval(createParticle, 2000);
-
             // Inicialización con delay para efecto de carga
             setTimeout(calculateTotals, 500);
             
             // Mostrar mensaje de bienvenida
             setTimeout(() => {
-                showNotification('Cuadre de caja cargado correctamente', 'success');
+                if (registerData.caja) {
+                    showNotification('Cuadre de caja cargado correctamente', 'success');
+                } else {
+                    showNotification('No hay caja activa para mostrar', 'warning');
+                }
             }, 2000);
         });
     </script>
