@@ -765,11 +765,18 @@ def superuser_required(view_func):
 def inventario(request):
     return render(request, "facturacion/inventario.html")
 
+
+
+# Vista para obtener datos del inventario
 @require_http_methods(["GET"])
 def inventario_datos(request):
     try:
-        # Versión simple para debugging
-        productos = list(EntradaProducto.objects.all().values())
+        # Incluir el campo imei_serial en los valores
+        productos = list(EntradaProducto.objects.all().values(
+            'id', 'codigo_producto', 'nombre_producto', 'marca', 
+            'imei_serial', 'estado', 'color', 'cantidad',
+            'costo_compra', 'costo_venta', 'observaciones'
+        ))
         proveedores = list(Proveedor.objects.all().values())
         
         return JsonResponse({
@@ -783,59 +790,40 @@ def inventario_datos(request):
     except Exception as e:
         return JsonResponse({'error': 'Error interno del servidor: ' + str(e)}, status=500)
 
-
-# ------------------------------
+# Vista para editar producto
 @require_http_methods(["PUT"])
 @csrf_exempt
 @superuser_required
 def inventario_editar(request, id):
     try:
-        # Obtener el producto
         producto = EntradaProducto.objects.get(id=id)
         data = json.loads(request.body)
         
-        # Actualizar campos
-        producto.numero_factura = data.get('numero_factura', producto.numero_factura)
-        
-        # Manejar el proveedor (puede ser ID o objeto)
-        proveedor_id = data.get('proveedor')
-        if proveedor_id:
-            try:
-                producto.proveedor = Proveedor.objects.get(id=proveedor_id)
-            except Proveedor.DoesNotExist:
-                return JsonResponse({'error': 'Proveedor no encontrado'}, status=400)
-        
-        producto.ncf = data.get('ncf', producto.ncf)
+        # Actualizar campos incluyendo imei_serial
         producto.nombre_producto = data.get('nombre_producto', producto.nombre_producto)
         producto.marca = data.get('marca', producto.marca)
-        producto.capacidad = data.get('capacidad', producto.capacidad)
+        producto.imei_serial = data.get('imei_serial', producto.imei_serial)
         producto.estado = data.get('estado', producto.estado)
         producto.color = data.get('color', producto.color)
         producto.costo_compra = data.get('costo_compra', producto.costo_compra)
-        producto.porcentaje_itbis = data.get('porcentaje_itbis', producto.porcentaje_itbis)
         producto.costo_venta = data.get('costo_venta', producto.costo_venta)
         producto.observaciones = data.get('observaciones', producto.observaciones)
         
-        # Guardar cambios
         producto.save()
         
-        # Devolver el producto actualizado
+        # Devolver el producto actualizado incluyendo imei_serial
         producto_actualizado = {
             'id': producto.id,
             'codigo_producto': producto.codigo_producto,
             'nombre_producto': producto.nombre_producto,
             'marca': producto.marca,
-            'capacidad': producto.capacidad,
+            'imei_serial': producto.imei_serial,
             'estado': producto.estado,
             'color': producto.color,
             'cantidad': producto.cantidad,
             'costo_compra': float(producto.costo_compra),
             'costo_venta': float(producto.costo_venta),
-            'ncf': producto.ncf,
             'observaciones': producto.observaciones,
-            'proveedor': producto.proveedor.id if producto.proveedor else None,
-            'numero_factura': producto.numero_factura,
-            'porcentaje_itbis': float(producto.porcentaje_itbis) if producto.porcentaje_itbis else None
         }
         
         return JsonResponse(producto_actualizado)
@@ -843,7 +831,6 @@ def inventario_editar(request, id):
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-    
 
 
 @require_http_methods(["DELETE"])
@@ -2773,8 +2760,6 @@ def buscar_productos_similares(request):
 
 
 
-
-
 def cuentaporcobrar(request):
     # Obtener parámetros de filtrado
     search = request.GET.get('search', '')
@@ -2782,8 +2767,11 @@ def cuentaporcobrar(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
     
-    # Filtrar cuentas por cobrar (excluir anuladas)
-    cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(anulada=False)
+    # Filtrar cuentas por cobrar (excluir anuladas Y eliminadas)
+    cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(
+        anulada=False, 
+        eliminada=False  # NUEVO FILTRO para excluir cuentas eliminadas
+    )
     
     if search:
         cuentas = cuentas.filter(
@@ -2801,13 +2789,13 @@ def cuentaporcobrar(request):
     if date_to:
         cuentas = cuentas.filter(venta__fecha_venta__lte=date_to)
     
-    # Calcular estadísticas usando monto_total de CuentaPorCobrar (solo cuentas no anuladas)
+    # Calcular estadísticas usando monto_total de CuentaPorCobrar (solo cuentas no anuladas y no eliminadas)
     total_pendiente = Decimal('0.00')
     total_vencido = Decimal('0.00')
     total_por_cobrar = Decimal('0.00')
     
     for cuenta in cuentas:
-        # CAMBIO: Usar siempre monto_total de CuentaPorCobrar
+        # Usar siempre monto_total de CuentaPorCobrar
         saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
         
         if cuenta.estado in ['pendiente', 'parcial']:
@@ -2818,13 +2806,14 @@ def cuentaporcobrar(request):
         if cuenta.estado != 'pagada':
             total_por_cobrar += saldo_pendiente
     
-    # Pagos del mes actual (solo de cuentas no anuladas)
+    # Pagos del mes actual (solo de cuentas no anuladas y no eliminadas)
     mes_actual = timezone.now().month
     año_actual = timezone.now().year
     pagos_mes = PagoCuentaPorCobrar.objects.filter(
         fecha_pago__month=mes_actual,
         fecha_pago__year=año_actual,
-        cuenta__anulada=False
+        cuenta__anulada=False,
+        cuenta__eliminada=False  # NUEVO FILTRO
     ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
     
     # Preparar datos para el template
@@ -2915,7 +2904,7 @@ def cuentaporcobrar(request):
         if cuenta.fecha_vencimiento:
             due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
         
-        # CAMBIO PRINCIPAL: Usar total_a_pagar para "Monto Original" y monto_total de CuentaPorCobrar para cálculos
+        # Usar total_a_pagar para "Monto Original" y monto_total de CuentaPorCobrar para cálculos
         monto_total_original = 0  # total_a_pagar de Venta (solo para mostrar)
         monto_cuenta_cobrar = float(cuenta.monto_total)  # monto_total de CuentaPorCobrar (para cálculos)
         
@@ -2938,6 +2927,9 @@ def cuentaporcobrar(request):
         if saldo_pendiente < 0:
             saldo_pendiente = 0
         
+        # NUEVO: Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
+        puede_eliminar = cuenta.estado == 'pagada'
+        
         cuentas_data.append({
             'id': cuenta.id,
             'invoiceNumber': invoice_number,
@@ -2951,7 +2943,8 @@ def cuentaporcobrar(request):
             'paidAmount': monto_pagado,
             'pendingBalance': saldo_pendiente,  # basado en monto_total de CuentaPorCobrar
             'status': cuenta.estado,
-            'observations': cuenta.observaciones or ''
+            'observations': cuenta.observaciones or '',
+            'puede_eliminar': puede_eliminar  # NUEVO CAMPO para frontend
         })
     
     # Convertir a JSON para pasarlo al template
@@ -2970,6 +2963,7 @@ def cuentaporcobrar(request):
     }
     
     return render(request, "facturacion/cuentaporcobrar.html", context)
+
 
 def registrar_pago(request):
     if request.method == 'POST':
@@ -2990,12 +2984,15 @@ def registrar_pago(request):
                     'message': 'No se puede registrar pago en una cuenta anulada'
                 })
             
-            # CAMBIO: Calcular saldo pendiente basado en total_con_interes
-            monto_con_interes = cuenta.monto_total  # default
-            if cuenta.venta and cuenta.venta.total_con_interes:
-                monto_con_interes = cuenta.venta.total_con_interes
+            # ✅ CORRECCIÓN: Usar el MONTO TOTAL ORIGINAL de la venta
+            monto_total_original = cuenta.monto_total  # Monto base de la cuenta
             
-            saldo_pendiente = monto_con_interes - cuenta.monto_pagado
+            # Si existe la venta y tiene total_a_pagar, usar ese valor
+            if cuenta.venta and cuenta.venta.total_a_pagar:
+                monto_total_original = cuenta.venta.total_a_pagar
+            
+            # ✅ CALCULAR SALDO PENDIENTE CORRECTAMENTE
+            saldo_pendiente = monto_total_original - cuenta.monto_pagado
             
             # Validar que el monto no exceda el saldo pendiente
             if monto > saldo_pendiente:
@@ -3014,6 +3011,24 @@ def registrar_pago(request):
             )
             pago.save()
             
+            # ✅ ACTUALIZAR MONTO PAGADO (sumar el nuevo pago)
+            cuenta.monto_pagado += monto
+            
+            # ✅ CALCULAR NUEVO SALDO PENDIENTE CON EL MONTO TOTAL ORIGINAL
+            nuevo_saldo = monto_total_original - cuenta.monto_pagado
+            
+            # Actualizar el estado basado en el nuevo saldo
+            if nuevo_saldo <= 0:
+                cuenta.estado = 'pagada'
+                # ✅ Asegurar que monto_pagado sea exactamente igual al monto_total_original
+                cuenta.monto_pagado = monto_total_original
+            elif cuenta.monto_pagado > 0:
+                cuenta.estado = 'parcial'
+            else:
+                cuenta.estado = 'pendiente'
+            
+            cuenta.save()
+            
             # Crear comprobante de pago
             comprobante = ComprobantePago(
                 pago=pago,
@@ -3023,26 +3038,13 @@ def registrar_pago(request):
             )
             comprobante.save()
             
-            # Actualizar la cuenta
-            cuenta.monto_pagado += monto
-            
-            # Actualizar el estado basado en total_con_interes
-            nuevo_saldo = monto_con_interes - cuenta.monto_pagado
-            if nuevo_saldo <= 0:
-                cuenta.estado = 'pagada'
-            elif cuenta.monto_pagado > 0:
-                cuenta.estado = 'parcial'
-            
-            cuenta.save()
-            
             return JsonResponse({
                 'success': True,
                 'message': f'Pago registrado exitosamente. Comprobante: {comprobante.numero_comprobante}',
                 'comprobante_numero': comprobante.numero_comprobante,
                 'comprobante_id': comprobante.id,
                 'nuevo_saldo_pendiente': float(nuevo_saldo),
-                'monto_total_original': float(cuenta.venta.total_a_pagar if cuenta.venta and cuenta.venta.total_a_pagar else cuenta.monto_total),
-                'monto_total_con_interes': float(monto_con_interes),
+                'monto_total_original': float(monto_total_original),
                 'monto_pagado_total': float(cuenta.monto_pagado),
                 'estado_actual': cuenta.estado
             })
@@ -3183,6 +3185,47 @@ def generar_comprobante_pdf(request, comprobante_id):
             'success': False,
             'message': f'Error al generar comprobante: {str(e)}'
         })
+
+
+
+
+# En tu views.py, agrega esta nueva función
+
+def eliminar_cuenta_pagada(request, cuenta_id):
+    if request.method == 'POST':
+        try:
+            cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
+            
+            # Verificar que la cuenta esté pagada
+            if cuenta.estado != 'pagada':
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Solo se pueden eliminar cuentas que estén completamente pagadas'
+                })
+            
+            # Verificar que no esté ya eliminada
+            if cuenta.eliminada:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Esta cuenta ya ha sido eliminada'
+                })
+            
+            # Realizar soft delete
+            cuenta.eliminar_cuenta()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Cuenta #{cuenta.id} - Factura {cuenta.venta.numero_factura} eliminada exitosamente'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al eliminar cuenta: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
 
 
 # ===== VISTA PARA LISTAR COMPROBANTES =====
@@ -3336,29 +3379,54 @@ def agregar_proveedor(request):
 def editar_proveedor(request):
     if request.method == 'POST':
         try:
+            # Debug: ver qué datos están llegando
+            print("Datos recibidos en editar_proveedor:")
+            for key, value in request.POST.items():
+                print(f"{key}: {value}")
+            
             proveedor = get_object_or_404(Proveedor, id=request.POST.get('supplierId'))
-            proveedor.nombre_empresa = request.POST.get('companyName')
+            
+            # Actualizar campos con los nombres correctos
+            proveedor.nombre_empresa = request.POST.get('nombre_empresa')
             proveedor.rnc = request.POST.get('rnc')
-            proveedor.nombre_contacto = request.POST.get('contactName')
+            proveedor.nombre_contacto = request.POST.get('nombre_contacto')
             proveedor.email = request.POST.get('email')
-            proveedor.telefono = request.POST.get('phone')
+            proveedor.telefono = request.POST.get('telefono')
             proveedor.whatsapp = request.POST.get('whatsapp', '')
-            proveedor.pais = request.POST.get('country')
-            proveedor.ciudad = request.POST.get('city')
-            # proveedor.categoria = request.POST.get('category')
-            proveedor.direccion = request.POST.get('address', '')
-            proveedor.terminos_pago = request.POST.get('paymentTerms', '')
-            proveedor.limite_credito = request.POST.get('creditLimit', 0) or 0
-            proveedor.notas = request.POST.get('notes', '')
-            proveedor.activo = request.POST.get('isActive') == 'on'
+            proveedor.pais = request.POST.get('pais')
+            proveedor.ciudad = request.POST.get('ciudad')
+            proveedor.direccion = request.POST.get('direccion', '')
+            proveedor.terminos_pago = request.POST.get('terminos_pago', '')
+            
+            # Manejar límite de crédito (puede estar vacío)
+            limite_credito = request.POST.get('limite_credito', '0')
+            proveedor.limite_credito = float(limite_credito) if limite_credito else 0.0
+            
+            proveedor.notas = request.POST.get('notas', '')
+            proveedor.activo = request.POST.get('activo') == 'on'
+            
             proveedor.save()
             
             messages.success(request, 'Proveedor actualizado exitosamente')
-            return redirect('gestiondesuplidores')
+            
+            # Si es una petición AJAX, retornar JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': 'Proveedor actualizado exitosamente'})
+            else:
+                return redirect('gestiondesuplidores')
+                
         except Exception as e:
-            messages.error(request, f'Error al actualizar proveedor: {str(e)}')
-            return redirect('gestiondesuplidores')
+            error_msg = f'Error al actualizar proveedor: {str(e)}'
+            print(error_msg)
+            messages.error(request, error_msg)
+            
+            # Si es AJAX, retornar error en JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': error_msg})
+            else:
+                return redirect('gestiondesuplidores')
     
+    # Si no es POST, redirigir
     return redirect('gestiondesuplidores')
 
 @require_POST

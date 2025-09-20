@@ -56,6 +56,7 @@ urlpatterns = [
     path('reimprimirfactura/', views.reimprimir_factura, name='reimprimirfactura'),
     path('ventas/buscar-facturaR/', views.buscar_facturaR, name='buscar_facturaR'),
     path('ventas/ultima-factura/', views.ultima_factura, name='ultima_factura'),
+    path('eliminar-cuenta-pagada/<int:cuenta_id>/', views.eliminar_cuenta_pagada, name='eliminar_cuenta_pagada'),
 ]
 
     

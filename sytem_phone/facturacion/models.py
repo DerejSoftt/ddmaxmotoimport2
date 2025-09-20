@@ -555,6 +555,7 @@ class DetalleVenta(models.Model):
         verbose_name = "Detalle de Venta"
         verbose_name_plural = "Detalles de Venta"
 
+# En tu models.py, modifica la clase CuentaPorCobrar
 
 class CuentaPorCobrar(models.Model):
     ESTADOS = (
@@ -578,6 +579,8 @@ class CuentaPorCobrar(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     anulada = models.BooleanField(default=False)
     fecha_anulacion = models.DateTimeField(null=True, blank=True)
+    eliminada = models.BooleanField(default=False)  # NUEVO CAMPO
+    fecha_eliminacion = models.DateTimeField(null=True, blank=True)  # NUEVO CAMPO
     
     class Meta:
         db_table = 'cuentas_por_cobrar'
@@ -586,12 +589,10 @@ class CuentaPorCobrar(models.Model):
         ordering = ['-fecha_creacion']
     
     def save(self, *args, **kwargs):
-        # Al guardar, asegurarse de que monto_total_con_interes sea igual al total_con_interes de la venta
         if self.venta and hasattr(self.venta, 'total_con_interes'):
             self.monto_total_con_interes = self.venta.total_con_interes
         elif not self.monto_total_con_interes:
             self.monto_total_con_interes = self.monto_total
-        
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -599,13 +600,13 @@ class CuentaPorCobrar(models.Model):
     
     @property
     def saldo_pendiente(self):
-        if self.anulada:
+        if self.anulada or self.eliminada:  # MODIFICADO
             return Decimal('0.00')
         return self.monto_total_con_interes - self.monto_pagado
     
     @property
     def esta_vencida(self):
-        if self.anulada:
+        if self.anulada or self.eliminada:  # MODIFICADO
             return False
         return timezone.now().date() > self.fecha_vencimiento and self.estado != 'pagada'
     
@@ -615,7 +616,12 @@ class CuentaPorCobrar(models.Model):
         self.estado = 'anulada'
         self.fecha_anulacion = timezone.now()
         self.save()
-
+    
+    def eliminar_cuenta(self):  # NUEVO MÉTODO
+        """Método para eliminar (soft delete) la cuenta"""
+        self.eliminada = True
+        self.fecha_eliminacion = timezone.now()
+        self.save()
 
 class PagoCuentaPorCobrar(models.Model):
     METODOS_PAGO = (

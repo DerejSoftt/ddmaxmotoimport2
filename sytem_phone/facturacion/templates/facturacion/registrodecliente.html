@@ -979,7 +979,39 @@
                 });
             }
         });
-
+// Confirmación para limpiar formulario con SweetAlert2
+        document.querySelector('button[type="reset"]').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            Swal.fire({
+                title: '¿Limpiar Formulario?',
+                text: 'Se perderán todos los datos ingresados',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#dc3545',
+                confirmButtonText: 'Sí, Limpiar',
+                cancelButtonText: 'Cancelar',
+                backdrop: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Limpiar formulario
+                    document.getElementById('clientForm').reset();
+                    
+                    // Limpiar mensajes de error
+                    document.querySelectorAll('.error-message').forEach(error => {
+                        error.style.display = 'none';
+                    });
+                    
+                    // Restablecer bordes de los campos
+                    document.querySelectorAll('.form-input').forEach(input => {
+                        input.style.borderColor = '#e1e8ed';
+                    });
+                    
+                    toastr.info('Formulario limpiado correctamente', 'Éxito');
+                }
+            });
+        });
         // Cerrar sidebar al redimensionar ventana
         window.addEventListener('resize', function() {
             if (window.innerWidth > 768) {

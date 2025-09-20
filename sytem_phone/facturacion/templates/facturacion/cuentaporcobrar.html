@@ -497,6 +497,26 @@
             box-shadow: 0 8px 20px rgba(23, 162, 184, 0.4);
         }
 
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(220, 53, 69, 0.4);
+        }
+
+        .btn-danger:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -887,83 +907,78 @@
 <!-- Sidebar Overlay -->
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-<   <!-- Sidebar Navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>
-                <i class='bx bx-mobile-alt'></i>
-                DEREJSOFT
-            </h2>
-            <p>Usuario: {{ user.username }}</p>
-            <p>{{ user.email }}</p>
-        </div>
-        <div class="sidebar-menu">
-            <a href="#" class="menu-item">
-                <i class='bx bx-home-alt'></i>
-                <span>Inicio</span>
-            </a>
-            <a href="{% url 'ventas' %}" class="menu-item">
-                <i class='bx bx-package'></i>
-                <span>facturacion</span>
-            </a>
-            <a href="{% url 'registrodecliente'  %}" class="menu-item">
-                <i class='bx bx-dollar-circle'></i>
-                <span>Registrar Cliente</span>
-            </a>
-            <a href="{% url 'listadecliente' %}" class="menu-item">
-                <i class='bx bx-user-plus'></i>
-                <span>Clientes</span>
-            </a>
-            <a href="{% url 'entrada'  %}" class="menu-item">
-                <i class='bx bx-shopping-bag'></i>
-                <span>Entrada mercancia</span>
-            </a>
-            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item active">
-                <i class='bx bx-shopping-bag'></i>
-                <span>Cuenta por Cobrar</span>
-            </a>
-            <a href="{% url 'inventario'  %}" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Inventario</span>
-            </a>
-            <a href="{% url 'registrosuplidores'  %}" class="menu-item">
-                <i class='bx bx-bar-chart-alt-2'></i>
-                <span>Registrar Suplidores</span>
-            </a>
-            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Suplidores</span>
-            </a>
-                        <a href="{% url 'devoluciones'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Devoluciones</span>
-            </a>
-            <a href="{% url 'roles'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Roles</span>
-            </a>
-            <a href="{% url 'anular'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Anular Factura</span>
-            </a>
-
-            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-store'></i>
-                <span>Ajuste Inventario</span>
-            </a> -->
-            <a href="{% url 'dashboard'  %}" class="menu-item">
-                <i class='bx bx-cog'></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="{% url 'index'  %}" class="menu-item">
-                <i class='bx bx-log-out'></i>
-                <span>Cerrar Sesión</span>
-            </a>
-        </div>
-        <div class="sidebar-footer">
-            <p>Derejsoft v 1.2.2</p>
-        </div>
-    </nav>
+<!-- Sidebar Navigation -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <i class='bx bx-mobile-alt'></i>
+            DEREJSOFT
+        </h2>
+        <p>Usuario: {{ user.username }}</p>
+        <p>{{ user.email }}</p>
+    </div>
+    <div class="sidebar-menu">
+        <a href="#" class="menu-item">
+            <i class='bx bx-home-alt'></i>
+            <span>Inicio</span>
+        </a>
+        <a href="{% url 'ventas' %}" class="menu-item">
+            <i class='bx bx-package'></i>
+            <span>facturacion</span>
+        </a>
+        <a href="{% url 'registrodecliente'  %}" class="menu-item">
+            <i class='bx bx-dollar-circle'></i>
+            <span>Registrar Cliente</span>
+        </a>
+        <a href="{% url 'listadecliente' %}" class="menu-item">
+            <i class='bx bx-user-plus'></i>
+            <span>Clientes</span>
+        </a>
+        <a href="{% url 'entrada'  %}" class="menu-item">
+            <i class='bx bx-shopping-bag'></i>
+            <span>Entrada mercancia</span>
+        </a>
+        <a href="{% url 'cuentaporcobrar'  %}" class="menu-item active">
+            <i class='bx bx-shopping-bag'></i>
+            <span>Cuenta por Cobrar</span>
+        </a>
+        <a href="{% url 'inventario'  %}" class="menu-item">
+            <i class='bx bx-credit-card'></i>
+            <span>Inventario</span>
+        </a>
+        <a href="{% url 'registrosuplidores'  %}" class="menu-item">
+            <i class='bx bx-bar-chart-alt-2'></i>
+            <span>Registrar Suplidores</span>
+        </a>
+        <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
+            <i class='bx bx-trending-up'></i>
+            <span>Suplidores</span>
+        </a>
+        <a href="{% url 'devoluciones'  %}" class="menu-item">
+            <i class='bx bx-trending-up'></i>
+            <span>Devoluciones</span>
+        </a>
+        <a href="{% url 'roles'  %}" class="menu-item">
+            <i class='bx bx-trending-up'></i>
+            <span>Roles</span>
+        </a>
+        <a href="{% url 'anular'  %}" class="menu-item">
+            <i class='bx bx-trending-up'></i>
+            <span>Anular Factura</span>
+        </a>
+        <a href="{% url 'dashboard'  %}" class="menu-item">
+            <i class='bx bx-cog'></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="{% url 'index'  %}" class="menu-item">
+            <i class='bx bx-log-out'></i>
+            <span>Cerrar Sesión</span>
+        </a>
+    </div>
+    <div class="sidebar-footer">
+        <p>Derejsoft v 1.2.2</p>
+    </div>
+</nav>
 
 <!-- Main Content -->
 <div class="main-content">
@@ -1160,7 +1175,7 @@
     </div>
 </div>
 
-<!-- Nuevo Modal para Registrar Pago -->
+<!-- Modal para Registrar Pago -->
 <div class="modal" id="paymentModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1308,13 +1323,13 @@ function getCSRFToken() {
     return cookieValue;
 }
 
-// ===== FUNCIONES PARA AGRUPAR POR CLIENTE (CORREGIDA) =====
+// ===== FUNCIONES PARA AGRUPAR POR CLIENTE =====
 function groupAccountsByClient(accountsData) {
     const clientsMap = {};
     
     accountsData.forEach(account => {
-        // Filtrar cuentas anuladas
-        if (account.status === 'anulada') {
+        // Filtrar cuentas anuladas y eliminadas
+        if (account.status === 'anulada' || account.eliminada) {
             return;
         }
         
@@ -1325,14 +1340,14 @@ function groupAccountsByClient(accountsData) {
                 clientName: account.clientName,
                 clientPhone: account.clientPhone,
                 invoices: [],
-                totalPending: 0,  // Ahora será la suma de saldos pendientes
+                totalPending: 0,
                 status: 'pagada',
                 isExpanded: false
             };
         }
         
         const montoTotalCuenta = account.totalAmount;
-        const pendingBalance = account.totalAmount - account.paidAmount; // Saldo pendiente real
+        const pendingBalance = account.totalAmount - account.paidAmount;
         
         // Buscar si ya existe esta factura para preservar el estado de expansión
         const existingInvoice = clientsMap[clientKey].invoices.find(inv => inv.id === account.id);
@@ -1350,10 +1365,11 @@ function groupAccountsByClient(accountsData) {
             status: account.status,
             observations: account.observations,
             isExpanded: isInvoiceExpanded,
-            anulada: account.status === 'anulada'
+            anulada: account.status === 'anulada',
+            puede_eliminar: account.puede_eliminar || false
         });
         
-        // CAMBIO PRINCIPAL: Sumar el saldo pendiente real, no el monto total
+        // Sumar el saldo pendiente real
         clientsMap[clientKey].totalPending += pendingBalance;
         
         // Actualizar estado general
@@ -1369,7 +1385,7 @@ function groupAccountsByClient(accountsData) {
     return Object.values(clientsMap);
 }
 
-// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS (CORREGIDA) =====
+// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS =====
 function updateStats(accountsData = accounts) {
     console.log('Actualizando estadísticas...');
     
@@ -1379,27 +1395,27 @@ function updateStats(accountsData = accounts) {
     let totalReceivableAmount = 0;
 
     accountsData.forEach(account => {
-        // Excluir cuentas anuladas de las estadísticas
-        if (account.status === 'anulada') {
+        // Excluir cuentas anuladas y eliminadas de las estadísticas
+        if (account.status === 'anulada' || account.eliminada) {
             return;
         }
         
-        const pendingBalance = account.totalAmount - account.paidAmount; // Saldo real pendiente
+        const pendingBalance = account.totalAmount - account.paidAmount;
         
-        totalReceivableAmount += pendingBalance; // Suma de saldos pendientes
+        totalReceivableAmount += pendingBalance;
 
         if (account.status === 'pendiente') {
-            pendingAmount += pendingBalance; // Usar saldo pendiente
+            pendingAmount += pendingBalance;
         } else if (account.status === 'vencida') {
-            overdueAmount += pendingBalance; // Usar saldo pendiente
+            overdueAmount += pendingBalance;
         }
         
-        // Simulación de pagos este mes (excluir anuladas)
+        // Simulación de pagos este mes (excluir anuladas y eliminadas)
         if (account.status === 'pagada') {
             const saleDate = new Date(account.saleDate);
             const now = new Date();
             if (saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear()) {
-                paidThisMonthAmount += account.totalAmount; // Usar monto total para pagos completos
+                paidThisMonthAmount += account.totalAmount;
             }
         }
     });
@@ -1413,16 +1429,16 @@ function updateStats(accountsData = accounts) {
     console.log('Estadísticas actualizadas');
 }
 
-// ===== FUNCIÓN DE RENDERIZADO CORREGIDA =====
+// ===== FUNCIÓN DE RENDERIZADO =====
 function renderTable(data = accounts) {
     console.log('Renderizando tabla agrupada por cliente...');
     const tableBody = document.getElementById('tableBody');
     const noDataMessage = document.getElementById('noDataMessage');
 
-    // Filtrar cuentas anuladas
-    const nonAnulledData = data.filter(account => account.status !== 'anulada');
+    // Filtrar cuentas anuladas y eliminadas
+    const validData = data.filter(account => account.status !== 'anulada' && !account.eliminada);
     
-    if (!nonAnulledData || nonAnulledData.length === 0) {
+    if (!validData || validData.length === 0) {
         tableBody.innerHTML = '';
         noDataMessage.style.display = 'block';
         console.log('No hay datos para mostrar');
@@ -1432,7 +1448,7 @@ function renderTable(data = accounts) {
     noDataMessage.style.display = 'none';
     
     // Agrupar cuentas por cliente - preservar estado existente
-    const newGroupedClients = groupAccountsByClient(nonAnulledData);
+    const newGroupedClients = groupAccountsByClient(validData);
     
     // Preservar el estado de expansión de los clientes existentes
     if (groupedClients.length > 0) {
@@ -1521,9 +1537,16 @@ function renderTable(data = accounts) {
                                     <i class='bx bx-dollar'></i>
                                 </button>
                                 ` : ''}
+                                <!-- BOTÓN DE ELIMINAR - SOLO PARA CUENTAS PAGADAS -->
+                                ${invoice.status === 'pagada' ? `
+                                <button class="btn btn-danger" onclick="eliminarCuentaPagada(${invoice.id})" title="Eliminar Cuenta Pagada">
+                                    <i class='bx bx-trash'></i>
+                                </button>
+                                ` : `
                                 <button class="btn btn-danger" onclick="anularCuenta(${invoice.id})" title="Anular Cuenta">
                                     <i class='bx bx-x-circle'></i>
                                 </button>
+                                `}
                             </div>
                         </td>
                     </tr>
@@ -1555,7 +1578,6 @@ function renderTable(data = accounts) {
 function toggleClientInvoices(clientKey) {
     console.log('Toggle client:', clientKey);
     
-    // Encontrar el cliente en groupedClients
     const clientIndex = groupedClients.findIndex(c => `${c.clientName}-${c.clientPhone}` === clientKey);
     
     if (clientIndex !== -1) {
@@ -1603,7 +1625,6 @@ function payAllInvoices(clientKey) {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Aquí implementarías la lógica para pagar todas las facturas
                 Swal.fire({
                     title: 'Función en desarrollo',
                     text: `Funcionalidad de pago total para ${client.clientName} será implementada próximamente.`,
@@ -1615,6 +1636,92 @@ function payAllInvoices(clientKey) {
     }
 }
 
+// ===== FUNCIÓN PARA ELIMINAR CUENTAS PAGADAS =====
+function eliminarCuentaPagada(id) {
+    const account = accounts.find(acc => acc.id === id);
+    if (!account) return;
+
+    Swal.fire({
+        title: '¿Eliminar cuenta pagada?',
+        html: `
+            <div style="text-align: left; margin: 15px 0;">
+                <p><strong>Cliente:</strong> ${account.clientName}</p>
+                <p><strong>Factura:</strong> ${account.invoiceNumber}</p>
+                <p><strong>Monto Total:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Estado:</strong> <span class="status-badge status-paid">Pagada</span></p>
+            </div>
+            <p style="color: #dc3545; font-weight: bold;">
+                ⚠️ Esta acción eliminará permanentemente el registro de esta cuenta pagada.
+            </p>
+            <p style="color: #666; font-size: 0.9rem;">
+                Nota: Los registros de pagos asociados se mantendrán en el sistema para auditoría.
+            </p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar permanentemente',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Eliminando cuenta...',
+                text: 'Por favor espere',
+                icon: 'info',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Llamar a la API para eliminar
+            fetch(`/eliminar-cuenta-pagada/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Cuenta Eliminada!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonColor: '#28a745'
+                    }).then(() => {
+                        // Recargar la página para ver los cambios
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error al eliminar cuenta',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error de conexión',
+                    text: 'Error al eliminar la cuenta. Verifique su conexión e intente nuevamente.',
+                    icon: 'error',
+                    confirmButtonColor: '#dc3545'
+                });
+            });
+        }
+    });
+}
+
 function applyFilters() {
     console.log('Aplicando filtros...');
     const searchTerm = document.getElementById('searchClient').value.toLowerCase().trim();
@@ -1623,8 +1730,8 @@ function applyFilters() {
     const dateTo = document.getElementById('dateTo').value;
 
     filteredAccounts = accounts.filter(account => {
-        // Excluir cuentas anuladas del filtrado
-        if (account.status === 'anulada') {
+        // Excluir cuentas anuladas y eliminadas del filtrado
+        if (account.status === 'anulada' || account.eliminada) {
             return false;
         }
         
@@ -1753,7 +1860,7 @@ function openPaymentModal(id) {
         return;
     }
 
-    // Calcular el saldo pendiente basado en monto_total - monto_pagado
+    // Calcular el saldo pendiente
     const currentPendingBalance = account.totalAmount - account.paidAmount;
     
     // Verificar que haya saldo pendiente
@@ -1771,7 +1878,7 @@ function openPaymentModal(id) {
     document.getElementById('paymentModalPendingAmount').textContent = `RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
     document.getElementById('paymentAccountId').value = id;
     
-    // Prellenar con el saldo pendiente completo, pero permitir montos menores
+    // Prellenar con el saldo pendiente completo
     document.getElementById('paymentAmountInput').value = currentPendingBalance.toFixed(2);
     document.getElementById('paymentAmountInput').max = currentPendingBalance.toFixed(2);
     
@@ -1819,7 +1926,6 @@ function closePaymentModal() {
     document.getElementById('paymentForm').reset();
 }
 
-// ===== FUNCIÓN CORREGIDA PARA REGISTRAR PAGOS =====
 function submitPayment() {
     const accountId = document.getElementById('paymentAccountId').value;
     const amount = parseFloat(document.getElementById('paymentAmountInput').value);
@@ -2001,7 +2107,6 @@ function submitPayment() {
     });
 }
 
-// ===== FUNCIÓN PARA ACTUALIZAR DATOS LOCALES =====
 function updateLocalAccountData(accountId, paymentAmount, serverResponse) {
     // Encontrar y actualizar la cuenta en el array local
     const accountIndex = accounts.findIndex(acc => acc.id == accountId);
@@ -2122,10 +2227,10 @@ function anularCuenta(id) {
 function exportData() {
     console.log('Exportando datos...');
     
-    // Filtrar cuentas anuladas para la exportación
-    const nonAnulledAccounts = accounts.filter(account => account.status !== 'anulada');
+    // Filtrar cuentas anuladas y eliminadas para la exportación
+    const validAccounts = accounts.filter(account => account.status !== 'anulada' && !account.eliminada);
     
-    if (nonAnulledAccounts.length === 0) {
+    if (validAccounts.length === 0) {
         Swal.fire({
             title: 'Sin datos',
             text: 'No hay datos para exportar',
@@ -2139,7 +2244,7 @@ function exportData() {
     const headers = ["Cliente", "Teléfono", "Factura", "Productos", "Fecha Venta", "Vencimiento", "Monto Total", "Monto Pagado", "Monto Pendiente", "Estado", "Observaciones"];
     csvContent += headers.join(";") + "\n";
 
-    nonAnulledAccounts.forEach(account => {
+    validAccounts.forEach(account => {
         const pendingBalance = account.totalAmount - account.paidAmount;
         const productos = account.products.map(p => `${p.nombre} (x${p.cantidad})`).join(" | ");
         
