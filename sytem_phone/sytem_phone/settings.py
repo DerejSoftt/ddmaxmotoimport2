@@ -80,7 +80,7 @@ WSGI_APPLICATION = 'sytem_phone.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "phonedb",
+        "NAME": "ddmaxmotoimport",
         "USER": "root",
         "PASSWORD": "",
         "HOST": "localhost",
