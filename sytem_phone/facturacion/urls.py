@@ -52,6 +52,8 @@ urlpatterns = [
     path('anular-cuenta/<int:cuenta_id>/', views.anular_cuenta, name='anular_cuenta'),
     path('generar-comprobante-pdf/<int:comprobante_id>/', views.generar_comprobante_pdf, name='generar_comprobante_pdf'),
     path('lista-comprobantes/', views.lista_comprobantes, name='lista_comprobantes'),
+    path('reimprimirfactura/', views.reimprimir_factura, name='reimprimir_factura'),
+    path('ventas/buscar-facturaR/', views.buscar_facturaR, name='buscar_facturaR'),
 ]
 
     

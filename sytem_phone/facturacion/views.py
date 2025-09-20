@@ -3298,3 +3298,63 @@ def anular_factura(request):
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+
+
+def reimprimir_factura(request):
+    # Esta vista renderiza la página de reimpresión
+    return render(request, 'facturacion/reimprimirfactura.html')
+
+def buscar_facturaR(request):
+    # Esta vista busca una factura por su número y devuelve los datos en JSON
+    numero_factura = request.GET.get('numero_factura')
+    
+    try:
+        # Buscar la venta por número de factura
+        venta = get_object_or_404(Venta, numero_factura=numero_factura)
+        
+        # Obtener los detalles de la venta
+        detalles = DetalleVenta.objects.filter(venta=venta)
+        
+        # Preparar los datos de la venta para la respuesta JSON
+        datos_venta = {
+            'fecha': venta.fecha_venta.strftime('%d/%m/%Y %H:%M'),
+            'numero_factura': venta.numero_factura,
+            'ncf': venta.ncf,
+            'cliente_nombre': venta.cliente.nombre if venta.cliente else venta.cliente_nombre,
+            'cliente_documento': venta.cliente.cedula if venta.cliente and venta.cliente.cedula else venta.cliente_documento,
+            'cliente_apodo': venta.cliente.apodo if venta.cliente else None,
+            'cliente_telefono': venta.cliente.telefono if venta.cliente else None,
+            'cliente_direccion': venta.cliente.direccion if venta.cliente else None,
+            'tipo_venta': venta.tipo_venta,
+            'tipo_venta_display': venta.get_tipo_venta_display(),
+            'metodo_pago_display': venta.get_metodo_pago_display(),
+            'subtotal': float(venta.subtotal),
+            'descuento_monto': float(venta.descuento_monto),
+            'total_a_pagar': float(venta.total_a_pagar),
+            'fecha_vencimiento': venta.fecha_vencimiento.strftime('%d/%m/%Y') if venta.fecha_vencimiento else None,
+            'es_financiada': venta.es_financiada,
+            'cuota_mensual': float(venta.cuota_mensual) if venta.cuota_mensual else 0,
+            'interes_total': float(venta.interes_total) if venta.interes_total else 0,
+            'montoinicial': float(venta.montoinicial) if venta.montoinicial else 0,
+            'total_con_interes': float(venta.total_con_interes) if venta.total_con_interes else 0,
+            'vendedor_nombre': venta.vendedor.get_full_name() if venta.vendedor.get_full_name() else venta.vendedor.username,
+            'detalles': []
+        }
+        
+        # Agregar los detalles de los productos
+        for detalle in detalles:
+            datos_venta['detalles'].append({
+                'producto_codigo': detalle.producto.codigo_producto,
+                'producto_nombre': detalle.producto.nombre_producto,
+                'producto_descripcion': detalle.producto.descripcion,
+                'cantidad': detalle.cantidad,
+                'precio_unitario': float(detalle.precio_unitario),
+                'subtotal': float(detalle.subtotal)
+            })
+        
+        return JsonResponse(datos_venta)
+        
+    except Venta.DoesNotExist:
+        return JsonResponse({'error': 'Factura no encontrada'}, status=404)
