@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Área de Ventas - D'uro Cell</title>
+    <title>Caja Registradora - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <style>
-        * {
+       * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -171,7 +171,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1400px;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
@@ -217,125 +217,147 @@
             z-index: 1;
         }
 
-        .form-container {
+        .content-container {
             padding: 40px;
         }
 
-        .form-section {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border-left: 5px solid #667eea;
+        /* Estilos específicos para la caja registradora */
+        .sales-interface {
+            display: block;
         }
 
-        .section-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #333;
-            margin-bottom: 20px;
+        .sales-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
-        .form-grid {
+        .sales-header h1 {
+            font-size: 2rem;
+            color: #333;
+            margin: 0;
+        }
+
+        .sales-header p {
+            color: #666;
+            margin: 0;
+        }
+
+        .sales-grid {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 25px;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
             margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .sales-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .card-header h3 {
+            font-size: 1.5rem;
+            color: #333;
+            margin: 0;
         }
 
         .form-group {
-            position: relative;
+            margin-bottom: 20px;
         }
 
         .form-label {
             display: block;
-            margin-bottom: 8px;
+            font-size: 0.9rem;
             font-weight: 600;
-            color: #333;
-            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 8px;
         }
 
-        .form-input, .form-select {
+        .form-control {
             width: 100%;
-            padding: 15px 20px;
+            padding: 12px 15px;
             border: 2px solid #e1e8ed;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 1rem;
             transition: all 0.3s ease;
-            background: white;
+            background: #f8f9fa;
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-control:focus {
             outline: none;
             border-color: #667eea;
+            background: white;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            transform: translateY(-2px);
         }
 
-        .form-input:valid {
-            border-color: #28a745;
-        }
-
-        .form-input:invalid:not(:placeholder-shown) {
-            border-color: #dc3545;
-        }
-
-        .form-textarea {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        .form-select {
-            appearance: none;
-            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>');
-            background-repeat: no-repeat;
-            background-position: right 15px center;
-            background-size: 20px;
-            cursor: pointer;
-        }
-
-        .button-group {
+        .input-group {
+            position: relative;
             display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 40px;
+        }
+
+        .input-group .form-control {
+            flex: 1;
+        }
+
+        .input-group-text {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            pointer-events: none;
+            font-weight: 600;
         }
 
         .btn {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            border-radius: 10px;
             font-weight: 600;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            border: none;
+            white-space: nowrap;
             text-decoration: none;
         }
 
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 0.9rem;
         }
 
-        .btn:hover::before {
-            left: 100%;
+        .btn-lg {
+            padding: 15px 30px;
+            font-size: 1.1rem;
         }
 
         .btn-primary {
@@ -349,277 +371,712 @@
             box-shadow: 0 12px 25px rgba(102, 126, 234, 0.4);
         }
 
-        .btn-secondary {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3);
-        }
-
-        .btn-secondary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 25px rgba(79, 172, 254, 0.4);
-        }
-
         .btn-outline {
-            background: transparent;
-            color: #667eea;
+            background-color: transparent;
             border: 2px solid #667eea;
+            color: #667eea;
         }
 
         .btn-outline:hover {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
+            background-color: #f8f9fa;
         }
 
-        .success-message {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
             color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: 600;
-            display: none;
-            animation: slideIn 0.5s ease;
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
         }
 
-        .error-message {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 5px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
             font-size: 0.9rem;
+        }
+
+        .table th {
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #e1e8ed;
+        }
+
+        .table td {
+            padding: 15px;
+            border-bottom: 1px solid #e1e8ed;
+            vertical-align: middle;
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            borderRadius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-success {
+            background-color: rgba(76, 201, 240, 0.1);
+            color: #4cc9f0;
+        }
+
+        .badge-warning {
+            background-color: rgba(248, 150, 30, 0.1);
+            color: #f8961e;
+        }
+
+        .badge-danger {
+            background-color: rgba(247, 37, 133, 0.1);
+            color: #f72585;
+        }
+
+        .total-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .total-label {
+            font-size: 1.2rem;
+            color: #555;
+        }
+
+        .total-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .discount-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .discount-label {
+            font-size: 1rem;
+            color: #555;
+        }
+
+        .discount-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #f72585;
+        }
+
+        .final-total-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 25px;
+        }
+
+        .final-total-label {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .final-total-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #764ba2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #e1e8ed;
+        }
+
+        .client-search-results,
+        .product-search-results {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 10px;
+        }
+
+        .client-item,
+        .product-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e1e8ed;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .client-item:hover,
+        .product-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .client-item:last-child,
+        .product-item:last-child {
+            border-bottom: none;
+        }
+
+        .client-name,
+        .product-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .client-details,
+        .product-details {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .product-price {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .payment-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .payment-type-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .payment-type-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .payment-type-btn:not(.active) {
+            background-color: #f8f9fa;
+            color: #555;
+            border: 1px solid #e1e8ed;
+        }
+
+        .payment-type-btn:not(.active):hover {
+            background-color: #e1e8ed;
+        }
+
+        .payment-method-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .payment-method-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .payment-method-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .payment-method-btn:not(.active) {
+            background-color: #f8f9fa;
+            color: #555;
+            border: 1px solid #e1e8ed;
+        }
+
+        .payment-method-btn:not(.active):hover {
+            background-color: #e1e8ed;
+        }
+
+        .client-info {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .client-info.hidden {
             display: none;
         }
 
-        .info-card {
-            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-            border-left: 5px solid #ff6b6b;
+        .cash-info {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
         }
 
-        .info-card h3 {
+        .cash-info.hidden {
+            display: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .text-muted {
+            color: #888;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            font-weight: 700;
             color: #333;
-            margin-bottom: 10px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .info-card p {
-            color: #666;
+        .modal-body {
+            margin-bottom: 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+
+        /* Alert Modal Styles */
+        .alert-modal .modal-content {
+            max-width: 400px;
+        }
+
+        .alert-icon {
+            font-size: 4rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .alert-icon.error {
+            color: #ff6b6b;
+        }
+
+        .alert-icon.warning {
+            color: #f8961e;
+        }
+
+        .alert-icon.success {
+            color: #4cc9f0;
+        }
+
+        .alert-message {
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 25px;
             line-height: 1.6;
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* Confirm Modal Styles */
+        .confirm-modal .modal-content {
+            max-width: 400px;
+            text-align: center;
         }
 
-        /* Product List Table */
-        .product-list-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        .product-list-table th, .product-list-table td {
-            border: 1px solid #e1e8ed;
-            padding: 10px;
-            text-align: left;
-        }
-        .product-list-table th {
-            background-color: #e9ecef;
-            font-weight: 600;
-        }
-        .product-list-table .remove-product-btn {
-            background: none;
-            border: none;
-            color: #dc3545;
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: color 0.2s ease;
-        }
-        .product-list-table .remove-product-btn:hover {
-            color: #c82333;
-        }
-
-        /* Totals Section */
-        .totals-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e1e8ed;
-        }
-        .total-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #333;
-        }
-        .total-item.grand-total {
-            font-size: 1.5rem;
-            color: #667eea;
-            border-top: 2px solid #667eea;
-            padding-top: 20px;
-            margin-top: 10px;
-        }
-        .total-item span:last-child {
-            font-weight: normal;
-        }
-        .total-item.grand-total span:last-child {
-            font-weight: 700;
-        }
-
-        /* Payment Method Radios */
-        .radio-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 10px;
-        }
-        .radio-group label {
-            font-weight: normal;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-        .radio-group input[type="radio"] {
-            transform: scale(1.2);
-            margin-right: 5px;
-        }
-
-        /* Credit Payment Details */
-        #creditDetails {
-            margin-top: 20px;
-            padding: 15px;
-            background: #e6f7ff;
-            border: 1px solid #91d5ff;
-            border-radius: 10px;
-            display: none;
-        }
-        #creditDetails .form-group {
+        .confirm-icon {
+            font-size: 3rem;
+            color: #ff6b6b;
             margin-bottom: 15px;
         }
 
-        /* Sale Type Selector */
-        .sale-type-selector {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border-left: 5px solid #667eea;
+        .confirm-message {
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            line-height: 1.5;
         }
-        .sale-type-buttons {
+
+        .confirm-buttons {
             display: flex;
-            gap: 15px;
             justify-content: center;
-            margin-top: 20px;
+            gap: 15px;
         }
-        .sale-type-btn {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
+
+        .confirm-buttons .btn {
+            min-width: 100px;
+        }
+
+        /* Nuevos estilos para los campos de pago */
+        .payment-fields {
+            margin-bottom: 20px;
+        }
+        
+        .payment-input-group {
+            margin-bottom: 15px;
+        }
+        
+        .payment-input-group label {
+            display: block;
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #e9ecef;
-            color: #333;
-        }
-        .sale-type-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-        }
-        .sale-type-btn:hover:not(.active) {
-            background: #dee2e6;
-        }
-
-        /* Client Search */
-        .client-search-container {
-            margin-top: 20px;
-        }
-        .client-search-results, .product-search-results {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #e1e8ed;
-            border-radius: 8px;
-            margin-top: 10px;
-            background: white;
-            display: none;
-            position: absolute;
-            width: calc(100% - 40px);
-            z-index: 100;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        .client-result-item, .product-result-item {
-            padding: 10px 15px;
-            border-bottom: 1px solid #e1e8ed;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .client-result-item:hover, .product-result-item:hover {
-            background: #f8f9fa;
-        }
-        .client-result-item:last-child, .product-result-item:last-child {
-            border-bottom: none;
-        }
-        .client-result-item strong, .product-result-item strong {
-            display: block;
-            margin-bottom: 5px;
-        }
-        .client-result-item small, .product-result-item small {
-            color: #666;
-            font-size: 0.85rem;
-        }
-
-        /* Product Search */
-        .product-search-group {
-            position: relative;
-        }
-        .product-details {
-            display: none;
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 10px;
-            border-left: 3px solid #667eea;
-        }
-        .product-details.active {
-            display: block;
-        }
-        .product-details-row {
-            display: flex;
-            justify-content: space-between;
+            color: #555;
             margin-bottom: 8px;
         }
-        .product-details-label {
-            font-weight: 600;
-            color: #333;
+        
+        .payment-input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
         }
-        .product-details-value {
-            color: #666;
+        
+        .payment-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .change-display {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4cc9f0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .change-label {
+            color: #555;
+        }
+        
+        .change-value {
+            color: #4cc9f0;
+        }
+        
+        .print-receipt-btn {
+            margin-top: 15px;
+            background: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+            width: 100%;
+        }
+        
+        .print-receipt-btn:hover {
+            background: linear-gradient(135deg, #4361ee 0%, #4cc9f0 100%);
+        }
+
+        /* Estilo para el botón Cerrar Caja */
+        .close-register-btn {
+            background: linear-gradient(135deg, #f72585 0%, #b5179e 100%);
+            color: white;
+            box-shadow: 0 8px 20px rgba(247, 37, 133, 0.3);
+        }
+
+        .close-register-btn:hover {
+            background: linear-gradient(135deg, #b5179e 0%, #f72585 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(247, 37, 133, 0.4);
+        }
+
+        /* Estilo para el campo de cliente más grande */
+        .client-input {
+            padding: 15px;
+            font-size: 1.1rem;
+            height: 50px;
+        }
+
+        /* Nuevos estilos para campos de crédito */
+        .credit-fields {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #764ba2;
+        }
+        
+        .credit-field-group {
+            margin-bottom: 15px;
+        }
+        
+        .credit-field-group label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        
+        .credit-field-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #fff;
+            transition: all 0.3s ease;
+        }
+        
+        .credit-field-group input:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.1);
+        }
+        
+        .credit-summary {
+            margin-top: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            border: 1px solid #e1e8ed;
+        }
+        
+        .credit-summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+        
+        .credit-summary-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .credit-summary-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .credit-summary-value {
+            font-weight: 700;
+            color: #764ba2;
+        }
+        
+        .credit-profit {
+            color: #4cc9f0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+
+            .content-container {
+                padding: 20px;
+            }
+
+            .sales-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .sales-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .modal-content {
+                margin: 0 20px;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+            }
+
+            .modal-footer .btn {
+                width: 100%;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .sales-header h1 {
+                font-size: 1.8rem;
+            }
+
+            .card-header h3 {
+                font-size: 1.3rem;
+            }
+
+            .final-total-value {
+                font-size: 1.8rem;
+            }
+        }
+
+        /* Mobile Small (menos de 400px) */
+        @media (max-width: 400px) {
+            .header {
+                padding: 20px;
+            }
+
+            .content-container {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .payment-type-selector,
+            .payment-method-selector {
+                flex-direction: column;
+            }
+
+            .payment-type-btn,
+            .payment-method-btn {
+                width: 100%;
+            }
+
+            .form-control,
+            .client-input {
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+
+            .btn {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+
+            .btn-lg {
+                padding: 12px 20px;
+                font-size: 1rem;
+            }
+
+            .table th,
+            .table td {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
+
+            .total-value {
+                font-size: 1.5rem;
+            }
+
+            .final-total-value {
+                font-size: 1.6rem;
+            }
+
+            .modal-title {
+                font-size: 1.5rem;
+            }
+
+            .alert-message {
+                font-size: 1rem;
+            }
+
+            .confirm-buttons {
+                flex-direction: column;
+            }
+
+            .confirm-buttons .btn {
+                width: 100%;
+            }
         }
 
         /* Desktop specific styles */
@@ -641,13 +1098,6 @@
 
             .sidebar-overlay {
                 display: none !important;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .totals-grid {
-                grid-template-columns: 1fr 1fr;
             }
         }
 
@@ -674,73 +1124,44 @@
                 display: block;
             }
 
-            .container {
-                margin: 10px;
-                border-radius: 15px;
-            }
-
-            .header {
-                padding: 20px;
-                padding-top: 60px;
-            }
-
-            .header h1 {
-                font-size: 2rem;
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .form-container {
-                padding: 20px;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .sale-type-buttons {
-                flex-direction: column;
-            }
-            .sale-type-btn {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .client-search-results, .product-search-results {
-                width: calc(100% - 20px);
-            }
-
             body.sidebar-open {
                 overflow: hidden;
             }
         }
 
         /* Scrollbar personalizado */
-        .sidebar::-webkit-scrollbar {
+        .sidebar::-webkit-scrollbar,
+        .client-search-results::-webkit-scrollbar,
+        .product-search-results::-webkit-scrollbar {
             width: 6px;
         }
 
-        .sidebar::-webkit-scrollbar-track {
+        .sidebar::-webkit-scrollbar-track,
+        .client-search-results::-webkit-scrollbar-track,
+        .product-search-results::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.1);
         }
 
-        .sidebar::-webkit-scrollbar-thumb {
+        .sidebar::-webkit-scrollbar-thumb,
+        .client-search-results::-webkit-scrollbar-thumb,
+        .product-search-results::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.3);
             border-radius: 3px;
         }
 
-        .sidebar::-webkit-scrollbar-thumb:hover {
+        .sidebar::-webkit-scrollbar-thumb:hover,
+        .client-search-results::-webkit-scrollbar-thumb:hover,
+        .product-search-results::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Estilo adicional para campos de crédito */
+        .credit-summary-item.highlight {
+            background-color: rgba(118, 75, 162, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -758,80 +1179,63 @@
         <div class="sidebar-header">
             <h2>
                 <i class='bx bx-mobile-alt'></i>
-               DEREJSOFT
+                DEREJSOFT
             </h2>
-            <p>Derejsoft - superadmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ user.username }}</p>
+            <p>{{ user.email }}</p>
         </div>
         <div class="sidebar-menu">
             <a href="#" class="menu-item">
                 <i class='bx bx-home-alt'></i>
                 <span>Inicio</span>
             </a>
-            <a href="inventario.html" class="menu-item">
+            <a href="{% url 'ventas' %}" class="menu-item active">
                 <i class='bx bx-package'></i>
+                <span>facturacion</span>
+            </a>
+            <a href="{% url 'registrodecliente'  %}" class="menu-item">
+                <i class='bx bx-dollar-circle'></i>
+                <span>Registrar Cliente</span>
+            </a>
+            <a href="{% url 'listadecliente' %}" class="menu-item">
+                <i class='bx bx-user-plus'></i>
+                <span>Clientes</span>
+            </a>
+            <a href="{% url 'entrada'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Entrada mercancia</span>
+            </a>
+            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Cuenta por Cobrar</span>
+            </a>
+            <a href="{% url 'inventario'  %}" class="menu-item">
+                <i class='bx bx-credit-card'></i>
                 <span>Inventario</span>
             </a>
-            <a href="#" class="menu-item active">
-                <i class='bx bx-dollar-circle'></i>
-                <span>Facturacion</span>
-            </a>
-          
-            <a href="registrodecliente.html" class="menu-item ">
-                <i class='bx bx-user-plus'></i>
-                <span>Resgistrar Clientes</span>
-            </a>
-
-           <a href="entrada.html" class="menu-item">
-                <i class='bx bx-shopping-bag'></i>
-                <span>Entrada de mercancia</span>
-            </a>
-
-            <a href="cuentaporcobrar.html" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Cuentas por Cobrar</span>
-            </a>
-
-
-             <a href="#" class="menu-item">
+            <a href="{% url 'registrosuplidores'  %}" class="menu-item">
                 <i class='bx bx-bar-chart-alt-2'></i>
-                <span>Reportes</span>
+                <span>Registrar Suplidores</span>
             </a>
-
-            <!-- <a href="#" class="menu-item">
-                <i class='bx bx-wrench'></i>
-                <span>Taller</span>
-            </a> -->
-             <a href="listadecliente.html" class="menu-item ">
-                <i class='bx bx-user'></i>
-                <span> Clientes</span>
-            </a>
-            
-            <a href="#" class="menu-item">
+            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
-                <span>Cuadre</span>
+                <span>Suplidores</span>
             </a>
-           
-
-             <a href="gestiondesuplidores.html" class="menu-item">
+            <a href="{% url 'reavastecer'  %}" class="menu-item">
                 <i class='bx bx-store'></i>
-                <span>suplidores</span>
+                <span>Ajuste Inventario</span>
             </a>
-
-             <a href="#" class="menu-item">
+            <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
-                <span>Ajustes</span>
+                <span>Dashboard</span>
             </a>
-            
-             <a href="login.html" class="menu-item">
+            <a href="{% url 'index'  %}" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
-           
-            
         </div>
         <div class="sidebar-footer">
-            <p>Dalecompra v 1.2.2</p>
+            <p>Derejsoft v 1.2.2</p>
         </div>
     </nav>
 
@@ -841,875 +1245,1197 @@
             <div class="header">
                 <h1>
                     <i class='bx bx-dollar-circle'></i>
-                    Área de Ventas
+                    Caja Registradora De Ventas
                 </h1>
-                <p>Registro de Ventas Simplificado - Derejsoft</p>
+                <p>Gestiona tus ventas de forma rápida y eficiente</p>
             </div>
-
-            <div class="form-container">
-                <div class="success-message" id="successMessage">
-                    <i class='bx bx-check-circle'></i>
-                    Venta registrada exitosamente
-                </div>
-                <div class="error-message" id="generalErrorMessage">
-                    <i class='bx bx-error-circle'></i>
-                    Ocurrió un error al registrar la venta.
-                </div>
-
-                <div class="info-card">
-                    <h3>
-                        <i class='bx bx-info-circle'></i>
-                        Información Importante
-                    </h3>
-                    <p>Seleccione el tipo de venta y complete los detalles requeridos.</p>
-                </div>
-
-                <!-- Sección de Selección de Tipo de Venta -->
-                <div class="sale-type-selector">
-                    <h3 class="section-title">
-                        <i class='bx bx-credit-card-front'></i>
-                        Tipo de Venta
-                    </h3>
-                    <div class="sale-type-buttons">
-                        <button type="button" class="sale-type-btn active" id="cashSaleBtn" onclick="selectSaleType('cash')">
-                            <i class='bx bx-money'></i>
-                            Contado
-                        </button>
-                        <button type="button" class="sale-type-btn" id="creditSaleBtn" onclick="selectSaleType('credit')">
-                            <i class='bx bx-credit-card'></i>
-                            Crédito
-                        </button>
-                    </div>
-                </div>
-
-                <form id="salesForm">
-                    <!-- Sección de Información del Cliente -->
-                    <div class="form-section" id="clientInfoSection">
-                        <h3 class="section-title">
-                            <i class='bx bx-user'></i>
-                            Información del Cliente
-                        </h3>
-                        <div class="form-grid">
-                            <!-- Para ventas a crédito (búsqueda de cliente) -->
-                            <div class="form-group" id="creditClientGroup">
-                                <label class="form-label" for="clientSearch">Buscar Cliente Registrado *</label>
-                                <input type="text" id="clientSearch" class="form-input" placeholder="Buscar por nombre, teléfono o cédula">
-                                <div class="client-search-results" id="clientSearchResults"></div>
-                                <div class="error-message" id="clientSearchError"></div>
-                            </div>
-                            
-                            <!-- Para ventas al contado (ingreso manual) -->
-                            <div class="form-group" id="cashClientGroup">
-                                <label class="form-label" for="clientName">Nombre del Cliente</label>
-                                <input type="text" id="clientName" name="clientName" class="form-input" placeholder="Ej: Juan Pérez">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label" for="clientPhone">Teléfono del Cliente</label>
-                                <input type="tel" id="clientPhone" name="clientPhone" class="form-input" placeholder="Ej: (809) 123-4567">
-                            </div>
+            <div class="content-container">
+                <!-- Interfaz Principal de Ventas -->
+                <div id="sales-interface" class="sales-interface">
+                    <header class="sales-header">
+                        <div>
+                            <h1>Nueva Venta</h1>
+                            <p class="text-muted">Agregue productos y complete la transacción</p>
                         </div>
-                    </div>
+                        <button id="close-register-button" class="btn btn-danger close-register-btn">
+                            <i class='bx bx-lock-alt'></i>
+                            Cerrar Caja
+                        </button>
+                    </header>
 
-                    <!-- Sección de Información de la Venta -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class='bx bx-receipt'></i>
-                            Detalles de Venta
-                        </h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label" for="saleDate">Fecha de Venta *</label>
-                                <input type="date" id="saleDate" name="saleDate" class="form-input" required>
+                    <div class="sales-grid">
+                        <!-- Búsqueda de Productos -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Buscar Productos</h3>
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="invoiceNumber">Número de Factura</label>
-                                <input type="text" id="invoiceNumber" name="invoiceNumber" class="form-input" readonly>
+                                <label for="product-search" class="form-label">Buscar Producto</label>
+                                <input type="text" id="product-search" class="form-control" placeholder="Nombre o código del producto">
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Sección de Productos/Servicios -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class='bx bx-package'></i>
-                            Añadir Producto
-                        </h3>
-                        <div class="form-grid">
-                            <div class="form-group product-search-group">
-                                <label class="form-label" for="productSearch">Buscar Producto *</label>
-                                <input type="text" id="productSearch" class="form-input" placeholder="Buscar por nombre, modelo o código">
-                                <div class="product-search-results" id="productSearchResults"></div>
-                                <div class="error-message" id="productSearchError"></div>
-                                
-                                <div class="product-details" id="productDetails">
-                                    <div class="product-details-row">
-                                        <span class="product-details-label">Precio:</span>
-                                        <span class="product-details-value" id="productDetailPrice">RD$ 0.00</span>
-                                    </div>
-                                    <div class="product-details-row">
-                                        <span class="product-details-label">Disponible:</span>
-                                        <span class="product-details-value" id="productDetailStock">0</span>
-                                    </div>
-                                    <div class="product-details-row">
-                                        <span class="product-details-label">Categoría:</span>
-                                        <span class="product-details-value" id="productDetailCategory">N/A</span>
-                                    </div>
+                            <div class="product-search-results" id="product-results">
+                                <!-- Los resultados se cargarán dinámicamente via AJAX -->
+                                <div class="empty-search-state" style="padding: 15px; text-align: center; color: #888;">
+                                    <p style="margin: 0; font-size: 2rem;"><i class='bx bx-search-alt'></i></p>
+                                    <p style="margin: 5px 0;">Busque productos por nombre o código</p>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="productQuantity">Cantidad *</label>
-                                <input type="number" id="productQuantity" class="form-input" min="1" value="1" required>
-                                <div class="error-message" id="productQuantityError"></div>
+                                <label for="product-quantity" class="form-label">Cantidad</label>
+                                <input type="number" id="product-quantity" class="form-control" value="1" min="1">
                             </div>
+                            <button id="add-product-button" class="btn btn-primary">
+                                <i class='bx bx-plus'></i>
+                                Agregar Producto
+                            </button>
+                        </div>
+
+                        <!-- Resumen de Venta con Selección de Tipo -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Resumen de Venta</h3>
+                            </div>
+                            
+                            <!-- Selector de Tipo de Pago -->
                             <div class="form-group">
-                                <label class="form-label" for="productPrice">Precio Unitario *</label>
-                                <input type="number" id="productPrice" class="form-input" step="0.01" min="0" value="0.00" required>
-                                <div class="error-message" id="productPriceError"></div>
+                                <label class="form-label">Tipo de Venta</label>
+                                <div class="payment-type-selector">
+                                    <div id="cash-payment-btn" class="payment-type-btn active">Contado</div>
+                                    <div id="credit-payment-btn" class="payment-type-btn">Crédito</div>
+                                </div>
                             </div>
-                            <div class="form-group" style="display: flex; align-items: flex-end;">
-                                <button type="button" class="btn btn-primary" onclick="addProductToSale()">
-                                    <i class='bx bx-plus'></i>
-                                    Añadir a la Venta
-                                </button>
+                            
+                            <!-- Información del Cliente (solo para crédito) -->
+                            <div id="client-info-container" class="client-info hidden">
+                                <div class="form-group">
+                                    <label for="client-search" class="form-label">Cliente</label>
+                                    <input type="text" id="client-search" class="form-control client-input" placeholder="Buscar cliente...">
+                                </div>
+                                <div class="client-search-results" id="client-results">
+                                    <!-- Resultados de búsqueda de clientes -->
+                                    {% for cliente in clientes %}
+                                    <div class="client-item" data-id="{{ cliente.id }}" data-name="{{ cliente.full_name }}" data-document="{{ cliente.identification_number }}" data-phone="{{ cliente.primary_phone }}" data-credit-limit="{{ cliente.credit_limit }}">
+                                        <div>
+                                            <div class="client-name">{{ cliente.full_name }}</div>
+                                            <div class="client-details">Tel: {{ cliente.primary_phone }} | Doc: {{ cliente.identification_number }}</div>
+                                            <div class="client-details">Límite: RD${{ cliente.credit_limit }}</div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Campos de crédito (solo para crédito) -->
+                                <div id="credit-fields" class="payment-fields">
+                                    <div class="payment-input-group">
+                                        <label for="monto-inicial">Monto Inicial:</label>
+                                        <input type="number" id="monto-inicial" step="0.01" min="0" placeholder="0.00" class="form-control">
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="tasa-interes">Tasa de Interés (% mensual):</label>
+                                        <input type="number" id="tasa-interes" step="0.01" min="0" placeholder="0.00" class="form-control">
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="plazo-meses">Plazo (meses):</label>
+                                        <input type="number" id="plazo-meses" step="1" min="1" placeholder="0" class="form-control">
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="monto-financiado">Monto a Financiar:</label>
+                                        <input type="number" id="monto-financiado" step="0.01" min="0" placeholder="0.00" class="form-control" readonly>
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="interes-mensual">Interés Mensual:</label>
+                                        <input type="number" id="interes-mensual" step="0.01" min="0" placeholder="0.00" class="form-control" readonly>
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="cuota-mensual">Cuota Mensual:</label>
+                                        <input type="number" id="cuota-mensual" step="0.01" min="0" placeholder="0.00" class="form-control" readonly>
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="ganancia-interes">Ganancia por Interés:</label>
+                                        <input type="number" id="ganancia-interes" step="0.01" min="0" placeholder="0.00" class="form-control" readonly>
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="total-con-interes">Total con Interés:</label>
+                                        <input type="number" id="total-con-interes" step="0.01" min="0" placeholder="0.00" class="form-control" readonly>
+                                    </div>
+                                    
+                                    <div class="payment-input-group">
+                                        <label for="total-a-pagar">Total a Pagar:</label>
+                                        <input type="number" id="total-a-pagar" step="0.01" min="0" placeholder="0.00" class="form-control" readonly>
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <!-- Información del Cliente (solo para contado) -->
+                            <div id="cash-info-container" class="cash-info">
+                                <div class="form-group">
+                                    <label for="cash-client-name" class="form-label">Nombre del Cliente</label>
+                                    <input type="text" id="cash-client-name" class="form-control client-input" placeholder="Nombre completo">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cash-client-document" class="form-label">Cédula/RIF</label>
+                                    <input type="text" id="cash-client-document" class="form-control client-input" placeholder="Cédula o RIF">
+                                </div>
+                                
+                                <!-- Método de pago (solo para contado) -->
+                                <div class="form-group">
+                                    <label class="form-label">Método de Pago</label>
+                                    <div class="payment-method-selector">
+                                        <div id="cash-method-btn" class="payment-method-btn active">Efectivo</div>
+                                        <div id="card-method-btn" class="payment-method-btn">Tarjeta</div>
+                                        <div id="transfer-method-btn" class="payment-method-btn">Transferencia</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Total de la Venta -->
+                            <div class="total-display">
+                                <span class="total-label">Subtotal</span>
+                                <span id="total-amount" class="total-value">RD$0.00</span>
+                            </div>
+                            
+                            <!-- Descuento en dinero (no porcentaje) -->
+                            <div class="form-group">
+                                <label for="discount-input" class="form-label">Descuento (RD$)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">RD$</span>
+                                    <input type="number" id="discount-input" class="form-control" placeholder="0.00" step="0.01" min="0">
+                                </div>
+                            </div>
+                            
+                            <!-- Mostrar descuento aplicado y total final -->
+                            <div class="discount-display">
+                                <span class="discount-label">Descuento aplicado</span>
+                                <span id="discount-amount" class="discount-value">RD$0.00</span>
+                            </div>
+                            
+                            <div class="final-total-display">
+                                <span class="final-total-label">Total a Pagar</span>
+                                <span id="final-total-amount" class="final-total-value">RD$0.00</span>
+                            </div>
+                            
+                            <!-- Campos para pago en efectivo -->
+                            <div id="cash-payment-fields" class="payment-fields">
+                                <div class="payment-input-group">
+                                    <label for="cash-received">Dinero recibido:</label>
+                                    <input type="number" id="cash-received" step="0.01" min="0" placeholder="0.00" class="form-control">
+                                </div>
+                                
+                                <div class="change-display">
+                                    <span class="change-label">Cambio:</span>
+                                    <span id="change-amount" class="change-value">RD$0.00</span>
+                                </div>
+                            </div>
+                            
+                            <button id="complete-sale-button" class="btn btn-primary btn-lg">
+                                <i class='bx bx-check'></i>
+                                Finalizar Venta
+                            </button>
                         </div>
-
-                        <div style="overflow-x: auto;">
-                            <table class="product-list-table">
-                                <thead>
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="productsTableBody">
-                                    <!-- Products will be added here -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="error-message" id="productsListError"></div>
                     </div>
 
-                    <!-- Sección de Resumen de la Venta -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class='bx bx-calculator'></i>
-                            Resumen de la Venta
-                        </h3>
-                        <div class="totals-grid">
-                            <div class="total-item">
-                                <span>Subtotal:</span>
-                                <span id="subtotalAmount">RD$ 0.00</span>
-                            </div>
-                            <div class="total-item">
-                                <span>ITBIS (18%):</span>
-                                <span id="itbisAmount">RD$ 0.00</span>
-                            </div>
-                            <div class="total-item">
-                                <label class="form-label" for="discountInput" style="margin-bottom: 0;">Descuento (%):</label>
-                                <input type="number" id="discountInput" class="form-input" min="0" max="100" value="0" style="width: 80px; padding: 8px; text-align: right;">
-                            </div>
-                            <div class="total-item">
-                                <span>Monto Descuento:</span>
-                                <span id="discountAmount">RD$ 0.00</span>
-                            </div>
-                            <div class="total-item grand-total">
-                                <span>Total a Pagar:</span>
-                                <span id="totalAmount">RD$ 0.00</span>
-                            </div>
+                    <!-- Lista de Productos Agregados -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Productos en la Venta</h3>
                         </div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio Unitario</th>
+                                    <th>Subtotal</th>
+                                    <th style="text-align: right;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sale-items">
+                                <tr>
+                                    <td colspan="5" class="empty-state">
+                                        <div class="empty-state-icon">🛒</div>
+                                        <p>No hay productos agregados</p>
+                                        <p class="text-muted">Busque y agregue productos a la venta</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-
-                    <!-- Sección de Método de Pago -->
-                    <div class="form-section" id="paymentMethodSection">
-                        <h3 class="section-title">
-                            <i class='bx bx-wallet'></i>
-                            Método de Pago
-                        </h3>
-                        <div class="form-group">
-                            <div class="radio-group">
-                                <label>
-                                    <input type="radio" name="paymentMethod" value="Efectivo" checked>
-                                    Efectivo
-                                </label>
-                                <label>
-                                    <input type="radio" name="paymentMethod" value="Tarjeta">
-                                    Tarjeta
-                                </label>
-                                <label>
-                                    <input type="radio" name="paymentMethod" value="Transferencia">
-                                    Transferencia
-                                </label>
-                            </div>
-                            <div class="error-message" id="paymentMethodError"></div>
-                        </div>
-                    </div>
-
-                
-
-                    <!-- Sección de Observaciones -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class='bx bx-comment-detail'></i>
-                            Observaciones
-                        </h3>
-                        <div class="form-group">
-                            <label class="form-label" for="observations">Notas Adicionales</label>
-                            <textarea id="observations" name="observations" class="form-input form-textarea" placeholder="Cualquier nota relevante sobre la venta..."></textarea>
-                        </div>
-                    </div>
-
-                    <div class="button-group">
-                        <button type="submit" class="btn btn-primary">
-                            <i class='bx bx-save'></i>
-                            Registrar Venta
-                        </button>
-                        <button type="reset" class="btn btn-outline" onclick="resetFormAndCalculations()">
-                            <i class='bx bx-refresh'></i>
-                            Limpiar Formulario
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Modal de Confirmación para Cerrar Caja -->
+    <div id="close-register-modal" class="modal-overlay">
+        <div class="modal-content confirm-modal">
+            <div class="modal-body">
+                <div class="confirm-icon">
+                    <i class='bx bx-question-mark'></i>
+                </div>
+                <div class="confirm-message">
+                    ¿Estás seguro que deseas salir del área de ventas?
+                </div>
+                <div class="confirm-buttons">
+                    <button id="cancel-close-register" class="btn btn-outline">No</button>
+                    <button id="confirm-close-register" class="btn btn-danger">Sí</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Alerta Genérico -->
+    <div id="alert-modal" class="modal-overlay">
+        <div class="modal-content alert-modal">
+            <div class="modal-body">
+                <div id="alert-icon" class="alert-icon">
+                    <i class='bx bx-info-circle'></i>
+                </div>
+                <div id="alert-message" class="alert-message">
+                    Mensaje de alerta aquí
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="alert-ok-button" class="btn btn-primary">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario para enviar datos al servidor -->
+    <form id="sale-form" method="POST" action="{% url 'procesar_venta' %}" style="display: none;">
+        {% csrf_token %}
+        <input type="hidden" name="payment_type" id="payment-type">
+        <input type="hidden" name="payment_method" id="payment-method">
+        <input type="hidden" name="client_id" id="client-id">
+        <input type="hidden" name="client_name" id="client-name">
+        <input type="hidden" name="client_document" id="client-document">
+        <input type="hidden" name="subtotal" id="subtotal">
+        <input type="hidden" name="discount_percentage" id="discount-percentage">
+        <input type="hidden" name="discount_amount" id="discount-amount">
+        <input type="hidden" name="total" id="total">
+        <input type="hidden" name="cash_received" id="cash-received-field">
+        <input type="hidden" name="change_amount" id="change-amount-field">
+        <input type="hidden" name="sale_items" id="sale-items-field">
+        <!-- Campos de financiamiento -->
+        <input type="hidden" name="monto_inicial" id="monto-inicial-field">
+        <input type="hidden" name="tasa_interes" id="tasa-interes-field">
+        <input type="hidden" name="plazo_meses" id="plazo-meses-field">
+        <input type="hidden" name="monto_financiado" id="monto-financiado-field">
+        <input type="hidden" name="interes_mensual" id="interes-mensual-field">
+        <input type="hidden" name="cuota_mensual" id="cuota-mensual-field">
+        <input type="hidden" name="ganancia_interes" id="ganancia-interes-field">
+        <input type="hidden" name="total_con_interes" id="total-con-interes-field">
+        <input type="hidden" name="total_a_pagar" id="total-a-pagar-field">
+    </form>
+
     <script>
-        // Variables globales
-        let sales = JSON.parse(localStorage.getItem('sales')) || [];
-        let accountsReceivable = JSON.parse(localStorage.getItem('accountsReceivable')) || [];
-        let clients = JSON.parse(localStorage.getItem('clients')) || [];
-        let products = JSON.parse(localStorage.getItem('inventory')) || [];
-        let currentSaleProducts = []; // Products added to the current sale form
-        let selectedClient = null; // Client selected for credit sales
-        let selectedProduct = null; // Product selected from search
-        let saleType = 'cash'; // Default to cash sale
-
-        // Referencias a elementos del DOM
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
-        const salesForm = document.getElementById('salesForm');
-        const successMessage = document.getElementById('successMessage');
-        const generalErrorMessage = document.getElementById('generalErrorMessage');
-
-        // Sale type elements
-        const cashSaleBtn = document.getElementById('cashSaleBtn');
-        const creditSaleBtn = document.getElementById('creditSaleBtn');
-        const creditClientGroup = document.getElementById('creditClientGroup');
-        const cashClientGroup = document.getElementById('cashClientGroup');
-        const paymentMethodSection = document.getElementById('paymentMethodSection');
-        const creditDetailsSection = document.getElementById('creditDetailsSection');
-
-        // Client elements
-        const clientSearchInput = document.getElementById('clientSearch');
-        const clientSearchResults = document.getElementById('clientSearchResults');
-        const clientSearchError = document.getElementById('clientSearchError');
-        const clientNameInput = document.getElementById('clientName');
-        const clientPhoneInput = document.getElementById('clientPhone');
-
-        // Sale elements
-        const saleDateInput = document.getElementById('saleDate');
-        const invoiceNumberInput = document.getElementById('invoiceNumber');
-
-        // Product elements
-        const productSearchInput = document.getElementById('productSearch');
-        const productSearchResults = document.getElementById('productSearchResults');
-        const productSearchError = document.getElementById('productSearchError');
-        const productDetails = document.getElementById('productDetails');
-        const productDetailPrice = document.getElementById('productDetailPrice');
-        const productDetailStock = document.getElementById('productDetailStock');
-        const productDetailCategory = document.getElementById('productDetailCategory');
-        const productQuantityInput = document.getElementById('productQuantity');
-        const productPriceInput = document.getElementById('productPrice');
-        const productsTableBody = document.getElementById('productsTableBody');
-        const productNameError = document.getElementById('productNameError');
-        const productQuantityError = document.getElementById('productQuantityError');
-        const productPriceError = document.getElementById('productPriceError');
-        const productsListError = document.getElementById('productsListError');
-
-        // Totals elements
-        const subtotalAmountSpan = document.getElementById('subtotalAmount');
-        const itbisAmountSpan = document.getElementById('itbisAmount');
-        const discountInput = document.getElementById('discountInput');
-        const discountAmountSpan = document.getElementById('discountAmount');
-        const totalAmountSpan = document.getElementById('totalAmount');
-
-        // Payment elements
-        const creditPaidAmountInput = document.getElementById('creditPaidAmount');
-        const creditDueDateInput = document.getElementById('creditDueDate');
-        const paymentMethodError = document.getElementById('paymentMethodError');
-        const creditPaidAmountError = document.getElementById('creditPaidAmountError');
-        const creditDueDateError = document.getElementById('creditDueDateError');
-
-        // Observations
-        const observationsInput = document.getElementById('observations');
-
-        // --- Funciones de Utilidad ---
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        function formatCurrency(amount) {
-            return `RD$ ${parseFloat(amount).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        }
-
-        function generateInvoiceNumber() {
-            const lastInvoice = sales.length > 0 ? sales[sales.length - 1].invoiceNumber : "INV-0000";
-            const num = parseInt(lastInvoice.split('-')[1]) + 1;
-            return `INV-${String(num).padStart(4, '0')}`;
-        }
-
-        function showMessage(element, message, type = 'success') {
-            element.textContent = message;
-            element.className = `${type}-message`;
-            element.style.display = 'block';
-            setTimeout(() => {
-                element.style.display = 'none';
-            }, 5000);
-        }
-
-        function hideError(element) {
-            element.style.display = 'none';
-        }
-
-        // --- Funciones del Sidebar ---
+        // Funciones para el sidebar
         function toggleSidebar() {
-            sidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            if (window.innerWidth <= 768) {
-                document.body.classList.toggle('sidebar-open');
-            }
+            document.getElementById('sidebar').classList.toggle('active');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
         }
 
         function closeSidebar() {
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
+            document.getElementById('sidebar').classList.remove('active');
+            document.querySelector('.sidebar-overlay').classList.remove('active');
             document.body.classList.remove('sidebar-open');
         }
 
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    closeSidebar();
-                }
-            });
-        });
-
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
-                closeSidebar();
+        // Función para manejar valores decimales de forma segura
+        const safeDecimal = (value) => {
+            if (value === null || value === undefined || value === '') {
+                return '0';
             }
-        });
+            // Convertir a número y luego a string para evitar problemas de formato
+            const num = parseFloat(value);
+            return isNaN(num) ? '0' : num.toString();
+        };
 
-        // --- Selección de Tipo de Venta ---
-        function selectSaleType(type) {
-            saleType = type;
-            
-            if (type === 'cash') {
-                cashSaleBtn.classList.add('active');
-                creditSaleBtn.classList.remove('active');
-                
-                // Mostrar campos para cliente manual
-                cashClientGroup.style.display = 'block';
-                creditClientGroup.style.display = 'none';
-                
-                // Ocultar detalles de crédito
-                creditDetailsSection.style.display = 'none';
-                
-                // Mostrar métodos de pago normales
-                paymentMethodSection.style.display = 'block';
-                
-                // Limpiar cliente seleccionado
-                selectedClient = null;
-                clientSearchInput.value = '';
-                clientSearchResults.innerHTML = '';
-                clientSearchResults.style.display = 'none';
-                
-            } else {
-                cashSaleBtn.classList.remove('active');
-                creditSaleBtn.classList.add('active');
-                
-                // Mostrar búsqueda de cliente
-                cashClientGroup.style.display = 'none';
-                creditClientGroup.style.display = 'block';
-                
-                // Mostrar detalles de crédito
-                creditDetailsSection.style.display = 'block';
-                
-                // Ocultar métodos de pago normales
-                paymentMethodSection.style.display = 'none';
-                
-                // Limpiar nombre de cliente manual
-                clientNameInput.value = '';
-            }
-            
-            // Limpiar mensajes de error
-            hideError(clientSearchError);
-            hideError(generalErrorMessage);
-        }
-
-        // --- Búsqueda de Clientes para Crédito ---
-        function searchClients(query) {
-            if (!query || query.length < 2) {
-                clientSearchResults.innerHTML = '';
-                clientSearchResults.style.display = 'none';
-                return;
-            }
-            
-            const results = clients.filter(client => 
-                client.name.toLowerCase().includes(query.toLowerCase()) ||
-                (client.phone && client.phone.includes(query)) ||
-                (client.idNumber && client.idNumber.includes(query))
-            );
-            
-            displayClientResults(results);
-        }
-
-        function displayClientResults(results) {
-            clientSearchResults.innerHTML = '';
-            
-            if (results.length === 0) {
-                clientSearchResults.innerHTML = '<div class="client-result-item">No se encontraron clientes</div>';
-                clientSearchResults.style.display = 'block';
-                return;
-            }
-            
-            results.forEach(client => {
-                const item = document.createElement('div');
-                item.className = 'client-result-item';
-                item.innerHTML = `
-                    <strong>${client.name}</strong>
-                    <small>Tel: ${client.phone || 'N/A'} | Cédula: ${client.idNumber || 'N/A'}</small>
-                `;
-                item.addEventListener('click', () => selectClient(client));
-                clientSearchResults.appendChild(item);
-            });
-            
-            clientSearchResults.style.display = 'block';
-        }
-
-        function selectClient(client) {
-            selectedClient = client;
-            clientSearchInput.value = client.name;
-            clientPhoneInput.value = client.phone || '';
-            clientSearchResults.innerHTML = '';
-            clientSearchResults.style.display = 'none';
-            hideError(clientSearchError);
-        }
-
-        // --- Búsqueda de Productos ---
-        function searchProducts(query) {
-            if (!query || query.length < 2) {
-                productSearchResults.innerHTML = '';
-                productSearchResults.style.display = 'none';
-                productDetails.classList.remove('active');
-                selectedProduct = null;
-                return;
-            }
-            
-            const results = products.filter(product => 
-                product.name.toLowerCase().includes(query.toLowerCase()) ||
-                (product.model && product.model.toLowerCase().includes(query.toLowerCase())) ||
-                (product.code && product.code.includes(query))
-            );
-            
-            displayProductResults(results);
-        }
-
-        function displayProductResults(results) {
-            productSearchResults.innerHTML = '';
-            
-            if (results.length === 0) {
-                productSearchResults.innerHTML = '<div class="product-result-item">No se encontraron productos</div>';
-                productSearchResults.style.display = 'block';
-                productDetails.classList.remove('active');
-                selectedProduct = null;
-                return;
-            }
-            
-            results.forEach(product => {
-                const item = document.createElement('div');
-                item.className = 'product-result-item';
-                item.innerHTML = `
-                    <strong>${product.name}</strong>
-                    <small>${product.model ? `Modelo: ${product.model} | ` : ''}Código: ${product.code || 'N/A'}</small>
-                `;
-                item.addEventListener('click', () => selectProduct(product));
-                productSearchResults.appendChild(item);
-            });
-            
-            productSearchResults.style.display = 'block';
-        }
-
-        function selectProduct(product) {
-            selectedProduct = product;
-            productSearchInput.value = product.name;
-            productPriceInput.value = product.price.toFixed(2);
-            productSearchResults.innerHTML = '';
-            productSearchResults.style.display = 'none';
-            
-            // Mostrar detalles del producto
-            productDetailPrice.textContent = formatCurrency(product.price);
-            productDetailStock.textContent = product.quantity || 0;
-            productDetailCategory.textContent = product.category || 'N/A';
-            productDetails.classList.add('active');
-            
-            hideError(productSearchError);
-        }
-
-        // --- Lógica de Añadir/Eliminar Productos a la Venta ---
-        function addProductToSale() {
-            hideError(productSearchError);
-            hideError(productQuantityError);
-            hideError(productPriceError);
-            hideError(productsListError);
-
-            if (!selectedProduct) {
-                showMessage(productSearchError, 'Seleccione un producto de la lista.', 'error');
-                return;
-            }
-
-            const productQuantity = parseInt(productQuantityInput.value);
-            const productPrice = parseFloat(productPriceInput.value);
-
-            if (isNaN(productQuantity)) {
-                showMessage(productQuantityError, 'Ingrese una cantidad válida.', 'error');
-                return;
-            }
-
-            if (productQuantity <= 0) {
-                showMessage(productQuantityError, 'La cantidad debe ser mayor a 0.', 'error');
-                return;
-            }
-
-            if (selectedProduct.quantity && productQuantity > selectedProduct.quantity) {
-                showMessage(productQuantityError, `No hay suficiente stock. Disponible: ${selectedProduct.quantity}`, 'error');
-                return;
-            }
-
-            if (isNaN(productPrice) || productPrice < 0) {
-                showMessage(productPriceError, 'Ingrese un precio válido (mayor o igual a 0).', 'error');
-                return;
-            }
-
-            const existingProductIndex = currentSaleProducts.findIndex(item => item.id === selectedProduct.id);
-
-            if (existingProductIndex > -1) {
-                // Update quantity if product already in list
-                currentSaleProducts[existingProductIndex].quantity += productQuantity;
-                currentSaleProducts[existingProductIndex].total = currentSaleProducts[existingProductIndex].quantity * currentSaleProducts[existingProductIndex].price;
-            } else {
-                // Add new product
-                currentSaleProducts.push({
-                    id: selectedProduct.id,
-                    name: selectedProduct.name,
-                    model: selectedProduct.model,
-                    code: selectedProduct.code,
-                    quantity: productQuantity,
-                    price: productPrice,
-                    total: productQuantity * productPrice
-                });
-            }
-            
-            renderProductsTable();
-            calculateTotals();
-            
-            // Clear product selection
-            productSearchInput.value = '';
-            productQuantityInput.value = 1;
-            productPriceInput.value = '0.00';
-            productDetails.classList.remove('active');
-            selectedProduct = null;
-        }
-
-        function removeProductFromSale(index) {
-            currentSaleProducts.splice(index, 1);
-            renderProductsTable();
-            calculateTotals();
-        }
-
-        function renderProductsTable() {
-            productsTableBody.innerHTML = '';
-            if (currentSaleProducts.length === 0) {
-                productsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No hay productos añadidos a la venta.</td></tr>';
-                return;
-            }
-
-            currentSaleProducts.forEach((product, index) => {
-                const row = productsTableBody.insertRow();
-                row.innerHTML = `
-                    <td>
-                        <strong>${product.name}</strong>
-                        ${product.model ? `<br><small>Modelo: ${product.model}</small>` : ''}
-                        ${product.code ? `<br><small>Código: ${product.code}</small>` : ''}
-                    </td>
-                    <td>${product.quantity}</td>
-                    <td>${formatCurrency(product.price)}</td>
-                    <td>${formatCurrency(product.total)}</td>
-                    <td>
-                        <button type="button" class="remove-product-btn" onclick="removeProductFromSale(${index})">
-                            <i class='bx bx-trash'></i>
-                        </button>
-                    </td>
-                `;
-            });
-        }
-
-        // --- Lógica de Cálculos de Totales ---
-        function calculateTotals() {
-            let subtotal = currentSaleProducts.reduce((sum, item) => sum + item.total, 0);
-            let itbis = subtotal * 0.18; // 18% ITBIS
-            let discountPercentage = parseFloat(discountInput.value) || 0;
-            let discountAmount = subtotal * (discountPercentage / 100);
-            
-            let total = subtotal + itbis - discountAmount;
-
-            subtotalAmountSpan.textContent = formatCurrency(subtotal);
-            itbisAmountSpan.textContent = formatCurrency(itbis);
-            discountAmountSpan.textContent = formatCurrency(discountAmount);
-            totalAmountSpan.textContent = formatCurrency(total);
-
-            // Update credit paid amount default if payment method is credit
-            if (saleType === 'credit') {
-                creditPaidAmountInput.value = total.toFixed(2);
-            }
-        }
-
-        discountInput.addEventListener('input', calculateTotals);
-
-        // --- Manejo del Envío del Formulario de Venta ---
-        salesForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            hideError(generalErrorMessage);
-            hideError(clientSearchError);
-            hideError(productsListError);
-            hideError(paymentMethodError);
-            hideError(creditPaidAmountError);
-            hideError(creditDueDateError);
-
-            // 1. Validaciones
-            let isValid = true;
-
-            // Validación de cliente según tipo de venta
-            if (saleType === 'credit') {
-                if (!selectedClient) {
-                    showMessage(clientSearchError, 'Debe seleccionar un cliente registrado para ventas a crédito.', 'error');
-                    isValid = false;
-                } else {
-                    clientNameInput.value = selectedClient.name;
-                    clientPhoneInput.value = selectedClient.phone || '';
-                }
-            } else {
-                if (!clientNameInput.value.trim()) {
-                    clientNameInput.value = 'Cliente ocasional';
-                }
-            }
-
-            if (currentSaleProducts.length === 0) {
-                showMessage(productsListError, 'Debe añadir al menos un producto a la venta.', 'error');
-                isValid = false;
-            }
-
-            // Validaciones específicas para crédito
-            if (saleType === 'credit') {
-                const creditPaidAmount = parseFloat(creditPaidAmountInput.value) || 0;
-                const creditDueDate = creditDueDateInput.value;
-                const totalAmount = parseFloat(totalAmountSpan.textContent.replace('RD$ ', '').replace(/,/g, ''));
-
-                if (isNaN(creditPaidAmount) || creditPaidAmount < 0) {
-                    showMessage(creditPaidAmountError, 'Ingrese un monto pagado válido.', 'error');
-                    isValid = false;
-                }
-                if (!creditDueDate) {
-                    showMessage(creditDueDateError, 'Ingrese una fecha de vencimiento para la venta a crédito.', 'error');
-                    isValid = false;
-                }
-                if (creditPaidAmount > totalAmount) {
-                    showMessage(creditPaidAmountError, 'El abono no puede ser mayor al total a pagar.', 'error');
-                    isValid = false;
-                }
-            }
-
-            if (!isValid) {
-                showMessage(generalErrorMessage, 'Por favor, corrija los errores en el formulario.', 'error');
-                return;
-            }
-
-            // 2. Recopilar datos de la venta
-            const saleId = Date.now();
-            const totalAmount = parseFloat(totalAmountSpan.textContent.replace('RD$ ', '').replace(/,/g, ''));
-            const subtotal = parseFloat(subtotalAmountSpan.textContent.replace('RD$ ', '').replace(/,/g, ''));
-            const itbis = parseFloat(itbisAmountSpan.textContent.replace('RD$ ', '').replace(/,/g, ''));
-            const discount = parseFloat(discountInput.value) || 0;
-            const discountAmount = parseFloat(discountAmountSpan.textContent.replace('RD$ ', '').replace(/,/g, ''));
-
-            const paymentMethod = saleType === 'credit' ? 'Credito' : document.querySelector('input[name="paymentMethod"]:checked').value;
-            const creditPaidAmount = saleType === 'credit' ? parseFloat(creditPaidAmountInput.value) || 0 : totalAmount;
-            const creditDueDate = saleType === 'credit' ? creditDueDateInput.value : null;
-
-            const saleData = {
-                id: saleId,
-                saleType: saleType,
-                invoiceNumber: invoiceNumberInput.value,
-                saleDate: saleDateInput.value,
-                clientName: clientNameInput.value.trim(),
-                clientPhone: clientPhoneInput.value.trim() || 'N/A',
-                clientId: selectedClient ? selectedClient.id : null,
-                products: currentSaleProducts,
-                subtotal: subtotal,
-                itbis: itbis,
-                discountPercentage: discount,
-                discountAmount: discountAmount,
-                totalAmount: totalAmount,
-                paymentMethod: paymentMethod,
-                paidAmount: creditPaidAmount,
-                dueDate: creditDueDate,
-                observations: observationsInput.value.trim(),
-                dateRegistered: new Date().toISOString()
+        document.addEventListener("DOMContentLoaded", () => {
+            // Estado de la aplicación
+            const state = {
+                paymentType: 'contado', // 'contado' o 'credito'
+                paymentMethod: 'efectivo', // 'efectivo', 'tarjeta', 'transferencia'
+                selectedClient: null,
+                selectedProduct: null,
+                saleItems: [],
+                totalSales: 0,
+                discountAmount: 0,
+                finalTotal: 0,
+                cashReceived: 0,
+                changeAmount: 0,
+                // Campos de financiamiento
+                montoInicial: 0,
+                tasaInteres: 0,
+                plazoMeses: 0,
+                montoFinanciado: 0,
+                interesMensual: 0,
+                cuotaMensual: 0,
+                gananciaInteres: 0,
+                totalConInteres: 0,
+                totalAPagar: 0
             };
 
-            // 3. Actualizar inventario
-            currentSaleProducts.forEach(saleProduct => {
-                const productIndex = products.findIndex(p => p.id === saleProduct.id);
-                if (productIndex > -1) {
-                    products[productIndex].quantity -= saleProduct.quantity;
-                    if (products[productIndex].quantity < 0) products[productIndex].quantity = 0;
+            // Elementos del DOM
+            const DOM = {
+                salesInterface: document.getElementById('sales-interface'),
+                cashPaymentBtn: document.getElementById('cash-payment-btn'),
+                creditPaymentBtn: document.getElementById('credit-payment-btn'),
+                clientInfoContainer: document.getElementById('client-info-container'),
+                clientSearch: document.getElementById('client-search'),
+                clientResults: document.getElementById('client-results'),
+                cashInfoContainer: document.getElementById('cash-info-container'),
+                cashClientName: document.getElementById('cash-client-name'),
+                cashClientDocument: document.getElementById('cash-client-document'),
+                cashMethodBtn: document.getElementById('cash-method-btn'),
+                cardMethodBtn: document.getElementById('card-method-btn'),
+                transferMethodBtn: document.getElementById('transfer-method-btn'),
+                productSearch: document.getElementById('product-search'),
+                productResults: document.getElementById('product-results'),
+                productQuantity: document.getElementById('product-quantity'),
+                addProductButton: document.getElementById('add-product-button'),
+                saleItemsTable: document.getElementById('sale-items'),
+                totalAmount: document.getElementById('total-amount'),
+                discountInput: document.getElementById('discount-input'),
+                discountAmountDisplay: document.getElementById('discount-amount'),
+                finalTotalAmount: document.getElementById('final-total-amount'),
+                completeSaleButton: document.getElementById('complete-sale-button'),
+                cashPaymentFields: document.getElementById('cash-payment-fields'),
+                cashReceivedInput: document.getElementById('cash-received'),
+                changeAmountDisplay: document.getElementById('change-amount'),
+                closeRegisterButton: document.getElementById('close-register-button'),
+                closeRegisterModal: document.getElementById('close-register-modal'),
+                cancelCloseRegister: document.getElementById('cancel-close-register'),
+                confirmCloseRegister: document.getElementById('confirm-close-register'),
+                alertModal: document.getElementById('alert-modal'),
+                alertIcon: document.getElementById('alert-icon'),
+                alertMessage: document.getElementById('alert-message'),
+                alertOkButton: document.getElementById('alert-ok-button'),
+                saleForm: document.getElementById('sale-form'),
+                paymentTypeField: document.getElementById('payment-type'),
+                paymentMethodField: document.getElementById('payment-method'),
+                clientIdField: document.getElementById('client-id'),
+                clientNameField: document.getElementById('client-name'),
+                clientDocumentField: document.getElementById('client-document'),
+                subtotalField: document.getElementById('subtotal'),
+                discountPercentageField: document.getElementById('discount-percentage'),
+                discountAmountField: document.getElementById('discount-amount'),
+                totalField: document.getElementById('total'),
+                cashReceivedField: document.getElementById('cash-received-field'),
+                changeAmountField: document.getElementById('change-amount-field'),
+                saleItemsField: document.getElementById('sale-items-field'),
+                // Campos de financiamiento
+                montoInicialInput: document.getElementById('monto-inicial'),
+                tasaInteresInput: document.getElementById('tasa-interes'),
+                plazoMesesInput: document.getElementById('plazo-meses'),
+                montoFinanciadoInput: document.getElementById('monto-financiado'),
+                interesMensualInput: document.getElementById('interes-mensual'),
+                cuotaMensualInput: document.getElementById('cuota-mensual'),
+                gananciaInteresInput: document.getElementById('ganancia-interes'),
+                totalConInteresInput: document.getElementById('total-con-interes'),
+                totalAPagarInput: document.getElementById('total-a-pagar'),
+                montoInicialField: document.getElementById('monto-inicial-field'),
+                tasaInteresField: document.getElementById('tasa-interes-field'),
+                plazoMesesField: document.getElementById('plazo-meses-field'),
+                montoFinanciadoField: document.getElementById('monto-financiado-field'),
+                interesMensualField: document.getElementById('interes-mensual-field'),
+                cuotaMensualField: document.getElementById('cuota-mensual-field'),
+                gananciaInteresField: document.getElementById('ganancia-interes-field'),
+                totalConInteresField: document.getElementById('total-con-interes-field'),
+                totalAPagarField: document.getElementById('total-a-pagar-field')
+            };
+
+            // Formatear moneda en pesos dominicanos
+            const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('es-DO', {
+                    style: 'currency',
+                    currency: 'DOP',
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(amount).replace('DOP', 'RD$');
+            };
+
+            // Mostrar alerta personalizada
+            const showAlert = (message, type = 'info') => {
+                let iconClass = 'bx-info-circle';
+                let alertClass = '';
+                
+                if (type === 'error') {
+                    iconClass = 'bx-error';
+                    alertClass = 'error';
+                } else if (type === 'warning') {
+                    iconClass = 'bx-error-circle';
+                    alertClass = 'warning';
+                } else if (type === 'success') {
+                    iconClass = 'bx-check-circle';
+                    alertClass = 'success';
+                }
+                
+                DOM.alertIcon.innerHTML = `<i class='bx ${iconClass}'></i>`;
+                DOM.alertIcon.className = `alert-icon ${alertClass}`;
+                DOM.alertMessage.textContent = message;
+                
+                DOM.alertModal.classList.add('active');
+            };
+
+            // Cerrar alerta personalizada
+            const closeAlert = () => {
+                DOM.alertModal.classList.remove('active');
+            };
+
+            // Función para buscar productos via AJAX
+            const searchProducts = async (searchTerm) => {
+                if (searchTerm.length < 2) {
+                    DOM.productResults.innerHTML = `
+                        <div class="empty-search-state" style="padding: 15px; text-align: center; color: #888;">
+                            <p style="margin: 0; font-size: 2rem;"><i class='bx bx-search-alt'></i></p>
+                            <p style="margin: 5px 0;">Ingrese al menos 2 caracteres</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                try {
+                    // Mostrar indicador de carga
+                    DOM.productResults.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #888;">
+                            <i class='bx bx-loader bx-spin' style="font-size: 2rem;"></i>
+                            <p>Buscando productos...</p>
+                        </div>
+                    `;
+
+                    // Hacer la petición AJAX
+                    const response = await fetch(`/buscar-productos/?q=${encodeURIComponent(searchTerm)}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Error HTTP: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+
+                    if (data.success && data.productos && data.productos.length > 0) {
+                        // Mostrar resultados
+                        let html = '';
+                        data.productos.forEach(producto => {
+                            html += `
+                                <div class="product-item" data-id="${producto.id}" data-name="${producto.nombre}" 
+                                     data-price="${producto.precio}" data-stock="${producto.stock}">
+                                    <div>
+                                        <div class="product-name">${producto.nombre}</div>
+                                        <div class="product-details">Código: ${producto.codigo} | Stock: ${producto.stock}</div>
+                                    </div>
+                                    <div class="product-price">${formatCurrency(producto.precio)}</div>
+                                </div>
+                            `;
+                        });
+                        DOM.productResults.innerHTML = html;
+                    } else {
+                        // Mostrar mensaje de no resultados
+                        DOM.productResults.innerHTML = `
+                            <div class="empty-search-state" style="padding: 15px; text-align: center; color: #888;">
+                                <p style="margin: 0; font-size: 2rem;"><i class='bx bx-search-alt'></i></p>
+                                <p style="margin: 5px 0;">No se encontraron productos</p>
+                                <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Buscar: "${searchTerm}"</p>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Error en búsqueda:', error);
+                    DOM.productResults.innerHTML = `
+                        <div class="empty-search-state" style="padding: 15px; text-align: center; color: #f72585;">
+                            <p style="margin: 0; font-size: 2rem;"><i class='bx bx-error'></i></p>
+                            <p style="margin: 5px 0;">Error al buscar productos</p>
+                            <p style="margin: 0; font-size: 0.8rem;">Intente nuevamente</p>
+                        </div>
+                    `;
+                }
+            };
+
+            // Función debounce para evitar muchas peticiones
+            const debounce = (func, wait) => {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            };
+
+            // Búsqueda de productos con debounce
+            const debouncedSearch = debounce(searchProducts, 300);
+
+            // Renderizar resultados de búsqueda de clientes
+            const renderClientResults = (searchTerm = '') => {
+                const allClients = Array.from(DOM.clientResults.querySelectorAll('.client-item'));
+                
+                if (!searchTerm.trim()) {
+                    allClients.forEach(client => client.style.display = 'block');
+                    const emptyState = DOM.clientResults.querySelector('.empty-search-state');
+                    if (emptyState) emptyState.remove();
+                    return;
+                }
+                
+                let hasResults = false;
+                
+                allClients.forEach(client => {
+                    const clientName = (client.getAttribute('data-name') || '').toLowerCase();
+                    const clientDocument = (client.getAttribute('data-document') || '').toLowerCase();
+                    const clientPhone = (client.getAttribute('data-phone') || '').toLowerCase();
+                    const search = searchTerm.toLowerCase();
+                    
+                    if (clientName.includes(search) || clientDocument.includes(search) || clientPhone.includes(search)) {
+                        client.style.display = 'block';
+                        hasResults = true;
+                    } else {
+                        client.style.display = 'none';
+                    }
+                });
+                
+                const existingEmptyState = DOM.clientResults.querySelector('.empty-search-state');
+                if (existingEmptyState) existingEmptyState.remove();
+                
+                if (!hasResults) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'empty-search-state';
+                    emptyDiv.style.cssText = 'padding: 15px; text-align: center; color: #888;';
+                    emptyDiv.innerHTML = `
+                        <p><i class='bx bx-search'></i></p>
+                        <p>No se encontraron clientes con "${searchTerm}"</p>
+                    `;
+                    DOM.clientResults.appendChild(emptyDiv);
+                }
+            };
+
+            // Renderizar items de la venta
+            const renderSaleItems = () => {
+                DOM.saleItemsTable.innerHTML = '';
+                
+                if (state.saleItems.length === 0) {
+                    DOM.saleItemsTable.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <div class="empty-state-icon">🛒</div>
+                                <p>No hay productos agregados</p>
+                                <p class="text-muted">Busque y agregue productos a la venta</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                state.saleItems.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${formatCurrency(item.price)}</td>
+                        <td>${formatCurrency(item.subtotal)}</td>
+                        <td style="text-align: right;">
+                            <button class="btn btn-icon btn-outline btn-sm delete-item" data-id="${item.id}">
+                                <i class='bx bx-trash'></i>
+                            </button>
+                        </td>
+                    `;
+                    DOM.saleItemsTable.appendChild(row);
+                });
+                
+                document.querySelectorAll('.delete-item').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const itemId = e.target.closest('button').dataset.id;
+                        const item = state.saleItems.find(item => item.id === itemId);
+                        state.saleItems = state.saleItems.filter(item => item.id !== itemId);
+                        updateTotal();
+                        renderSaleItems();
+                        if (item) {
+                            showAlert(`Producto eliminado: ${item.name}`, 'success');
+                        }
+                    });
+                });
+            };
+
+            // Actualizar total de la venta
+            const updateTotal = () => {
+                state.totalSales = state.saleItems.reduce((total, item) => total + item.subtotal, 0);
+                DOM.totalAmount.textContent = formatCurrency(state.totalSales);
+                updateDiscount();
+            };
+
+            // Actualizar descuento y total final
+            const updateDiscount = () => {
+                const discountInput = parseFloat(DOM.discountInput.value) || 0;
+                state.discountAmount = Math.max(0, Math.min(discountInput, state.totalSales));
+                state.finalTotal = Math.max(0, state.totalSales - state.discountAmount);
+                
+                DOM.discountAmountDisplay.textContent = formatCurrency(state.discountAmount);
+                
+                // Si es crédito y hay financiamiento, usar el total con interés
+                if (state.paymentType === 'credito' && state.totalConInteres > 0) {
+                    DOM.finalTotalAmount.textContent = formatCurrency(state.totalConInteres);
+                } else {
+                    DOM.finalTotalAmount.textContent = formatCurrency(state.finalTotal);
+                }
+                
+                if (state.paymentType === 'contado') {
+                    calculateChange();
+                }
+                
+                // Actualizar campos de financiamiento si es crédito
+                if (state.paymentType === 'credito') {
+                    updateFinanciamiento();
+                }
+            };
+
+            // Actualizar campos de financiamiento
+            const updateFinanciamiento = () => {
+                if (state.paymentType !== 'credito') return;
+                
+                // Calcular monto a financiar
+                state.montoFinanciado = Math.max(0, state.finalTotal - state.montoInicial);
+                DOM.montoFinanciadoInput.value = state.montoFinanciado.toFixed(2);
+                
+                // Calcular interés mensual
+                state.interesMensual = state.montoFinanciado * (state.tasaInteres / 100);
+                DOM.interesMensualInput.value = state.interesMensual.toFixed(2);
+                
+                // Calcular cuota mensual
+                if (state.plazoMeses > 0) {
+                    state.cuotaMensual = (state.montoFinanciado + state.interesMensual * state.plazoMeses) / state.plazoMeses;
+                    DOM.cuotaMensualInput.value = state.cuotaMensual.toFixed(2);
+                } else {
+                    state.cuotaMensual = 0;
+                    DOM.cuotaMensualInput.value = '0.00';
+                }
+                
+                // Calcular ganancia por interés
+                state.gananciaInteres = state.interesMensual * state.plazoMeses;
+                DOM.gananciaInteresInput.value = state.gananciaInteres.toFixed(2);
+                
+                // Calcular total con interés
+                state.totalConInteres = state.finalTotal + state.gananciaInteres;
+                DOM.totalConInteresInput.value = state.totalConInteres.toFixed(2);
+                
+                // El total a pagar es el total con interés
+                state.totalAPagar = state.totalConInteres;
+                DOM.totalAPagarInput.value = state.totalAPagar.toFixed(2);
+                
+                // Actualizar el total final que se muestra
+                DOM.finalTotalAmount.textContent = formatCurrency(state.totalAPagar);
+            };
+
+            // Cambiar tipo de pago
+            const setPaymentType = (type) => {
+                // Mapear a los valores que espera el backend
+                state.paymentType = type === 'cash' ? 'contado' : 'credito';
+                
+                if (type === 'cash') {
+                    DOM.cashPaymentBtn.classList.add('active');
+                    DOM.creditPaymentBtn.classList.remove('active');
+                    DOM.clientInfoContainer.classList.add('hidden');
+                    DOM.cashInfoContainer.classList.remove('hidden');
+                    DOM.cashPaymentFields.style.display = 'block';
+                    state.selectedClient = null;
+                    
+                    document.querySelectorAll('.client-item').forEach(item => {
+                        item.style.backgroundColor = '';
+                        item.style.borderLeft = '';
+                    });
+                    
+                    // Limpiar información del cliente
+                    const clientInfoDisplay = document.querySelector('.client-info-display');
+                    if (clientInfoDisplay) clientInfoDisplay.remove();
+                    
+                    // Actualizar total final
+                    DOM.finalTotalAmount.textContent = formatCurrency(state.finalTotal);
+                } else {
+                    DOM.cashPaymentBtn.classList.remove('active');
+                    DOM.creditPaymentBtn.classList.add('active');
+                    DOM.clientInfoContainer.classList.remove('hidden');
+                    DOM.cashInfoContainer.classList.add('hidden');
+                    DOM.cashPaymentFields.style.display = 'none';
+                    DOM.clientSearch.value = '';
+                    renderClientResults();
+                    
+                    // Actualizar total final según financiamiento
+                    if (state.totalConInteres > 0) {
+                        DOM.finalTotalAmount.textContent = formatCurrency(state.totalConInteres);
+                    } else {
+                        DOM.finalTotalAmount.textContent = formatCurrency(state.finalTotal);
+                    }
+                }
+            };
+
+            // Cambiar método de pago
+            const setPaymentMethod = (method) => {
+                // Mapear a los valores que espera el backend
+                const methodMap = {
+                    'cash': 'efectivo',
+                    'card': 'tarjeta', 
+                    'transfer': 'transferencia'
+                };
+                
+                state.paymentMethod = methodMap[method] || 'efectivo';
+                
+                DOM.cashMethodBtn.classList.remove('active');
+                DOM.cardMethodBtn.classList.remove('active');
+                DOM.transferMethodBtn.classList.remove('active');
+                
+                if (method === 'cash') {
+                    DOM.cashMethodBtn.classList.add('active');
+                } else if (method === 'card') {
+                    DOM.cardMethodBtn.classList.add('active');
+                } else if (method === 'transfer') {
+                    DOM.transferMethodBtn.classList.add('active');
+                }
+            };
+
+            // Función para calcular el cambio
+            const calculateChange = () => {
+                if (state.paymentType === 'contado' && state.paymentMethod === 'efectivo') {
+                    const cashReceived = parseFloat(DOM.cashReceivedInput.value) || 0;
+                    state.cashReceived = cashReceived;
+                    state.changeAmount = Math.max(0, cashReceived - state.finalTotal);
+                    DOM.changeAmountDisplay.textContent = formatCurrency(state.changeAmount);
+                    
+                    if (cashReceived < state.finalTotal) {
+                        DOM.changeAmountDisplay.style.color = '#f72585';
+                    } else {
+                        DOM.changeAmountDisplay.style.color = '#4cc9f0';
+                    }
+                }
+            };
+
+            // Función para limpiar la búsqueda de productos
+            const clearProductSearch = () => {
+                DOM.productSearch.value = '';
+                state.selectedProduct = null;
+                DOM.productQuantity.value = '1';
+                DOM.productResults.innerHTML = `
+                    <div class="empty-search-state" style="padding: 15px; text-align: center; color: #888;">
+                        <p style="margin: 0; font-size: 2rem;"><i class='bx bx-search-alt'></i></p>
+                        <p style="margin: 5px 0;">Busque productos por nombre o código</p>
+                    </div>
+                `;
+                
+                document.querySelectorAll('.product-item').forEach(item => {
+                    item.style.backgroundColor = '';
+                    item.style.borderLeft = '';
+                });
+            };
+
+            // Función para validar límite de crédito
+            const validarLimiteCredito = () => {
+                if (state.paymentType === 'credito' && state.selectedClient) {
+                    const limiteCredito = state.selectedClient.credit_limit;
+                    const totalAVerificar = state.totalConInteres > 0 ? state.totalConInteres : state.finalTotal;
+                    
+                    if (totalAVerificar > limiteCredito) {
+                        showAlert(
+                            `⚠️ Límite de crédito excedido\n` +
+                            `Límite del cliente: ${formatCurrency(limiteCredito)}\n` +
+                            `Total de la venta: ${formatCurrency(totalAVerificar)}\n` +
+                            `Excedente: ${formatCurrency(totalAVerificar - limiteCredito)}`,
+                            'error'
+                        );
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            // Función para mostrar información del cliente seleccionado
+            const mostrarInfoCliente = () => {
+                // Remover info anterior si existe
+                const oldInfo = document.querySelector('.client-info-display');
+                if (oldInfo) oldInfo.remove();
+                
+                if (state.selectedClient) {
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'client-info-display';
+                    infoDiv.style.cssText = `
+                        padding: 12px;
+                        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                        border-radius: 10px;
+                        margin-top: 15px;
+                        border-left: 4px solid #667eea;
+                        font-size: 0.9rem;
+                        line-height: 1.4;
+                    `;
+                    
+                    const totalAVerificar = state.totalConInteres > 0 ? state.totalConInteres : state.finalTotal;
+                    const saldoDisponible = state.selectedClient.credit_limit - totalAVerificar;
+                    const claseSaldo = saldoDisponible < 0 ? 'credit-limit-danger' : 'credit-limit-warning';
+                    
+                    infoDiv.innerHTML = `
+                        <strong>Cliente seleccionado:</strong> ${state.selectedClient.full_name}<br>
+                        <strong>Límite de crédito:</strong> ${formatCurrency(state.selectedClient.credit_limit)}<br>
+                        <strong>Saldo disponible:</strong> <span class="${claseSaldo}">${formatCurrency(saldoDisponible)}</span>
+                    `;
+                    
+                    DOM.clientInfoContainer.appendChild(infoDiv);
+                }
+            };
+
+            // Función para procesar la venta con AJAX
+            const procesarVenta = async () => {
+                if (state.saleItems.length === 0) {
+                    showAlert('Debe agregar al menos un producto a la venta', 'error');
+                    return;
+                }
+                
+                if (state.paymentType === 'credito' && !state.selectedClient) {
+                    showAlert('Debe seleccionar un cliente para ventas a crédito', 'error');
+                    return;
+                }
+                
+                if (state.paymentType === 'credito' && !validarLimiteCredito()) {
+                    return; // Detener si excede el límite de crédito
+                }
+                
+                if (state.paymentType === 'contado' && !DOM.cashClientName.value.trim()) {
+                    showAlert('Debe ingresar el nombre del cliente para ventas al contado', 'error');
+                    return;
+                }
+                
+                if (state.paymentType === 'contado' && state.paymentMethod === 'efectivo') {
+                    if (state.cashReceived < state.finalTotal) {
+                        showAlert(`El monto recibido (${formatCurrency(state.cashReceived)}) es menor que el total a pagar (${formatCurrency(state.finalTotal)})`, 'error');
+                        return;
+                    }
+                }
+                
+                try {
+                    // Mostrar indicador de carga
+                    DOM.completeSaleButton.innerHTML = '<i class="bx bx-loader bx-spin"></i> Procesando...';
+                    DOM.completeSaleButton.disabled = true;
+                    
+                    // Crear FormData para enviar los datos
+                    const formData = new FormData();
+                    formData.append('payment_type', state.paymentType);
+                    formData.append('payment_method', state.paymentMethod);
+                    formData.append('client_id', state.selectedClient ? state.selectedClient.id : '');
+                    formData.append('client_name', state.paymentType === 'contado' ? DOM.cashClientName.value.trim() : (state.selectedClient ? state.selectedClient.full_name : ''));
+                    formData.append('client_document', state.paymentType === 'contado' ? DOM.cashClientDocument.value.trim() : (state.selectedClient ? state.selectedClient.document : ''));
+                    formData.append('subtotal', safeDecimal(state.totalSales));
+                    formData.append('discount_percentage', '0'); // Ya no usamos porcentaje
+                    formData.append('discount_amount', safeDecimal(state.discountAmount));
+                    
+                    // Usar el total con interés si es crédito y hay financiamiento
+                    const totalFinal = state.paymentType === 'credito' && state.totalConInteres > 0 ? state.totalConInteres : state.finalTotal;
+                    formData.append('total', safeDecimal(totalFinal));
+                    
+                    formData.append('cash_received', safeDecimal(state.cashReceived));
+                    formData.append('change_amount', safeDecimal(state.changeAmount));
+                    
+                    // Campos de financiamiento
+                    formData.append('monto_inicial', safeDecimal(state.montoInicial));
+                    formData.append('tasa_interes', safeDecimal(state.tasaInteres));
+                    formData.append('plazo_meses', state.plazoMeses.toString());
+                    formData.append('monto_financiado', safeDecimal(state.montoFinanciado));
+                    formData.append('interes_mensual', safeDecimal(state.interesMensual));
+                    formData.append('cuota_mensual', safeDecimal(state.cuotaMensual));
+                    formData.append('ganancia_interes', safeDecimal(state.gananciaInteres));
+                    formData.append('total_con_interes', safeDecimal(state.totalConInteres));
+                    formData.append('total_a_pagar', safeDecimal(state.totalAPagar));
+                    
+                    // Preparar items para enviar
+                    const saleItemsForServer = state.saleItems.map(item => ({
+                        id: item.productId,
+                        name: item.name,
+                        price: safeDecimal(item.price),
+                        quantity: parseInt(item.quantity) || 1,
+                        subtotal: safeDecimal(item.subtotal)
+                    }));
+                    
+                    formData.append('sale_items', JSON.stringify(saleItemsForServer));
+                    
+                    // Obtener el token CSRF
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    
+                    // Enviar datos al servidor
+                    const response = await fetch("{% url 'procesar_venta' %}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                        },
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        let mensaje = 'Venta procesada correctamente';
+                        
+                        // Mensaje adicional para ventas a crédito
+                        if (state.paymentType === 'credito') {
+                            mensaje += '\n✅ Cuenta por cobrar creada automáticamente';
+                        }
+                        
+                        showAlert(mensaje, 'success');
+                        
+                        // Limpiar la venta actual
+                        state.saleItems = [];
+                        updateTotal();
+                        renderSaleItems();
+                        clearProductSearch();
+                        
+                        // Limpiar campos de cliente
+                        if (state.paymentType === 'contado') {
+                            DOM.cashClientName.value = '';
+                            DOM.cashClientDocument.value = '';
+                        } else {
+                            DOM.clientSearch.value = '';
+                            state.selectedClient = null;
+                            document.querySelectorAll('.client-item').forEach(item => {
+                                item.style.backgroundColor = '';
+                                item.style.borderLeft = '';
+                            });
+                        }
+                        
+                        // Limpiar campos de pago
+                        DOM.cashReceivedInput.value = '';
+                        DOM.changeAmountDisplay.textContent = formatCurrency(0);
+                        
+                        // Limpiar campos de financiamiento
+                        DOM.montoInicialInput.value = '';
+                        DOM.tasaInteresInput.value = '';
+                        DOM.plazoMesesInput.value = '';
+                        DOM.montoFinanciadoInput.value = '';
+                        DOM.interesMensualInput.value = '';
+                        DOM.cuotaMensualInput.value = '';
+                        DOM.gananciaInteresInput.value = '';
+                        DOM.totalConInteresInput.value = '';
+                        DOM.totalAPagarInput.value = '';
+                        
+                        // Redirigir a comprobante después de 2 segundos
+                        setTimeout(() => {
+                            if (result.venta_id) {
+                                window.location.href = `/comprobante-venta/${result.venta_id}/`;
+                            }
+                        }, 2000);
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error al procesar la venta:', error);
+                    showAlert('Error al procesar la venta. Intente nuevamente.', 'error');
+                } finally {
+                    // Restaurar botón
+                    DOM.completeSaleButton.innerHTML = '<i class="bx bx-check"></i> Finalizar Venta';
+                    DOM.completeSaleButton.disabled = false;
+                }
+            };
+
+            // EVENTOS DEL DOM
+
+            DOM.cashPaymentBtn.addEventListener('click', () => setPaymentType('cash'));
+            DOM.creditPaymentBtn.addEventListener('click', () => setPaymentType('credit'));
+            DOM.cashMethodBtn.addEventListener('click', () => setPaymentMethod('cash'));
+            DOM.cardMethodBtn.addEventListener('click', () => setPaymentMethod('card'));
+            DOM.transferMethodBtn.addEventListener('click', () => setPaymentMethod('transfer'));
+
+            DOM.discountInput.addEventListener('input', updateDiscount);
+            DOM.cashReceivedInput.addEventListener('input', calculateChange);
+
+            // Eventos para campos de financiamiento
+            DOM.montoInicialInput.addEventListener('input', (e) => {
+                state.montoInicial = parseFloat(e.target.value) || 0;
+                updateFinanciamiento();
+            });
+
+            DOM.tasaInteresInput.addEventListener('input', (e) => {
+                state.tasaInteres = parseFloat(e.target.value) || 0;
+                updateFinanciamiento();
+            });
+
+            DOM.plazoMesesInput.addEventListener('input', (e) => {
+                state.plazoMeses = parseInt(e.target.value) || 0;
+                updateFinanciamiento();
+            });
+
+            DOM.clientSearch.addEventListener('input', (e) => {
+                const searchTerm = e.target.value;
+                renderClientResults(searchTerm);
+                
+                if (searchTerm && state.selectedClient) {
+                    state.selectedClient = null;
+                    document.querySelectorAll('.client-item').forEach(item => {
+                        item.style.backgroundColor = '';
+                        item.style.borderLeft = '';
+                    });
+                    
+                    // Limpiar información del cliente
+                    const clientInfoDisplay = document.querySelector('.client-info-display');
+                    if (clientInfoDisplay) clientInfoDisplay.remove();
                 }
             });
-            localStorage.setItem('inventory', JSON.stringify(products));
 
-            // 4. Manejar ventas a crédito
-            if (saleType === 'credit') {
-                const pendingAmount = totalAmount - creditPaidAmount;
-                const accountStatus = pendingAmount <= 0 ? 'paid' : (new Date(creditDueDate) < new Date() ? 'overdue' : 'pending');
+            // Evento de búsqueda de productos
+            DOM.productSearch.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.trim();
+                
+                // Limpiar selección si cambia la búsqueda
+                if (searchTerm && state.selectedProduct && state.selectedProduct.name !== searchTerm) {
+                    state.selectedProduct = null;
+                    document.querySelectorAll('.product-item').forEach(item => {
+                        item.style.backgroundColor = '';
+                        item.style.borderLeft = '';
+                    });
+                }
+                
+                // Usar debounce para la búsqueda AJAX
+                debouncedSearch(searchTerm);
+            });
 
-                const newAccountReceivable = {
-                    id: saleId, // Usar el mismo ID de la venta para vincular
-                    invoiceNumber: saleData.invoiceNumber,
-                    clientId: selectedClient.id,
-                    clientName: saleData.clientName,
-                    clientPhone: saleData.clientPhone,
-                    products: saleData.products, // Guardar los productos de la venta
-                    saleDate: saleData.saleDate,
-                    dueDate: creditDueDate,
-                    totalAmount: totalAmount,
-                    paidAmount: creditPaidAmount,
-                    pendingAmount: pendingAmount,
-                    status: accountStatus,
-                    observations: saleData.observations,
-                    dateRegistered: saleData.dateRegistered
-                };
-                accountsReceivable.push(newAccountReceivable);
-                localStorage.setItem('accountsReceivable', JSON.stringify(accountsReceivable));
-            }
+            // Evento de selección de cliente
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('.client-item')) {
+                    const clientItem = e.target.closest('.client-item');
+                    
+                    document.querySelectorAll('.client-item').forEach(item => {
+                        item.style.backgroundColor = '';
+                        item.style.borderLeft = '';
+                    });
+                    
+                    clientItem.style.backgroundColor = '#f8f9fa';
+                    clientItem.style.borderLeft = '4px solid #667eea';
+                    
+                    state.selectedClient = {
+                        id: clientItem.dataset.id,
+                        full_name: clientItem.dataset.name,
+                        document: clientItem.dataset.document,
+                        phone: clientItem.dataset.phone,
+                        credit_limit: parseFloat(clientItem.dataset.creditLimit) || 0
+                    };
+                    
+                    DOM.clientSearch.value = state.selectedClient.full_name;
+                    
+                    // Mostrar información del cliente
+                    mostrarInfoCliente();
+                    
+                    // Validar límite de crédito automáticamente
+                    if (state.paymentType === 'credito') {
+                        validarLimiteCredito();
+                    }
+                }
+            });
 
-            // 5. Guardar la venta
-            sales.push(saleData);
-            localStorage.setItem('sales', JSON.stringify(sales));
+            // Evento de selección de producto (usar delegación de eventos)
+            DOM.productResults.addEventListener('click', (e) => {
+                const productItem = e.target.closest('.product-item');
+                if (productItem) {
+                    document.querySelectorAll('.product-item').forEach(item => {
+                        item.style.backgroundColor = '';
+                        item.style.borderLeft = '';
+                    });
+                    
+                    productItem.style.backgroundColor = '#f8f9fa';
+                    productItem.style.borderLeft = '4px solid #667eea';
+                    
+                    state.selectedProduct = {
+                        id: productItem.dataset.id,
+                        name: productItem.dataset.name,
+                        price: parseFloat(productItem.dataset.price) || 0,
+                        stock: parseInt(productItem.dataset.stock) || 0
+                    };
+                    
+                    DOM.productSearch.value = state.selectedProduct.name;
+                    DOM.productQuantity.focus(); // Enfocar el campo de cantidad
+                }
+            });
 
-            // 6. Mostrar mensaje de éxito y limpiar formulario
-            showMessage(successMessage, 'Venta registrada exitosamente.', 'success');
-            resetFormAndCalculations();
-            console.log('Venta registrada:', saleData);
-        });
+            // Evento agregar producto
+            DOM.addProductButton.addEventListener('click', () => {
+                if (!state.selectedProduct) {
+                    showAlert('Por favor seleccione un producto de la lista', 'error');
+                    return;
+                }
+                
+                const quantity = parseInt(DOM.productQuantity.value);
+                
+                if (isNaN(quantity) || quantity <= 0) {
+                    showAlert('Por favor ingrese una cantidad válida mayor a 0', 'error');
+                    return;
+                }
+                
+                if (quantity > state.selectedProduct.stock) {
+                    showAlert(`Stock insuficiente. Disponible: ${state.selectedProduct.stock}`, 'error');
+                    return;
+                }
+                
+                const existingItemIndex = state.saleItems.findIndex(item => item.productId === state.selectedProduct.id);
+                
+                if (existingItemIndex >= 0) {
+                    const existingItem = state.saleItems[existingItemIndex];
+                    const newQuantity = existingItem.quantity + quantity;
+                    
+                    if (newQuantity > state.selectedProduct.stock) {
+                        showAlert(`Stock insuficiente. Ya tiene ${existingItem.quantity} en la venta. Disponible: ${state.selectedProduct.stock}`, 'error');
+                        return;
+                    }
+                    
+                    existingItem.quantity = newQuantity;
+                    existingItem.subtotal = existingItem.quantity * existingItem.price;
+                    
+                    showAlert(`Cantidad actualizada: ${existingItem.name} x${existingItem.quantity}`, 'success');
+                } else {
+                    state.saleItems.push({
+                        id: Date.now().toString(),
+                        productId: state.selectedProduct.id,
+                        name: state.selectedProduct.name,
+                        price: state.selectedProduct.price,
+                        quantity: quantity,
+                        subtotal: quantity * state.selectedProduct.price
+                    });
+                    
+                    showAlert(`Producto agregado: ${state.selectedProduct.name} x${quantity}`, 'success');
+                }
+                
+                clearProductSearch();
+                updateTotal();
+                renderSaleItems();
+                
+                // Actualizar información del cliente si es crédito
+                if (state.paymentType === 'credito' && state.selectedClient) {
+                    mostrarInfoCliente();
+                    validarLimiteCredito();
+                }
+            });
 
-        // --- Función para Limpiar Formulario ---
-        function resetFormAndCalculations() {
-            salesForm.reset();
-            currentSaleProducts = [];
-            selectedClient = null;
-            selectedProduct = null;
-            renderProductsTable();
-            calculateTotals();
-            invoiceNumberInput.value = generateInvoiceNumber();
-            saleDateInput.value = formatDate(new Date());
-            
-            // Reset sale type to cash
-            selectSaleType('cash');
-            
-            // Clear searches
-            clientSearchInput.value = '';
-            clientSearchResults.innerHTML = '';
-            clientSearchResults.style.display = 'none';
-            
-            productSearchInput.value = '';
-            productSearchResults.innerHTML = '';
-            productSearchResults.style.display = 'none';
-            productDetails.classList.remove('active');
-            
-            // Hide all errors
-            hideError(generalErrorMessage);
-            hideError(clientSearchError);
-            hideError(productsListError);
-            hideError(paymentMethodError);
-            hideError(creditPaidAmountError);
-            hideError(creditDueDateError);
-            hideError(productSearchError);
-            hideError(productQuantityError);
-            hideError(productPriceError);
-        }
+            // Evento para cerrar caja
+            DOM.closeRegisterButton.addEventListener('click', () => {
+                DOM.closeRegisterModal.classList.add('active');
+            });
 
-        // --- Event Listeners ---
-        clientSearchInput.addEventListener('input', function() {
-            searchClients(this.value);
-        });
+            DOM.cancelCloseRegister.addEventListener('click', () => {
+                DOM.closeRegisterModal.classList.remove('active');
+            });
 
-        // Ocultar resultados de búsqueda al hacer clic fuera
-        document.addEventListener('click', function(e) {
-            if (!clientSearchInput.contains(e.target) && !clientSearchResults.contains(e.target)) {
-                clientSearchResults.style.display = 'none';
-            }
-            if (!productSearchInput.contains(e.target) && !productSearchResults.contains(e.target)) {
-                productSearchResults.style.display = 'none';
-            }
-        });
+            DOM.confirmCloseRegister.addEventListener('click', () => {
+                window.location.href = "{% url 'cierredecaja' %}";
+            });
 
-        productSearchInput.addEventListener('input', function() {
-            searchProducts(this.value);
-        });
+            // Evento para completar venta
+            DOM.completeSaleButton.addEventListener('click', procesarVenta);
 
-        // --- Inicialización al Cargar la Página ---
-        window.addEventListener('load', function() {
-            // Datos de ejemplo para prueba (eliminar en producción)
-            if (clients.length === 0) {
-                clients = [
-                    { id: 1, name: "Juan Pérez", phone: "8091234567", idNumber: "00112345678" },
-                    { id: 2, name: "María Rodríguez", phone: "8092345678", idNumber: "00223456789" },
-                    { id: 3, name: "Carlos García", phone: "8093456789", idNumber: "00334567890" }
-                ];
-                localStorage.setItem('clients', JSON.stringify(clients));
-            }
+            // Evento para cerrar alerta
+            DOM.alertOkButton.addEventListener('click', closeAlert);
 
-            if (products.length === 0) {
-                products = [
-                    { id: 1, name: "iPhone 13", model: "A2487", code: "APP-IP13-128", price: 25000, quantity: 10, category: "Smartphones" },
-                    { id: 2, name: "Samsung Galaxy S21", model: "SM-G991B", code: "SAM-S21-256", price: 28000, quantity: 8, category: "Smartphones" },
-                    { id: 3, name: "Xiaomi Redmi Note 10", model: "M2101K7AG", code: "XIA-RN10-64", price: 12000, quantity: 15, category: "Smartphones" }
-                ];
-                localStorage.setItem('inventory', JSON.stringify(products));
-            }
-            
-            // Configurar valores iniciales
-            saleDateInput.value = formatDate(new Date());
-            invoiceNumberInput.value = generateInvoiceNumber();
-            renderProductsTable(); // Render empty table initially
-            calculateTotals(); // Set initial totals to 0
-            
-            // Configurar tipo de venta inicial
-            selectSaleType('cash');
-            
-            console.log(`${sales.length} ventas cargadas.`);
-            console.log(`${accountsReceivable.length} cuentas por cobrar cargadas.`);
-            console.log(`${clients.length} clientes cargados.`);
-            console.log(`${products.length} productos cargados.`);
+            // Inicializar la interfaz
+            setPaymentType('cash'); // Esto se mapeará a 'contado'
+            setPaymentMethod('cash'); // Esto se mapeará a 'efectivo'
+            updateTotal();
+            renderSaleItems();
         });
     </script>
 </body>

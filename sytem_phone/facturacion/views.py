@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404 
-from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja
+from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja, ComprobantePago
 from django.contrib import messages
 
 from django.http import JsonResponse
@@ -36,6 +36,11 @@ from datetime import datetime, timedelta
 import pandas as pd
 from decimal import Decimal, InvalidOperation
 import logging
+
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import User, Group, Permission
+import csv
+from reportlab.pdfgen import canvas
 
 # Create your views her
 def index(request):
@@ -537,24 +542,113 @@ def ventas(request):
 #     except Exception as e:
 #         transaction.set_rollback(True)
 #         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
+
+def safe_decimal(value, default=0):
+    """
+    Convierte de forma segura un valor a Decimal.
+    Maneja strings, números, y valores nulos/vacíos.
+    """
+    if value is None or value == '':
+        return Decimal(default)
+    
+    try:
+        # Convertir a string y reemplazar comas por puntos
+        value_str = str(value).strip().replace(',', '.')
+        # Eliminar caracteres no numéricos excepto punto y signo negativo
+        value_str = ''.join(c for c in value_str if c.isdigit() or c in ['.', '-'])
+        return Decimal(value_str)
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(default)
+
+def safe_int(value, default=0):
+    """
+    Convierte de forma segura un valor a entero.
+    Maneja strings vacíos, None, y valores inválidos.
+    """
+    if value is None:
+        return default
+    
+    if isinstance(value, int):
+        return value
+    
+    if isinstance(value, float):
+        return int(value)
+    
+    value_str = str(value).strip()
+    if not value_str:
+        return default
+    
+    try:
+        # Eliminar caracteres no numéricos excepto signo negativo
+        cleaned_str = ''.join(c for c in value_str if c.isdigit() or c == '-')
+        if cleaned_str and cleaned_str != '-':
+            return int(cleaned_str)
+        return default
+    except (ValueError, TypeError):
+        return default
+
+
+
+def safe_decimal(value, default=0):
+    """
+    Convierte de forma segura un valor a Decimal.
+    Maneja strings, números, y valores nulos/vacíos.
+    """
+    if value is None or value == '':
+        return Decimal(default)
+    
+    try:
+        # Convertir a string y reemplazar comas por puntos
+        value_str = str(value).strip().replace(',', '.')
+        # Eliminar caracteres no numéricos excepto punto y signo negativo
+        value_str = ''.join(c for c in value_str if c.isdigit() or c in ['.', '-'])
+        return Decimal(value_str)
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(default)
+
+def safe_int(value, default=0):
+    """
+    Convierte de forma segura un valor a entero.
+    Maneja strings vacíos, None, y valores inválidos.
+    """
+    if value is None:
+        return default
+    
+    if isinstance(value, int):
+        return value
+    
+    if isinstance(value, float):
+        return int(value)
+    
+    value_str = str(value).strip()
+    if not value_str:
+        return default
+    
+    try:
+        # Eliminar caracteres no numéricos excepto signo negativo
+        cleaned_str = ''.join(c for c in value_str if c.isdigit() or c == '-')
+        if cleaned_str and cleaned_str != '-':
+            return int(cleaned_str)
+        return default
+    except (ValueError, TypeError):
+        return default
+
+
+
 @csrf_exempt
 @require_POST
 @transaction.atomic
+@login_required
 def procesar_venta(request):
     try:
         data = request.POST
         user = request.user
         
-        # Función segura para conversión a Decimal
-        def safe_decimal(value, default=0):
-            if value is None or value == '':
-                return Decimal(default)
-            try:
-                return Decimal(str(value).replace(',', '.'))
-            except (InvalidOperation, ValueError):
-                return Decimal(default)
+        # Validar que hay datos
+        if not data:
+            return JsonResponse({'success': False, 'message': 'No se recibieron datos'})
         
-        # Convertir valores
+        # Convertir valores usando safe_decimal y safe_int
         payment_type = data.get('payment_type', 'contado')
         payment_method = data.get('payment_method', 'efectivo')
         subtotal = safe_decimal(data.get('subtotal', 0))
@@ -564,12 +658,50 @@ def procesar_venta(request):
         cash_received = safe_decimal(data.get('cash_received', 0))
         change_amount = safe_decimal(data.get('change_amount', 0))
         
+        # Campos de financiamiento - usar safe_int para enteros
+        plazo_meses = safe_int(data.get('plazo_meses', 0))
+        monto_inicial = safe_decimal(data.get('monto_inicial', 0))
+        tasa_interes = safe_decimal(data.get('tasa_interes', 0))
+        monto_financiado = safe_decimal(data.get('monto_financiado', 0))
+        interes_mensual = safe_decimal(data.get('interes_mensual', 0))
+        cuota_mensual = safe_decimal(data.get('cuota_mensual', 0))
+        ganancia_interes = safe_decimal(data.get('ganancia_interes', 0))
+        total_con_interes = safe_decimal(data.get('total_con_interes', 0))
+        total_a_pagar = safe_decimal(data.get('total_a_pagar', 0))
+        
+        # Para ventas a contado, resetear campos de crédito
+        if payment_type != 'credito':
+            plazo_meses = 0
+            monto_inicial = 0
+            tasa_interes = 0
+            monto_financiado = 0
+            interes_mensual = 0
+            cuota_mensual = 0
+            ganancia_interes = 0
+            total_con_interes = 0
+            total_a_pagar = total  # Usar el total normal
+        
         # Validaciones
         if payment_type not in ['contado', 'credito']:
             return JsonResponse({'success': False, 'message': 'Tipo de pago inválido'})
         
         if payment_method not in ['efectivo', 'tarjeta', 'transferencia']:
             return JsonResponse({'success': False, 'message': 'Método de pago inválido'})
+        
+        if subtotal <= 0:
+            return JsonResponse({'success': False, 'message': 'El subtotal debe ser mayor a 0'})
+        
+        if total <= 0:
+            return JsonResponse({'success': False, 'message': 'El total debe ser mayor a 0'})
+        
+        # Validaciones específicas para crédito
+        if payment_type == 'credito':
+            if plazo_meses <= 0:
+                return JsonResponse({'success': False, 'message': 'El plazo debe ser mayor a 0'})
+            if tasa_interes < 0:
+                return JsonResponse({'success': False, 'message': 'La tasa de interés no puede ser negativa'})
+            if monto_inicial < 0:
+                return JsonResponse({'success': False, 'message': 'El monto inicial no puede ser negativo'})
         
         # Procesar información del cliente
         client_id = data.get('client_id')
@@ -583,10 +715,14 @@ def procesar_venta(request):
             
             try:
                 cliente = Cliente.objects.get(id=client_id, status=True)
-                if total > cliente.credit_limit:
+                
+                # Validar límite de crédito
+                total_a_validar = total_a_pagar if total_a_pagar > 0 else total
+                
+                if total_a_validar > cliente.credit_limit:
                     return JsonResponse({
                         'success': False, 
-                        'message': f'El monto excede el límite de crédito del cliente (RD${cliente.credit_limit})'
+                        'message': f'El monto excede el límite de crédito del cliente. Límite: RD${cliente.credit_limit}, Solicitado: RD${total_a_validar}'
                     })
             except Cliente.DoesNotExist:
                 return JsonResponse({'success': False, 'message': 'Cliente no válido'})
@@ -606,10 +742,10 @@ def procesar_venta(request):
         # Verificar stock antes de procesar la venta
         for item in sale_items:
             try:
-                producto = EntradaProducto.objects.get(id=item['productId'], activo=True)
+                producto = EntradaProducto.objects.get(id=item['id'], activo=True)
                 cantidad_solicitada = int(item['quantity'])
                 
-                if not producto.tiene_stock_suficiente(cantidad_solicitada):
+                if producto.cantidad < cantidad_solicitada:
                     return JsonResponse({
                         'success': False, 
                         'message': f'Stock insuficiente para {producto.nombre_producto}. Disponible: {producto.cantidad}'
@@ -619,7 +755,13 @@ def procesar_venta(request):
             except (ValueError, KeyError):
                 return JsonResponse({'success': False, 'message': f'Cantidad inválida para producto: {item.get("name", "Desconocido")}'})
         
-        # Crear la venta
+        # Determinar si es financiada
+        es_financiada = payment_type == 'credito' and monto_financiado > 0
+        
+        # Usar el total con interés si es financiada, de lo contrario usar el total normal
+        total_final = total_con_interes if es_financiada and total_con_interes > 0 else total
+        
+        # Crear la venta con todos los campos
         venta = Venta(
             vendedor=user,
             cliente=cliente,
@@ -630,85 +772,180 @@ def procesar_venta(request):
             subtotal=subtotal,
             descuento_porcentaje=discount_percentage,
             descuento_monto=discount_amount,
-            total=total,
+            total=total_final,
+            montoinicial=monto_inicial,
             efectivo_recibido=cash_received,
             cambio=change_amount,
-            completada=True
+            completada=True,
+            fecha_venta=timezone.now(),
+            # Campos de financiamiento
+            es_financiada=es_financiada,
+            tasa_interes=tasa_interes,
+            plazo_meses=plazo_meses,
+            monto_financiado=monto_financiado,
+            interes_total=ganancia_interes,
+            cuota_mensual=cuota_mensual,
+            total_con_interes=total_con_interes,
+            total_a_pagar=total_a_pagar if payment_type == 'credito' else total_final
         )
+        
+        # Guardar para generar número de factura
         venta.save()
         
+        # Registrar en logs los valores guardados
+        print(f"=== VENTA CREADA ===")
+        print(f"Factura: {venta.numero_factura}")
+        print(f"Subtotal: RD${venta.subtotal}")
+        print(f"Descuento %: {venta.descuento_porcentaje}%")
+        print(f"Descuento monto: RD${venta.descuento_monto}")
+        print(f"Total: RD${venta.total}")
+        print(f"Efectivo recibido: RD${venta.efectivo_recibido}")
+        print(f"Cambio: RD${venta.cambio}")
+        print(f"Tipo: {venta.tipo_venta}")
+        print(f"Método: {venta.metodo_pago}")
+        
+        if es_financiada:
+            print(f"=== FINANCIAMIENTO ===")
+            print(f"Monto Inicial: RD${venta.montoinicial}")
+            print(f"Tasa interés: {venta.tasa_interes}%")
+            print(f"Plazo meses: {venta.plazo_meses}")
+            print(f"Monto financiado: RD${venta.monto_financiado}")
+            print(f"Interés mensual: RD${interes_mensual}")
+            print(f"Cuota mensual: RD${venta.cuota_mensual}")
+            print(f"Ganancia por interés: RD${venta.interes_total}")
+            print(f"Total con interés: RD${venta.total_con_interes}")
+            print(f"Total a pagar: RD${total_a_pagar}")
+        
         # Procesar detalles de venta y descontar stock
+        productos_para_cuenta = []
         for item in sale_items:
-            producto = EntradaProducto.objects.get(id=item['productId'])
-            cantidad = int(item['quantity'])
-            precio_unitario = safe_decimal(item['price'])
-            
-            # Descontar stock con manejo de error por si no existe el método
             try:
-                if not producto.restar_stock(
-                    cantidad=cantidad,
-                    usuario=user,
-                    motivo="Venta",
-                    referencia=venta.numero_factura
-                ):
-                    raise Exception(f'Error al procesar stock para {producto.nombre_producto}')
-            except AttributeError:
-                # Si el método registrar_movimiento_stock no existe, usar versión simple
-                if not producto.tiene_stock_suficiente(cantidad):
-                    raise Exception(f'Stock insuficiente para {producto.nombre_producto}')
+                producto = EntradaProducto.objects.get(id=item['id'])
+                cantidad = int(item['quantity'])
+                precio_unitario = safe_decimal(item['price'])
+                subtotal_item = safe_decimal(item['subtotal'])
                 
+                # Validar que los cálculos sean consistentes
+                calculated_subtotal = precio_unitario * cantidad
+                if abs(calculated_subtotal - subtotal_item) > Decimal('0.01'):
+                    print(f"Advertencia: Subtotal inconsistente para {producto.nombre_producto}")
+                    print(f"Calculado: {calculated_subtotal}, Recibido: {subtotal_item}")
+                    # Usar el valor calculado para consistencia
+                    subtotal_item = calculated_subtotal
+                
+                # Descontar stock
                 cantidad_anterior = producto.cantidad
                 producto.cantidad -= cantidad
                 producto.save(update_fields=['cantidad'])
                 
-                print(f"Stock actualizado (método simple): {producto.nombre_producto} -{cantidad} unidades")
-            
-            # Crear detalle de venta
-            detalle = DetalleVenta(
-                venta=venta,
-                producto=producto,
-                cantidad=cantidad,
-                precio_unitario=precio_unitario,
-                subtotal=safe_decimal(item['subtotal'])
-            )
-            detalle.save()
+                print(f"Stock actualizado: {producto.nombre_producto} -{cantidad} unidades ({cantidad_anterior} -> {producto.cantidad})")
+                
+                # Crear detalle de venta
+                detalle = DetalleVenta(
+                    venta=venta,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    subtotal=subtotal_item
+                )
+                detalle.save()
+                
+                # Agregar a lista para cuenta por cobrar
+                productos_para_cuenta.append(f"{producto.nombre_producto} x{cantidad} - RD${precio_unitario:.2f}")
+                
+            except EntradaProducto.DoesNotExist:
+                transaction.set_rollback(True)
+                return JsonResponse({'success': False, 'message': f'Producto no encontrado: ID {item.get("id", "Desconocido")}'})
+            except Exception as e:
+                transaction.set_rollback(True)
+                return JsonResponse({'success': False, 'message': f'Error al procesar producto: {str(e)}'})
         
-        # ===== CREAR CUENTA POR COBRAR SI ES VENTA A CRÉDITO =====
+        # Crear cuenta por cobrar si es venta a crédito
         if payment_type == 'credito' and cliente:
-            # Calcular fecha de vencimiento (30 días a partir de hoy)
-            fecha_vencimiento = timezone.now().date() + timedelta(days=30)
-            
-            # Crear string con los productos de la venta
-            productos_str = ""
-            for item in sale_items:
-                try:
-                    producto = EntradaProducto.objects.get(id=item['productId'])
-                    productos_str += f"{producto.nombre_producto} x{item['quantity']} - RD${float(item['price']):.2f}\n"
-                except EntradaProducto.DoesNotExist:
-                    productos_str += f"Producto ID:{item['productId']} x{item['quantity']} - RD${float(item['price']):.2f}\n"
-            
-            # Crear la cuenta por cobrar
-            cuenta_por_cobrar = CuentaPorCobrar(
-                venta=venta,
-                cliente=cliente,
-                monto_total=total,
-                monto_pagado=Decimal('0.00'),
-                fecha_vencimiento=fecha_vencimiento,
-                productos=productos_str,  # GUARDAR PRODUCTOS
-                estado='pendiente',
-                observaciones=f"Venta a crédito - Factura: {venta.numero_factura}\nCliente: {cliente.full_name}"
-            )
-            cuenta_por_cobrar.save()
-            
-            print(f"Cuenta por cobrar creada: {cuenta_por_cobrar}")
-            print(f"Productos en la cuenta: {productos_str}")
-        # ===== FIN DE CREACIÓN DE CUENTA POR COBRAR =====
+            try:
+                fecha_vencimiento = timezone.now().date() + timedelta(days=30)
+                
+                # Crear string con los productos
+                productos_str = "\n".join(productos_para_cuenta)
+                
+                # Información adicional para financiamiento
+                info_financiamiento = ""
+                if es_financiada:
+                    info_financiamiento = f"""
+FINANCIAMIENTO:
+- Monto Inicial: RD${monto_inicial:.2f}
+- Tasa de interés: {tasa_interes}% mensual
+- Plazo: {plazo_meses} meses
+- Monto a Financiar: RD${monto_financiado:.2f}
+- Interés Mensual: RD${interes_mensual:.2f}
+- Cuota mensual: RD${cuota_mensual:.2f}
+- Ganancia por Interés: RD${ganancia_interes:.2f}
+- Total con Interés: RD${total_con_interes:.2f}
+- Total a Pagar: RD${total_a_pagar:.2f}
+"""
+                
+                cuenta_por_cobrar = CuentaPorCobrar(
+                    venta=venta,
+                    cliente=cliente,
+                    monto_total=total_final,
+                    monto_pagado=monto_inicial,  # El pago inicial ya se hizo
+                    fecha_vencimiento=fecha_vencimiento,
+                    productos=productos_str,
+                    estado='pendiente',
+                    observaciones=f"""Venta a crédito - Factura: {venta.numero_factura}
+Cliente: {cliente.full_name}
+Productos:
+{productos_str}
+{info_financiamiento}"""
+                )
+                cuenta_por_cobrar.save()
+                
+                print(f"Cuenta por cobrar creada exitosamente: {cuenta_por_cobrar.id}")
+                print(f"Monto total: RD${cuenta_por_cobrar.monto_total}")
+                print(f"Monto pagado: RD${cuenta_por_cobrar.monto_pagado}")
+                print(f"Saldo pendiente: RD${cuenta_por_cobrar.saldo_pendiente}")
+                print(f"Productos incluidos:\n{productos_str}")
+                
+            except Exception as e:
+                transaction.set_rollback(True)
+                return JsonResponse({'success': False, 'message': f'Error al crear cuenta por cobrar: {str(e)}'})
+        
+        # Validar que los totales sean consistentes
+        venta_refreshed = Venta.objects.get(id=venta.id)
+        detalles_total = sum(detalle.subtotal for detalle in venta_refreshed.detalles.all())
+        calculated_total = detalles_total - venta_refreshed.descuento_monto
+
+        if abs(venta_refreshed.total - calculated_total) > Decimal('0.01') and not es_financiada:
+            print(f"Advertencia: Total inconsistente en venta {venta.numero_factura}")
+            print(f"Total guardado: RD${venta_refreshed.total}")
+            print(f"Total calculado: RD${calculated_total}")
+            # Corregir automáticamente solo si no es financiada
+            venta_refreshed.total = calculated_total
+            venta_refreshed.save(update_fields=['total'])
+            print(f"Total corregido: RD${venta_refreshed.total}")
         
         return JsonResponse({
             'success': True, 
             'message': 'Venta procesada correctamente',
             'venta_id': venta.id,
-            'numero_factura': venta.numero_factura
+            'numero_factura': venta.numero_factura,
+            'detalles': {
+                'subtotal': float(venta.subtotal),
+                'descuento_porcentaje': float(venta.descuento_porcentaje),
+                'descuento_monto': float(venta.descuento_monto),
+                'total': float(venta.total),
+                'efectivo_recibido': float(venta.efectivo_recibido),
+                'cambio': float(venta.cambio),
+                'items_count': len(sale_items),
+                'es_financiada': venta.es_financiada,
+                'monto_inicial': float(venta.montoinicial),
+                'tasa_interes': float(venta.tasa_interes),
+                'plazo_meses': venta.plazo_meses,
+                'monto_financiado': float(venta.monto_financiado),
+                'interes_total': float(venta.interes_total),
+                'cuota_mensual': float(venta.cuota_mensual),
+                'total_con_interes': float(venta.total_con_interes)
+            }
         })
         
     except Exception as e:
@@ -716,6 +953,11 @@ def procesar_venta(request):
         import traceback
         print(f"Error completo: {traceback.format_exc()}")
         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
+
+
+
+
+
 
 def buscar_productos(request):
     query = request.GET.get('q', '').strip()
@@ -938,18 +1180,21 @@ def buscar_productos(request):
     
 #     return response
 
-
 def comprobante_venta(request, venta_id):
     # Obtener la venta y sus detalles
     venta = get_object_or_404(Venta, id=venta_id)
     detalles = venta.detalles.all()
     
+    # Calcular total de artículos
+    total_articulos = sum(detalle.cantidad for detalle in detalles)
+    
     # Renderizar el template HTML
     return render(request, 'facturacion/comprobante_venta.html', {
         'venta': venta,
-        'detalles': detalles
+        'detalles': detalles,
+        'total_articulos': total_articulos,
+        'now': timezone.now().strftime('%d/%m/%Y')  # Fecha actual formateada
     })
-
 # Vista para ver el historial de ventas
 # @login_required
 # def historial_ventas(request):
@@ -1502,9 +1747,6 @@ def buscar_productos_similares(request):
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
 
 
-
-
-
 def cuentaporcobrar(request):
     # Obtener parámetros de filtrado
     search = request.GET.get('search', '')
@@ -1512,8 +1754,8 @@ def cuentaporcobrar(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
     
-    # Filtrar cuentas por cobrar
-    cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').all()
+    # Filtrar cuentas por cobrar (excluir anuladas)
+    cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(anulada=False)
     
     if search:
         cuentas = cuentas.filter(
@@ -1531,8 +1773,8 @@ def cuentaporcobrar(request):
     if date_to:
         cuentas = cuentas.filter(venta__fecha_venta__lte=date_to)
     
-    # Calcular estadísticas
-    total_pendiente = cuentas.filter(estado='pendiente').aggregate(
+    # Calcular estadísticas usando monto_total (solo cuentas no anuladas)
+    total_pendiente = cuentas.filter(estado__in=['pendiente', 'parcial']).aggregate(
         total=Sum(F('monto_total') - F('monto_pagado'))
     )['total'] or Decimal('0.00')
     
@@ -1540,12 +1782,13 @@ def cuentaporcobrar(request):
         total=Sum(F('monto_total') - F('monto_pagado'))
     )['total'] or Decimal('0.00')
     
-    # Pagos del mes actual
+    # Pagos del mes actual (solo de cuentas no anuladas)
     mes_actual = timezone.now().month
     año_actual = timezone.now().year
     pagos_mes = PagoCuentaPorCobrar.objects.filter(
         fecha_pago__month=mes_actual,
-        fecha_pago__year=año_actual
+        fecha_pago__year=año_actual,
+        cuenta__anulada=False
     ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
     
     total_por_cobrar = cuentas.exclude(estado='pagada').aggregate(
@@ -1640,6 +1883,15 @@ def cuentaporcobrar(request):
         if cuenta.fecha_vencimiento:
             due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
         
+        # USAR MONTO_TOTAL PARA TODOS LOS CÁLCULOS
+        monto_total = float(cuenta.monto_total)
+        monto_pagado = float(cuenta.monto_pagado)
+        saldo_pendiente = monto_total - monto_pagado
+        
+        # Asegurarse de que el saldo pendiente no sea negativo
+        if saldo_pendiente < 0:
+            saldo_pendiente = 0
+        
         cuentas_data.append({
             'id': cuenta.id,
             'invoiceNumber': invoice_number,
@@ -1648,13 +1900,14 @@ def cuentaporcobrar(request):
             'products': productos,
             'saleDate': sale_date,
             'dueDate': due_date,
-            'totalAmount': float(cuenta.monto_total),
-            'paidAmount': float(cuenta.monto_pagado),
+            'totalAmount': monto_total,  # Usar monto_total aquí
+            'paidAmount': monto_pagado,
+            'pendingBalance': saldo_pendiente,  # Calculado con monto_total
             'status': cuenta.estado,
             'observations': cuenta.observaciones or ''
         })
     
-    # Convertir a JSON para pasarlo al template - asegurando que sea seguro
+    # Convertir a JSON para pasarlo al template
     cuentas_json = json.dumps(cuentas_data)
     
     context = {
@@ -1683,8 +1936,15 @@ def registrar_pago(request):
             
             cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
             
+            # Verificar que la cuenta no esté anulada
+            if cuenta.anulada:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No se puede registrar pago en una cuenta anulada'
+                })
+            
             # Validar que el monto no exceda el saldo pendiente
-            saldo_pendiente = cuenta.saldo_pendiente
+            saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
             if monto > saldo_pendiente:
                 return JsonResponse({
                     'success': False,
@@ -1701,10 +1961,19 @@ def registrar_pago(request):
             )
             pago.save()
             
+            # Crear comprobante de pago
+            comprobante = ComprobantePago(
+                pago=pago,
+                cuenta=cuenta,
+                cliente=cuenta.cliente,
+                tipo_comprobante='recibo'
+            )
+            comprobante.save()
+            
             # Actualizar la cuenta
             cuenta.monto_pagado += monto
             
-            # Actualizar el estado
+            # Actualizar el estado basado en el monto total
             if cuenta.monto_pagado >= cuenta.monto_total:
                 cuenta.estado = 'pagada'
             elif cuenta.monto_pagado > 0:
@@ -1712,15 +1981,114 @@ def registrar_pago(request):
             
             cuenta.save()
             
+            # Calcular nuevo saldo pendiente
+            nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+            
             return JsonResponse({
                 'success': True,
-                'message': 'Pago registrado exitosamente'
+                'message': f'Pago registrado exitosamente. Comprobante: {comprobante.numero_comprobante}',
+                'comprobante_numero': comprobante.numero_comprobante,
+                'comprobante_id': comprobante.id,  # AÑADIR ESTO PARA EL PDF
+                'nuevo_saldo_pendiente': float(nuevo_saldo),
+                'monto_total_original': float(cuenta.monto_total),
+                'monto_pagado_total': float(cuenta.monto_pagado),
+                'estado_actual': cuenta.estado  # AÑADIR ESTADO ACTUALIZADO
             })
             
         except Exception as e:
             return JsonResponse({
                 'success': False,
                 'message': f'Error al registrar pago: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+# Vista para generar PDF del comprobante (completa)
+def generar_comprobante_pdf(request, comprobante_id):
+    try:
+        comprobante = get_object_or_404(ComprobantePago, id=comprobante_id)
+        
+        # Crear respuesta HTTP con tipo PDF
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="comprobante_{comprobante.numero_comprobante}.pdf"'
+        
+        # Crear el objeto PDF
+        p = canvas.Canvas(response)
+        
+        # Agregar contenido al PDF
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(100, 800, "COMPROBANTE DE PAGO")
+        
+        p.setFont("Helvetica", 12)
+        p.drawString(100, 770, f"Número: {comprobante.numero_comprobante}")
+        p.drawString(100, 750, f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}")
+        p.drawString(100, 730, f"Cliente: {comprobante.cliente.full_name}")
+        p.drawString(100, 710, f"Factura: {comprobante.cuenta.venta.numero_factura}")
+        p.drawString(100, 690, f"Monto: RD$ {comprobante.pago.monto:,.2f}")
+        p.drawString(100, 670, f"Método: {comprobante.pago.get_metodo_pago_display()}")
+        
+        if comprobante.pago.referencia:
+            p.drawString(100, 650, f"Referencia: {comprobante.pago.referencia}")
+        
+        p.drawString(100, 630, "¡Gracias por su pago!")
+        
+        # Finalizar el PDF
+        p.showPage()
+        p.save()
+        
+        return response
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al generar comprobante: {str(e)}'
+        })
+# ===== VISTA PARA LISTAR COMPROBANTES =====
+def lista_comprobantes(request):
+    comprobantes = ComprobantePago.objects.select_related(
+        'pago', 'cuenta', 'cliente'
+    ).order_by('-fecha_emision')
+    
+    # Filtros opcionales
+    search = request.GET.get('search', '')
+    if search:
+        comprobantes = comprobantes.filter(
+            Q(numero_comprobante__icontains=search) |
+            Q(cliente__full_name__icontains=search) |
+            Q(cuenta__venta__numero_factura__icontains=search)
+        )
+    
+    context = {
+        'comprobantes': comprobantes,
+        'search': search,
+    }
+    
+    return render(request, 'facturacion/lista_comprobantes.html', context)
+
+def anular_cuenta(request, cuenta_id):
+    if request.method == 'POST':
+        try:
+            cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
+            
+            # Verificar que la cuenta no esté ya pagada completamente (usando monto_total)
+            if cuenta.monto_pagado >= cuenta.monto_total:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No se puede anular una cuenta completamente pagada'
+                })
+            
+            # Anular la cuenta
+            cuenta.anular_cuenta()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Cuenta anulada exitosamente'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al anular cuenta: {str(e)}'
             })
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
@@ -1910,6 +2278,7 @@ def registrosuplidores(request):
     return render(request, "facturacion/registrosuplidores.html")
 
 
+    #ESTE ES EL NUEVO DE CIEERE DE CAJA
 logger = logging.getLogger(__name__)
 
 @login_required
@@ -1929,30 +2298,55 @@ def cierredecaja(request):
         anulada=False
     )
     
-    # Calcular totales usando agregación de Django
-    total_ventas = ventas_periodo.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
-    
-    # Calcular ventas por método de pago
-    ventas_efectivo = ventas_periodo.filter(
+    # VENTAS AL CONTADO - Usamos el TOTAL FINAL
+    ventas_contado_efectivo = ventas_periodo.filter(
+        tipo_venta='contado',
         metodo_pago='efectivo'
     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
     
-    ventas_tarjeta = ventas_periodo.filter(
+    ventas_contado_tarjeta = ventas_periodo.filter(
+        tipo_venta='contado',
         metodo_pago='tarjeta'
     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
     
-    ventas_transferencia = ventas_periodo.filter(
+    ventas_contado_transferencia = ventas_periodo.filter(
+        tipo_venta='contado',
         metodo_pago='transferencia'
     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
     
-    # Obtener información adicional para el reporte
-    total_ventas_contado = ventas_periodo.filter(
-        tipo_venta='contado'
-    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    # VENTAS A CRÉDITO - Usamos solo el MONTO INICIAL
+    ventas_credito_efectivo = ventas_periodo.filter(
+        tipo_venta='credito',
+        metodo_pago='efectivo'
+    ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
     
-    total_ventas_credito = ventas_periodo.filter(
-        tipo_venta='credito'
-    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    ventas_credito_tarjeta = ventas_periodo.filter(
+        tipo_venta='credito',
+        metodo_pago='tarjeta'
+    ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+    
+    ventas_credito_transferencia = ventas_periodo.filter(
+        tipo_venta='credito',
+        metodo_pago='transferencia'
+    ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+    
+    # CALCULAR TOTALES AJUSTADOS
+    # Efectivo: contado (total final) + crédito (solo monto inicial)
+    ventas_efectivo_ajustado = ventas_contado_efectivo + ventas_credito_efectivo
+    
+    # Tarjeta: contado (total final) + crédito (solo monto inicial)
+    ventas_tarjeta_ajustado = ventas_contado_tarjeta + ventas_credito_tarjeta
+    
+    # Transferencia: contado (total final) + crédito (solo monto inicial)
+    ventas_transferencia_ajustado = ventas_contado_transferencia + ventas_credito_transferencia
+    
+    # Total general de ventas
+    total_ventas_ajustado = (ventas_contado_efectivo + ventas_contado_tarjeta + ventas_contado_transferencia +
+                            ventas_credito_efectivo + ventas_credito_tarjeta + ventas_credito_transferencia)
+    
+    # Totales por tipo de venta para reporte
+    total_ventas_contado = ventas_contado_efectivo + ventas_contado_tarjeta + ventas_contado_transferencia
+    total_ventas_credito = ventas_credito_efectivo + ventas_credito_tarjeta + ventas_credito_transferencia
     
     # Obtener cantidad de ventas
     cantidad_ventas = ventas_periodo.count()
@@ -1962,29 +2356,22 @@ def cierredecaja(request):
         venta__in=ventas_periodo
     ).distinct().count()
     
-    # CALCULAR EL TOTAL ESPERADO (MONTO INICIAL + TOTAL VENTAS)
-    total_esperado = caja_abierta.monto_inicial + total_ventas
-    
-    # CALCULAR EL EFECTIVO TOTAL EN CAJA (MONTO INICIAL + VENTAS EN EFECTIVO)
-    efectivo_en_caja = caja_abierta.monto_inicial + ventas_efectivo
-    
     # Log para depuración
     logger.info(f"Caja abierta: {caja_abierta}")
     logger.info(f"Ventas encontradas: {cantidad_ventas}")
-    logger.info(f"Total ventas: {total_ventas}")
-    logger.info(f"Ventas efectivo: {ventas_efectivo}")
-    logger.info(f"Ventas tarjeta: {ventas_tarjeta}")
-    logger.info(f"Total esperado: {total_esperado}")
-    logger.info(f"Efectivo total en caja: {efectivo_en_caja}")
+    logger.info(f"Ventas contado efectivo: {ventas_contado_efectivo}")
+    logger.info(f"Ventas contado tarjeta: {ventas_contado_tarjeta}")
+    logger.info(f"Ventas contado transferencia: {ventas_contado_transferencia}")
+    logger.info(f"Ventas crédito efectivo (monto inicial): {ventas_credito_efectivo}")
+    logger.info(f"Ventas crédito tarjeta (monto inicial): {ventas_credito_tarjeta}")
+    logger.info(f"Ventas crédito transferencia (monto inicial): {ventas_credito_transferencia}")
     
     context = {
         'caja_abierta': caja_abierta,
-        'total_ventas': total_ventas,
-        'total_esperado': total_esperado,  # Nuevo campo para el total esperado
-        'ventas_efectivo': ventas_efectivo,
-        'efectivo_en_caja': efectivo_en_caja,  # Efectivo total en caja
-        'ventas_tarjeta': ventas_tarjeta,
-        'ventas_transferencia': ventas_transferencia,
+        'total_ventas': total_ventas_ajustado,
+        'ventas_efectivo': ventas_efectivo_ajustado,
+        'ventas_tarjeta': ventas_tarjeta_ajustado,
+        'ventas_transferencia': ventas_transferencia_ajustado,
         'total_ventas_contado': total_ventas_contado,
         'total_ventas_credito': total_ventas_credito,
         'cantidad_ventas': cantidad_ventas,
@@ -1993,6 +2380,8 @@ def cierredecaja(request):
     }
     
     return render(request, "facturacion/cierredecaja.html", context)
+
+
 
 @login_required
 def procesar_cierre_caja(request):
@@ -2012,8 +2401,43 @@ def procesar_cierre_caja(request):
             anulada=False
         )
         
-        total_esperado = ventas_periodo.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        # VENTAS AL CONTADO - Usamos el TOTAL FINAL
+        ventas_contado_efectivo = ventas_periodo.filter(
+            tipo_venta='contado',
+            metodo_pago='efectivo'
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
         
+        ventas_contado_tarjeta = ventas_periodo.filter(
+            tipo_venta='contado',
+            metodo_pago='tarjeta'
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        
+        ventas_contado_transferencia = ventas_periodo.filter(
+            tipo_venta='contado',
+            metodo_pago='transferencia'
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        
+        # VENTAS A CRÉDITO - Usamos solo el MONTO INICIAL
+        ventas_credito_efectivo = ventas_periodo.filter(
+            tipo_venta='credito',
+            metodo_pago='efectivo'
+        ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        
+        ventas_credito_tarjeta = ventas_periodo.filter(
+            tipo_venta='credito',
+            metodo_pago='tarjeta'
+        ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        
+        ventas_credito_transferencia = ventas_periodo.filter(
+            tipo_venta='credito',
+            metodo_pago='transferencia'
+        ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        
+        # Calcular total esperado
+        total_esperado = (ventas_contado_efectivo + ventas_contado_tarjeta + ventas_contado_transferencia +
+                         ventas_credito_efectivo + ventas_credito_tarjeta + ventas_credito_transferencia)
+        
+        # Resto del código permanece igual...
         # Obtener datos del formulario
         monto_efectivo_real = request.POST.get('cash-amount')
         monto_tarjeta_real = request.POST.get('card-amount') or '0'
@@ -2074,7 +2498,175 @@ def procesar_cierre_caja(request):
     return redirect('cierredecaja')
 
 
+#ESTE ES EL CODGO COMENTADO DEL CIERRE DE CAJA, POR SI SE NECESITA EN EL FUTURO
+# logger = logging.getLogger(__name__)
 
+# @login_required
+# def cierredecaja(request):
+#     # Verificar si hay una caja abierta
+#     caja_abierta = Caja.objects.filter(usuario=request.user, estado='abierta').first()
+    
+#     if not caja_abierta:
+#         messages.error(request, 'No hay una caja abierta. Debe abrir una caja primero.')
+#         return redirect('iniciocaja')
+    
+#     # Obtener ventas desde la apertura de caja para el usuario actual
+#     ventas_periodo = Venta.objects.filter(
+#         vendedor=request.user,
+#         fecha_venta__gte=caja_abierta.fecha_apertura,
+#         completada=True,
+#         anulada=False
+#     )
+    
+#     # Calcular totales usando agregación de Django
+#     total_ventas = ventas_periodo.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+#     # Calcular ventas por método de pago
+#     ventas_efectivo = ventas_periodo.filter(
+#         metodo_pago='efectivo'
+#     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+#     ventas_tarjeta = ventas_periodo.filter(
+#         metodo_pago='tarjeta'
+#     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+#     ventas_transferencia = ventas_periodo.filter(
+#         metodo_pago='transferencia'
+#     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+#     # Obtener información adicional para el reporte
+#     total_ventas_contado = ventas_periodo.filter(
+#         tipo_venta='contado'
+#     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+#     total_ventas_credito = ventas_periodo.filter(
+#         tipo_venta='credito'
+#     ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+#     # Obtener cantidad de ventas
+#     cantidad_ventas = ventas_periodo.count()
+    
+#     # Obtener información de clientes
+#     clientes_count = Cliente.objects.filter(
+#         venta__in=ventas_periodo
+#     ).distinct().count()
+    
+#     # CALCULAR EL TOTAL ESPERADO (MONTO INICIAL + TOTAL VENTAS)
+#     total_esperado = caja_abierta.monto_inicial + total_ventas
+    
+#     # CALCULAR EL EFECTIVO TOTAL EN CAJA (MONTO INICIAL + VENTAS EN EFECTIVO)
+#     efectivo_en_caja = caja_abierta.monto_inicial + ventas_efectivo
+    
+#     # Log para depuración
+#     logger.info(f"Caja abierta: {caja_abierta}")
+#     logger.info(f"Ventas encontradas: {cantidad_ventas}")
+#     logger.info(f"Total ventas: {total_ventas}")
+#     logger.info(f"Ventas efectivo: {ventas_efectivo}")
+#     logger.info(f"Ventas tarjeta: {ventas_tarjeta}")
+#     logger.info(f"Total esperado: {total_esperado}")
+#     logger.info(f"Efectivo total en caja: {efectivo_en_caja}")
+    
+#     context = {
+#         'caja_abierta': caja_abierta,
+#         'total_ventas': total_ventas,
+#         'total_esperado': total_esperado,  # Nuevo campo para el total esperado
+#         'ventas_efectivo': ventas_efectivo,
+#         'efectivo_en_caja': efectivo_en_caja,  # Efectivo total en caja
+#         'ventas_tarjeta': ventas_tarjeta,
+#         'ventas_transferencia': ventas_transferencia,
+#         'total_ventas_contado': total_ventas_contado,
+#         'total_ventas_credito': total_ventas_credito,
+#         'cantidad_ventas': cantidad_ventas,
+#         'clientes_hoy': clientes_count,
+#         'hoy': timezone.now().date(),
+#     }
+    
+#     return render(request, "facturacion/cierredecaja.html", context)
+
+
+
+
+# @login_required
+# def procesar_cierre_caja(request):
+#     if request.method == 'POST':
+#         # Obtener la caja abierta actual
+#         caja_abierta = Caja.objects.filter(usuario=request.user, estado='abierta').first()
+        
+#         if not caja_abierta:
+#             messages.error(request, 'No hay una caja abierta para cerrar.')
+#             return redirect('cierredecaja')
+        
+#         # Obtener ventas desde la apertura de caja
+#         ventas_periodo = Venta.objects.filter(
+#             vendedor=request.user,
+#             fecha_venta__gte=caja_abierta.fecha_apertura,
+#             completada=True,
+#             anulada=False
+#         )
+        
+#         # CORRECCIÓN: Incluir el monto inicial en el total esperado
+#         total_ventas = ventas_periodo.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+#         total_esperado = caja_abierta.monto_inicial + total_ventas
+        
+#         # Obtener datos del formulario
+#         monto_efectivo_real = request.POST.get('cash-amount')
+#         monto_tarjeta_real = request.POST.get('card-amount') or '0'
+#         observaciones = request.POST.get('observations', '')
+        
+#         # Validaciones
+#         if not monto_efectivo_real:
+#             messages.error(request, 'Debe ingresar el monto en efectivo real.')
+#             return redirect('cierredecaja')
+        
+#         try:
+#             # Convertir a Decimal en lugar de float
+#             monto_efectivo_real = Decimal(monto_efectivo_real)
+#             monto_tarjeta_real = Decimal(monto_tarjeta_real)
+#         except (ValueError, InvalidOperation):
+#             messages.error(request, 'Los montos deben ser valores numéricos válidos.')
+#             return redirect('cierredecaja')
+        
+#         # Calcular diferencia (todos son Decimal ahora)
+#         total_real = monto_efectivo_real + monto_tarjeta_real
+#         diferencia = total_real - total_esperado
+        
+#         # Actualizar la caja
+#         caja_abierta.monto_final = total_real
+#         caja_abierta.fecha_cierre = timezone.now()
+#         caja_abierta.estado = 'cerrada'
+#         caja_abierta.observaciones = observaciones
+#         caja_abierta.save()
+        
+#         # Crear registro de cierre
+#         cierre = CierreCaja.objects.create(
+#             caja=caja_abierta,
+#             monto_efectivo_real=monto_efectivo_real,
+#             monto_tarjeta_real=monto_tarjeta_real,
+#             total_esperado=total_esperado,
+#             diferencia=diferencia,
+#             observaciones=observaciones
+#         )
+        
+#         # Guardar información en sesión para mostrar en el cuadre
+#         request.session['cierre_info'] = {
+#             'fecha': timezone.now().date().strftime('%d/%m/%Y'),
+#             'hora_cierre': timezone.now().strftime('%H:%M:%S'),
+#             'monto_efectivo_real': float(monto_efectivo_real),
+#             'monto_tarjeta_real': float(monto_tarjeta_real),
+#             'total_esperado': float(total_esperado),
+#             'diferencia': float(diferencia),
+#             'observaciones': observaciones,
+#             'ventas_count': ventas_periodo.count(),
+#             'clientes_count': Cliente.objects.filter(
+#                 venta__in=ventas_periodo
+#             ).distinct().count(),
+#             'monto_inicial': float(caja_abierta.monto_inicial)  # Agregar para referencia
+#         }
+        
+#         messages.success(request, f'Caja cerrada exitosamente. Diferencia: RD${diferencia:,.2f}')
+#         return redirect('cuadre')
+    
+#     return redirect('cierredecaja')
 
 
 
@@ -2083,11 +2675,11 @@ def procesar_cierre_caja(request):
 @login_required
 def cuadre(request):
     # Obtener la caja abierta actual o la última cerrada
-    caja_actual = Caja.objects.filter(estado='abierta').first()
+    caja_actual = Caja.objects.filter(usuario=request.user, estado='abierta').first()
     
     if not caja_actual:
-        # Si no hay caja abierta, usar la última cerrada
-        caja_actual = Caja.objects.filter(estado='cerrada').order_by('-fecha_cierre').first()
+        # Si no hay caja abierta, usar la última cerrada para este usuario
+        caja_actual = Caja.objects.filter(usuario=request.user, estado='cerrada').order_by('-fecha_cierre').first()
     
     context = {
         'caja': None,
@@ -2098,6 +2690,7 @@ def cuadre(request):
     if caja_actual:
         # Obtener ventas de esta caja (período de la caja)
         ventas = Venta.objects.filter(
+            vendedor=request.user,  # Solo ventas del usuario actual
             fecha_venta__gte=caja_actual.fecha_apertura,
             completada=True,
             anulada=False
@@ -2110,53 +2703,40 @@ def cuadre(request):
         cierre = CierreCaja.objects.filter(caja=caja_actual).first()
         
         # Calcular totales por método de pago
-        ventas_efectivo = ventas.filter(metodo_pago='efectivo').aggregate(total=Sum('total'))['total'] or 0
-        ventas_tarjeta = ventas.filter(metodo_pago='tarjeta').aggregate(total=Sum('total'))['total'] or 0
-        ventas_transferencia = ventas.filter(metodo_pago='transferencia').aggregate(total=Sum('total'))['total'] or 0
-        ventas_credito = ventas.filter(tipo_venta='credito').aggregate(total=Sum('total'))['total'] or 0
+        ventas_efectivo = ventas.filter(metodo_pago='efectivo').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_tarjeta = ventas.filter(metodo_pago='tarjeta').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_transferencia = ventas.filter(metodo_pago='transferencia').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
         
-        # CALCULAR MONTO CONTADO (Monto Inicial + Ventas en Efectivo)
-        monto_inicial = float(caja_actual.monto_inicial)
-        monto_contado = monto_inicial + float(ventas_efectivo)
+        # Separar ventas por tipo (contado vs crédito)
+        ventas_contado = ventas.filter(tipo_venta='contado')
+        ventas_credito = ventas.filter(tipo_venta='credito')
+        
+        # Calcular totales por tipo de venta
+        total_contado = ventas_contado.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        montoinicial_credito = ventas_credito.aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        total_credito = ventas_credito.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        
+        # CALCULAR MONTO CONTADO según los requisitos:
+        # monto contado = monto inicial de caja + total a pagar (ventas contado) + monto inicial (ventas crédito)
+        monto_inicial_caja = caja_actual.monto_inicial
+        monto_contado = monto_inicial_caja + total_contado + montoinicial_credito
         
         # Preparar datos para el template
         context = {
-            'caja': {
-                'fecha_apertura': caja_actual.fecha_apertura,
-                'fecha_cierre': caja_actual.fecha_cierre,
-                'usuario': caja_actual.usuario.username,
-                'monto_inicial': monto_inicial,
-                'monto_final': float(caja_actual.monto_final) if caja_actual.monto_final else None,
-                'observaciones': caja_actual.observaciones
-            },
+            'caja': caja_actual,  # Pasar el objeto completo de caja
             'ventas': {
-                'efectivo': float(ventas_efectivo),
-                'tarjeta': float(ventas_tarjeta),
-                'transferencia': float(ventas_transferencia),
-                'credito': float(ventas_credito),
-                'total': float(ventas_efectivo + ventas_tarjeta + ventas_transferencia )
-            }
+                'efectivo': ventas_efectivo,
+                'tarjeta': ventas_tarjeta,
+                'transferencia': ventas_transferencia,
+                'credito': total_credito,
+                'total': ventas_efectivo + ventas_tarjeta + ventas_transferencia + total_credito,
+                'contado': total_contado,
+                'montoinicial_credito': montoinicial_credito
+            },
+            'cierre': cierre  # Pasar el objeto completo de cierre
         }
-        
-        if cierre:
-            # Usar el monto contado calculado en lugar del monto_efectivo_real
-            context['cierre'] = {
-                'monto_efectivo_real': monto_contado,  # Aquí usamos el monto contado calculado
-                'diferencia': float(cierre.diferencia),
-                'diferencia_absoluta': abs(float(cierre.diferencia)),
-                'observaciones': cierre.observaciones
-            }
-        else:
-            # Si no hay cierre, mostrar el monto contado calculado
-            context['cierre'] = {
-                'monto_efectivo_real': monto_contado,
-                'diferencia': 0,
-                'diferencia_absoluta': 0,
-                'observaciones': ''
-            }
     
-    return render(request, 'facturacion\cuadre.html', context)
-
+    return render(request, 'facturacion/cuadre.html', context)
 
 
 def reavastecer(request):
@@ -2223,3 +2803,498 @@ def actualizar_stock(request):
         return JsonResponse({'success': False, 'error': 'Producto no encontrado'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+    
+
+
+def devoluciones(request):
+    return render(request, "facturacion/devoluciones.html")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def buscar_factura_devolucion(request):
+    try:
+        data = json.loads(request.body)
+        numero_factura = data.get('numero_factura', '').strip()
+        
+        if not numero_factura:
+            return JsonResponse({'error': 'Por favor, ingrese un número de factura.'}, status=400)
+        
+        # Buscar la factura
+        try:
+            venta = Venta.objects.get(numero_factura=numero_factura, anulada=False)
+        except Venta.DoesNotExist:
+            return JsonResponse({'error': 'No se encontró ninguna factura con ese número.'}, status=404)
+        
+        # Obtener detalles de la venta
+        detalles = DetalleVenta.objects.filter(venta=venta)
+        
+        # Preparar información de productos
+        productos = []
+        for detalle in detalles:
+            producto = detalle.producto
+            productos.append({
+                'id': detalle.id,
+                'codigo': producto.codigo_producto,
+                'producto': producto.nombre_producto,
+                'marca': producto.get_marca_display(),
+                'capacidad': producto.get_capacidad_display() if producto.capacidad else 'N/A',
+                'color': producto.get_color_display() if producto.color else 'N/A',
+                'estado': producto.get_estado_display(),
+                'cantidad': detalle.cantidad,
+                'precio': str(detalle.precio_unitario),
+                'chasis': producto.imei_serial,
+                'imagen': '/static/images/default-product.png'  # Imagen por defecto
+            })
+        
+        # Información de la factura
+        factura_info = {
+            'id': venta.numero_factura,
+            'fecha': venta.fecha_venta.strftime('%d/%m/%Y'),
+            'cliente': venta.cliente_nombre,
+            'total': str(venta.total),
+            'estado': 'Pagada' if venta.completada else 'Pendiente',
+            'vendedor': venta.vendedor.get_full_name() or venta.vendedor.username,
+            'productos': productos
+        }
+        
+        return JsonResponse({'factura': factura_info})
+    
+    except Exception as e:
+        return JsonResponse({'error': f'Error al buscar la factura: {str(e)}'}, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@transaction.atomic
+def procesar_devolucion(request):
+    try:
+        data = json.loads(request.body)
+        
+        # Validar datos requeridos
+        required_fields = ['factura_id', 'producto_id', 'motivo', 'cantidad']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return JsonResponse({'error': f'El campo {field} es requerido.'}, status=400)
+        
+        # Obtener la venta y el detalle
+        venta = get_object_or_404(Venta, numero_factura=data['factura_id'], anulada=False)
+        detalle = get_object_or_404(DetalleVenta, id=data['producto_id'], venta=venta)
+        
+        # Validar cantidad
+        cantidad_devolver = int(data['cantidad'])
+        if cantidad_devolver <= 0:
+            return JsonResponse({'error': 'La cantidad a devolver debe ser mayor a 0.'}, status=400)
+        
+        if cantidad_devolver > detalle.cantidad:
+            return JsonResponse({'error': 'No puede devolver más unidades de las vendidas.'}, status=400)
+        
+        # Realizar la devolución
+        producto = detalle.producto
+        producto.sumar_stock(
+            cantidad=cantidad_devolver,
+            usuario=request.user,
+            motivo=f"Devolución - {data['motivo']}",
+            referencia=f"Factura: {venta.numero_factura}"
+        )
+        
+        # Registrar la devolución (aquí puedes crear un modelo Devolucion si lo necesitas)
+        # Por ahora, simplemente actualizamos el detalle de venta
+        detalle.cantidad -= cantidad_devolver
+        if detalle.cantidad == 0:
+            detalle.delete()
+        else:
+            detalle.subtotal = detalle.cantidad * detalle.precio_unitario
+            detalle.save()
+        
+        # Recalcular totales de la venta
+        detalles_restantes = DetalleVenta.objects.filter(venta=venta)
+        venta.subtotal = sum(detalle.subtotal for detalle in detalles_restantes)
+        venta.total = venta.subtotal - venta.descuento_monto
+        venta.save()
+        
+        return JsonResponse({
+            'success': True,
+            'mensaje': f'Devolución procesada correctamente. Se han devuelto {cantidad_devolver} unidades.',
+            'numero_devolucion': f'DEV-{timezone.now().strftime("%Y%m%d")}-{venta.id}'
+        })
+    
+    except Exception as e:
+        return JsonResponse({'error': f'Error al procesar la devolución: {str(e)}'}, status=500)
+
+
+
+# Función para verificar si el usuario es superusuario
+def is_superuser(user):
+    return user.is_superuser
+
+@user_passes_test(is_superuser, login_url='/admin/login/')
+def roles(request):
+    # Obtener todos los grupos (roles)
+    groups = Group.objects.all()
+    
+    # Obtener todos los usuarios
+    users = User.objects.all().prefetch_related('groups')
+    
+    # Procesar datos para los templates
+    roles_data = []
+    for group in groups:
+        user_count = group.user_set.count()
+        permissions = list(group.permissions.values_list('codename', flat=True))
+        
+        roles_data.append({
+            'id': group.id,
+            'name': group.name,
+            'description': '',
+            'status': 'activo',
+            'isGlobal': True,
+            'permissions': permissions,
+            'userCount': user_count
+        })
+    
+    users_data = []
+    for user in users:
+        user_group = user.groups.first()
+        role_name = user_group.name if user_group else 'Sin rol'
+        
+        users_data.append({
+            'id': user.id,
+            'name': f"{user.first_name} {user.last_name}".strip() or user.username,
+            'email': user.email,
+            'role': role_name,
+            'status': 'activo' if user.is_active else 'inactivo',
+            'lastAccess': user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Nunca'
+        })
+    
+    # Estadísticas
+    total_roles = groups.count()
+    active_roles = total_roles
+    inactive_roles = 0
+    
+    total_users = users.count()
+    active_users = users.filter(is_active=True).count()
+    inactive_users = total_users - active_users
+    
+    context = {
+        'roles_data': roles_data,
+        'users_data': users_data,
+        'total_roles': total_roles,
+        'active_roles': active_roles,
+        'inactive_roles': inactive_roles,
+        'total_users': total_users,
+        'active_users': active_users,
+        'inactive_users': inactive_users,
+    }
+    
+    # Manejar búsquedas y filtros
+    search_role = request.GET.get('search_role', '')
+    status_filter = request.GET.get('status_filter', '')
+    
+    if search_role:
+        context['roles_data'] = [r for r in context['roles_data'] 
+                                if search_role.lower() in r['name'].lower()]
+    
+    if status_filter:
+        context['roles_data'] = [r for r in context['roles_data'] 
+                                if r['status'] == status_filter]
+    
+    # Manejar búsquedas y filtros para usuarios
+    search_user = request.GET.get('search_user', '')
+    role_filter = request.GET.get('role_filter', '')
+    user_status_filter = request.GET.get('user_status_filter', '')
+    
+    if search_user:
+        context['users_data'] = [u for u in context['users_data'] 
+                                if search_user.lower() in u['name'].lower() or 
+                                search_user.lower() in u['email'].lower()]
+    
+    if role_filter:
+        context['users_data'] = [u for u in context['users_data'] 
+                                if u['role'] == role_filter]
+    
+    if user_status_filter:
+        context['users_data'] = [u for u in context['users_data'] 
+                                if u['status'] == user_status_filter]
+    
+    # Manejar acciones POST (crear, editar, eliminar)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create_role':
+            name = request.POST.get('name')
+            description = request.POST.get('description', '')
+            
+            if not name:
+                messages.error(request, 'El nombre del rol es obligatorio.')
+            elif Group.objects.filter(name=name).exists():
+                messages.error(request, 'Ya existe un rol con este nombre.')
+            else:
+                group = Group.objects.create(name=name)
+                messages.success(request, 'Rol creado exitosamente.')
+                return redirect('roles')
+        
+        elif action == 'edit_role':
+            role_id = request.POST.get('role_id')
+            name = request.POST.get('name')
+            description = request.POST.get('description', '')
+            status = request.POST.get('status', 'activo')
+            
+            if not name:
+                messages.error(request, 'El nombre del rol es obligatorio.')
+            else:
+                group = get_object_or_404(Group, id=role_id)
+                
+                if Group.objects.filter(name=name).exclude(id=role_id).exists():
+                    messages.error(request, 'Ya existe otro rol con este nombre.')
+                else:
+                    group.name = name
+                    group.save()
+                    messages.success(request, 'Rol actualizado exitosamente.')
+                    return redirect('roles')
+        
+        elif action == 'delete_role':
+            role_id = request.POST.get('role_id')
+            group = get_object_or_404(Group, id=role_id)
+            
+            if group.user_set.exists():
+                messages.error(request, 'No se puede eliminar un rol que tiene usuarios asignados.')
+            else:
+                group.delete()
+                messages.success(request, 'Rol eliminado exitosamente.')
+                return redirect('roles')
+        
+        elif action == 'create_user':
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            password = request.POST.get('password')
+            first_name = request.POST.get('first_name', '')
+            last_name = request.POST.get('last_name', '')
+            role_id = request.POST.get('role_id')
+            is_active = request.POST.get('status', 'activo') == 'activo'
+            
+            if not all([username, email, password, role_id]):
+                messages.error(request, 'Todos los campos obligatorios deben ser completados.')
+            elif User.objects.filter(username=username).exists():
+                messages.error(request, 'Ya existe un usuario con este nombre de usuario.')
+            elif User.objects.filter(email=email).exists():
+                messages.error(request, 'Ya existe un usuario con este email.')
+            else:
+                try:
+                    with transaction.atomic():
+                        user = User.objects.create_user(
+                            username=username,
+                            email=email,
+                            password=password,
+                            first_name=first_name,
+                            last_name=last_name,
+                            is_active=is_active
+                        )
+                        
+                        group = get_object_or_404(Group, id=role_id)
+                        user.groups.add(group)
+                    
+                    messages.success(request, 'Usuario creado exitosamente.')
+                    return redirect('roles')
+                except Exception as e:
+                    messages.error(request, f'Error al crear usuario: {str(e)}')
+        
+        elif action == 'edit_user':
+            user_id = request.POST.get('user_id')
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            password = request.POST.get('password', None)
+            first_name = request.POST.get('first_name', '')
+            last_name = request.POST.get('last_name', '')
+            role_id = request.POST.get('role_id')
+            is_active = request.POST.get('status', 'activo') == 'activo'
+            
+            if not all([username, email, role_id]):
+                messages.error(request, 'Todos los campos obligatorios deben ser completados.')
+            else:
+                user = get_object_or_404(User, id=user_id)
+                
+                if User.objects.filter(username=username).exclude(id=user_id).exists():
+                    messages.error(request, 'Ya existe otro usuario con este nombre de usuario.')
+                elif User.objects.filter(email=email).exclude(id=user_id).exists():
+                    messages.error(request, 'Ya existe otro usuario con este email.')
+                else:
+                    try:
+                        with transaction.atomic():
+                            user.username = username
+                            user.email = email
+                            user.first_name = first_name
+                            user.last_name = last_name
+                            user.is_active = is_active
+                            
+                            if password:
+                                user.set_password(password)
+                            
+                            user.save()
+                            
+                            # Actualizar el rol
+                            user.groups.clear()
+                            group = get_object_or_404(Group, id=role_id)
+                            user.groups.add(group)
+                        
+                        messages.success(request, 'Usuario actualizado exitosamente.')
+                        return redirect('roles')
+                    except Exception as e:
+                        messages.error(request, f'Error al actualizar usuario: {str(e)}')
+        
+        elif action == 'delete_user':
+            user_id = request.POST.get('user_id')
+            user = get_object_or_404(User, id=user_id)
+            
+            if user == request.user:
+                messages.error(request, 'No puedes eliminar tu propio usuario.')
+            else:
+                user.delete()
+                messages.success(request, 'Usuario eliminado exitosamente.')
+                return redirect('roles')
+        
+        elif action == 'export_roles_csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="roles.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow(['Nombre', 'Descripción', 'Estado', 'Usuarios Asignados'])
+            
+            for group in Group.objects.all():
+                user_count = group.user_set.count()
+                writer.writerow([group.name, '', 'activo', user_count])
+            
+            return response
+        
+        elif action == 'export_users_csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="usuarios.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow(['Nombre', 'Email', 'Rol', 'Estado', 'Último Acceso'])
+            
+            for user in User.objects.all().prefetch_related('groups'):
+                user_group = user.groups.first()
+                role_name = user_group.name if user_group else 'Sin rol'
+                
+                writer.writerow([
+                    f"{user.first_name} {user.last_name}".strip() or user.username,
+                    user.email,
+                    role_name,
+                    'activo' if user.is_active else 'inactivo',
+                    user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Nunca'
+                ])
+            
+            return response
+    
+    return render(request, "facturacion/roles.html", context)
+
+
+
+def anular(request):
+    return render(request, "facturacion/anular.html")
+
+
+
+
+def buscar_factura(request):
+    if request.method == 'POST':
+        try:
+            numero_factura = request.POST.get('numero_factura', '').strip()
+            
+            if not numero_factura:
+                return JsonResponse({'error': 'Número de factura requerido'}, status=400)
+            
+            # Buscar la factura
+            try:
+                venta = Venta.objects.get(numero_factura=numero_factura)
+            except Venta.DoesNotExist:
+                return JsonResponse({'error': 'Factura no encontrada'}, status=404)
+            
+            # Obtener detalles de la venta
+            detalles = DetalleVenta.objects.filter(venta=venta)
+            
+            # Información básica del cliente
+            cliente_info = {
+                'nombre': venta.cliente_nombre,
+                'cedula': venta.cliente_documento,
+                'telefono': 'N/A',
+                'direccion': 'N/A',
+            }
+            
+            # Determinar tipo de venta
+            tipo_venta = 'Contado' if venta.tipo_venta == 'contado' else 'Crédito'
+            
+            # Formatear datos para la respuesta
+            factura_data = {
+                'id': venta.id,
+                'numero_factura': venta.numero_factura,
+                'fecha': venta.fecha_venta.strftime('%Y-%m-%d'),
+                'estado': 'anulada' if venta.anulada else 'activa',
+                'tipo_venta': tipo_venta,
+                'cliente': cliente_info,
+                'vendedor': f"{venta.vendedor.first_name} {venta.vendedor.last_name}",
+                'items': [],
+                'subtotal': float(venta.subtotal),
+                'itbis': float(venta.total - venta.subtotal),
+                'total': float(venta.total),
+                'forma_pago': venta.get_metodo_pago_display(),
+                'monto_inicial': float(venta.montoinicial) if venta.montoinicial else 0,
+                'es_financiada': venta.es_financiada,
+                'monto_financiado': float(venta.monto_financiado) if venta.monto_financiado else 0,
+                'tasa_interes': float(venta.tasa_interes) if venta.tasa_interes else 0,
+                'plazo_meses': venta.plazo_meses if venta.plazo_meses else 0,
+                'cuota_mensual': float(venta.cuota_mensual) if venta.cuota_mensual else 0,
+            }
+            
+            # Agregar items
+            for detalle in detalles:
+                factura_data['items'].append({
+                    'producto': detalle.producto.nombre_producto,
+                    'cantidad': detalle.cantidad,
+                    'precio': float(detalle.precio_unitario),
+                    'subtotal': float(detalle.subtotal)
+                })
+            
+            return JsonResponse(factura_data)
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+
+def anular_factura(request):
+    if request.method == 'POST':
+        try:
+            factura_id = request.POST.get('factura_id')
+            motivo = request.POST.get('motivo', '').strip()
+            
+            if not motivo:
+                return JsonResponse({'error': 'Motivo de anulación requerido'}, status=400)
+            
+            # Buscar la factura
+            try:
+                venta = Venta.objects.get(id=factura_id, anulada=False)
+            except Venta.DoesNotExist:
+                return JsonResponse({'error': 'Factura no encontrada o ya anulada'}, status=404)
+            
+            # Anular la factura
+            venta.anulada = True
+            venta.motivo_anulacion = motivo
+            venta.fecha_anulacion = timezone.now()
+            venta.usuario_anulacion = request.user
+            venta.save()
+            
+            # Restaurar el inventario
+            detalles = DetalleVenta.objects.filter(venta=venta)
+            for detalle in detalles:
+                producto = detalle.producto
+                producto.cantidad += detalle.cantidad
+                producto.save()
+            
+            return JsonResponse({'success': True, 'message': 'Factura anulada correctamente'})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Método no permitido'}, status=405)

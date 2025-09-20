@@ -1210,7 +1210,7 @@
 </div>
 
 <script>
- // ===== CONFIGURACIÓN INICIAL =====
+// ===== CONFIGURACIÓN INICIAL =====
 console.log('Inicializando sistema de cuentas por cobrar...');
 
 // Cargar datos desde Django
@@ -1264,7 +1264,8 @@ function getStatusClass(status) {
         'pendiente': 'status-pending',
         'vencida': 'status-overdue',
         'pagada': 'status-paid',
-        'parcial': 'status-pending'
+        'parcial': 'status-pending',
+        'anulada': 'status-overdue'
     };
     return statusClasses[status] || '';
 }
@@ -1274,7 +1275,8 @@ function getStatusName(status) {
         'pendiente': 'Pendiente',
         'vencida': 'Vencida',
         'pagada': 'Pagada',
-        'parcial': 'Pago Parcial'
+        'parcial': 'Pago Parcial',
+        'anulada': 'Anulada'
     };
     return statusNames[status] || status;
 }
@@ -1296,11 +1298,16 @@ function getCSRFToken() {
     return cookieValue;
 }
 
-// ===== FUNCIONES PARA AGRUPAR POR CLIENTE =====
+// ===== FUNCIONES PARA AGRUPAR POR CLIENTE (CORREGIDA) =====
 function groupAccountsByClient(accountsData) {
     const clientsMap = {};
     
     accountsData.forEach(account => {
+        // Filtrar cuentas anuladas
+        if (account.status === 'anulada') {
+            return;
+        }
+        
         const clientKey = `${account.clientName}-${account.clientPhone}`;
         
         if (!clientsMap[clientKey]) {
@@ -1308,13 +1315,14 @@ function groupAccountsByClient(accountsData) {
                 clientName: account.clientName,
                 clientPhone: account.clientPhone,
                 invoices: [],
-                totalPending: 0,
+                totalPending: 0,  // Ahora será la suma de saldos pendientes
                 status: 'pagada',
                 isExpanded: false
             };
         }
         
-        const pendingBalance = account.totalAmount - account.paidAmount;
+        const montoTotalCuenta = account.totalAmount;
+        const pendingBalance = account.totalAmount - account.paidAmount; // Saldo pendiente real
         
         // Buscar si ya existe esta factura para preservar el estado de expansión
         const existingInvoice = clientsMap[clientKey].invoices.find(inv => inv.id === account.id);
@@ -1331,9 +1339,11 @@ function groupAccountsByClient(accountsData) {
             pendingBalance: pendingBalance,
             status: account.status,
             observations: account.observations,
-            isExpanded: isInvoiceExpanded
+            isExpanded: isInvoiceExpanded,
+            anulada: account.status === 'anulada'
         });
         
+        // CAMBIO PRINCIPAL: Sumar el saldo pendiente real, no el monto total
         clientsMap[clientKey].totalPending += pendingBalance;
         
         // Actualizar estado general
@@ -1349,7 +1359,7 @@ function groupAccountsByClient(accountsData) {
     return Object.values(clientsMap);
 }
 
-// ===== FUNCIONES PRINCIPALES =====
+// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS (CORREGIDA) =====
 function updateStats(accountsData = accounts) {
     console.log('Actualizando estadísticas...');
     
@@ -1359,21 +1369,27 @@ function updateStats(accountsData = accounts) {
     let totalReceivableAmount = 0;
 
     accountsData.forEach(account => {
-        const pendingBalance = account.totalAmount - account.paidAmount;
-        totalReceivableAmount += pendingBalance;
-
-        if (account.status === 'pendiente') {
-            pendingAmount += pendingBalance;
-        } else if (account.status === 'vencida') {
-            overdueAmount += pendingBalance;
+        // Excluir cuentas anuladas de las estadísticas
+        if (account.status === 'anulada') {
+            return;
         }
         
-        // Simulación de pagos este mes (en un sistema real esto vendría del backend)
+        const pendingBalance = account.totalAmount - account.paidAmount; // Saldo real pendiente
+        
+        totalReceivableAmount += pendingBalance; // Suma de saldos pendientes
+
+        if (account.status === 'pendiente') {
+            pendingAmount += pendingBalance; // Usar saldo pendiente
+        } else if (account.status === 'vencida') {
+            overdueAmount += pendingBalance; // Usar saldo pendiente
+        }
+        
+        // Simulación de pagos este mes (excluir anuladas)
         if (account.status === 'pagada') {
             const saleDate = new Date(account.saleDate);
             const now = new Date();
             if (saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear()) {
-                paidThisMonthAmount += account.totalAmount;
+                paidThisMonthAmount += account.totalAmount; // Usar monto total para pagos completos
             }
         }
     });
@@ -1387,12 +1403,16 @@ function updateStats(accountsData = accounts) {
     console.log('Estadísticas actualizadas');
 }
 
+// ===== FUNCIÓN DE RENDERIZADO CORREGIDA =====
 function renderTable(data = accounts) {
     console.log('Renderizando tabla agrupada por cliente...');
     const tableBody = document.getElementById('tableBody');
     const noDataMessage = document.getElementById('noDataMessage');
 
-    if (!data || data.length === 0) {
+    // Filtrar cuentas anuladas
+    const nonAnulledData = data.filter(account => account.status !== 'anulada');
+    
+    if (!nonAnulledData || nonAnulledData.length === 0) {
         tableBody.innerHTML = '';
         noDataMessage.style.display = 'block';
         console.log('No hay datos para mostrar');
@@ -1402,7 +1422,7 @@ function renderTable(data = accounts) {
     noDataMessage.style.display = 'none';
     
     // Agrupar cuentas por cliente - preservar estado existente
-    const newGroupedClients = groupAccountsByClient(data);
+    const newGroupedClients = groupAccountsByClient(nonAnulledData);
     
     // Preservar el estado de expansión de los clientes existentes
     if (groupedClients.length > 0) {
@@ -1475,7 +1495,7 @@ function renderTable(data = accounts) {
                                 </button>
                             ` : ''}
                         </td>
-                        <td class="currency">RD$ ${invoice.pendingBalance.toLocaleString('es-DO')}</td>
+                        <td class="currency">RD$ ${invoice.totalAmount.toLocaleString('es-DO')}</td>
                         <td>
                             <span class="status-badge ${getStatusClass(invoice.status)}">
                                 ${getStatusName(invoice.status)}
@@ -1491,6 +1511,9 @@ function renderTable(data = accounts) {
                                     <i class='bx bx-dollar'></i>
                                 </button>
                                 ` : ''}
+                                <button class="btn btn-danger" onclick="anularCuenta(${invoice.id})" title="Anular Cuenta">
+                                    <i class='bx bx-x-circle'></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -1572,6 +1595,11 @@ function applyFilters() {
     const dateTo = document.getElementById('dateTo').value;
 
     filteredAccounts = accounts.filter(account => {
+        // Excluir cuentas anuladas del filtrado
+        if (account.status === 'anulada') {
+            return false;
+        }
+        
         // Búsqueda
         const matchesSearch = !searchTerm || 
             account.clientName.toLowerCase().includes(searchTerm) ||
@@ -1636,7 +1664,35 @@ function viewDetails(id) {
     // Configurar botón de pago
     const payButton = document.getElementById('payFromDetailsBtn');
     payButton.setAttribute('data-account-id', account.id);
-    payButton.style.display = pendingBalance <= 0 ? 'none' : 'inline-flex';
+    payButton.style.display = pendingBalance <= 0 || account.status === 'anulada' ? 'none' : 'inline-flex';
+
+    // Agregar información de progreso de pago
+    const modalBody = document.querySelector('#detailsModal .modal-body');
+    
+    // Remover barra de progreso previa si existe
+    const existingProgress = modalBody.querySelector('.payment-progress');
+    if (existingProgress) {
+        existingProgress.remove();
+    }
+    
+    // Crear barra de progreso
+    const progressPercentage = (account.paidAmount / account.totalAmount) * 100;
+    const progressBar = document.createElement('div');
+    progressBar.className = 'payment-progress';
+    progressBar.style.cssText = 'margin: 20px 0; padding: 0;';
+    progressBar.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <span style="font-weight: 600; color: #333;">Progreso de Pago</span>
+            <span style="font-weight: 600; color: #28a745;">${progressPercentage.toFixed(1)}%</span>
+        </div>
+        <div style="background: #e9ecef; border-radius: 10px; height: 20px; overflow: hidden;">
+            <div style="background: linear-gradient(90deg, #28a745 0%, #20c997 100%); height: 100%; width: ${progressPercentage}%; transition: width 0.3s ease;"></div>
+        </div>
+    `;
+    
+    // Insertar después del último detail-item
+    const lastDetailItem = modalBody.querySelector('.detail-item:last-child');
+    lastDetailItem.insertAdjacentElement('afterend', progressBar);
 
     // Mostrar modal
     document.getElementById('detailsModal').classList.add('active');
@@ -1653,11 +1709,56 @@ function openPaymentModal(id) {
     const account = accounts.find(acc => acc.id === id);
     if (!account) return;
 
-    const pendingBalance = account.totalAmount - account.paidAmount;
-    document.getElementById('paymentModalPendingAmount').textContent = `RD$ ${pendingBalance.toLocaleString('es-DO')}`;
+    // Verificar que la cuenta no esté anulada
+    if (account.status === 'anulada') {
+        alert('No se puede realizar pagos en una cuenta anulada');
+        return;
+    }
+
+    // Calcular el saldo pendiente basado en monto_total - monto_pagado
+    const currentPendingBalance = account.totalAmount - account.paidAmount;
+    
+    // Verificar que haya saldo pendiente
+    if (currentPendingBalance <= 0) {
+        alert('Esta cuenta ya está completamente pagada');
+        return;
+    }
+    
+    // Mostrar información actualizada en el modal
+    document.getElementById('paymentModalPendingAmount').textContent = `RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
     document.getElementById('paymentAccountId').value = id;
-    document.getElementById('paymentAmountInput').value = pendingBalance.toFixed(2);
+    
+    // Prellenar con el saldo pendiente completo, pero permitir montos menores
+    document.getElementById('paymentAmountInput').value = currentPendingBalance.toFixed(2);
+    document.getElementById('paymentAmountInput').max = currentPendingBalance.toFixed(2);
+    
     document.getElementById('paymentAmountError').style.display = 'none';
+
+    // Agregar información adicional al modal
+    const modalBody = document.querySelector('#paymentModal .modal-body');
+    
+    // Remover información previa si existe
+    const existingInfo = modalBody.querySelector('.account-info');
+    if (existingInfo) {
+        existingInfo.remove();
+    }
+    
+    // Agregar nueva información de la cuenta
+    const accountInfo = document.createElement('div');
+    accountInfo.className = 'account-info';
+    accountInfo.style.cssText = 'background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;';
+    accountInfo.innerHTML = `
+        <h5 style="margin: 0 0 10px 0; color: #333;">Información de la Cuenta</h5>
+        <p style="margin: 5px 0;"><strong>Cliente:</strong> ${account.clientName}</p>
+        <p style="margin: 5px 0;"><strong>Factura:</strong> ${account.invoiceNumber}</p>
+        <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
+        <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${account.paidAmount.toLocaleString('es-DO')}</p>
+        <p style="margin: 0;"><strong>Saldo Pendiente:</strong> RD$ ${currentPendingBalance.toLocaleString('es-DO')}</p>
+    `;
+    
+    // Insertar antes del formulario de pago
+    const paymentInfo = modalBody.querySelector('.payment-info');
+    modalBody.insertBefore(accountInfo, paymentInfo);
 
     document.getElementById('paymentModal').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -1675,6 +1776,7 @@ function closePaymentModal() {
     document.getElementById('paymentForm').reset();
 }
 
+// ===== FUNCIÓN CORREGIDA PARA REGISTRAR PAGOS =====
 function submitPayment() {
     const accountId = document.getElementById('paymentAccountId').value;
     const amount = parseFloat(document.getElementById('paymentAmountInput').value);
@@ -1691,6 +1793,22 @@ function submitPayment() {
     
     if (!method) {
         alert('Seleccione un método de pago');
+        return;
+    }
+    
+    // Encontrar la cuenta actual para validaciones
+    const currentAccount = accounts.find(acc => acc.id == accountId);
+    if (!currentAccount) {
+        alert('Error: Cuenta no encontrada');
+        return;
+    }
+    
+    // Calcular saldo pendiente actual
+    const currentPendingBalance = currentAccount.totalAmount - currentAccount.paidAmount;
+    
+    if (amount > currentPendingBalance) {
+        document.getElementById('paymentAmountError').textContent = `El monto excede el saldo pendiente de RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
+        document.getElementById('paymentAmountError').style.display = 'block';
         return;
     }
     
@@ -1712,9 +1830,29 @@ function submitPayment() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
+            // Mostrar información del comprobante generado
+            const comprobanteMensaje = data.comprobante_numero ? 
+                `\nComprobante generado: ${data.comprobante_numero}` : '';
+            
+            const saldoMensaje = data.nuevo_saldo_pendiente !== undefined ? 
+                `\nNuevo saldo pendiente: RD$ ${data.nuevo_saldo_pendiente.toLocaleString('es-DO')}` : '';
+            
+            // Preguntar si desea ver el comprobante
+            if (data.comprobante_id) {
+                if (confirm(data.message + comprobanteMensaje + saldoMensaje + '\n\n¿Desea ver el comprobante?')) {
+                    // Abrir el comprobante en una nueva pestaña
+                    window.open(`/generar-comprobante-pdf/${data.comprobante_id}/`, '_blank');
+                }
+            } else {
+                alert(data.message + comprobanteMensaje + saldoMensaje);
+            }
+            
+            // Actualizar los datos localmente
+            updateLocalAccountData(accountId, amount, data);
+            
             closePaymentModal();
-            // Recargar la página para ver los cambios
+            
+            // Recargar la página para ver los cambios actualizados
             window.location.reload();
         } else {
             alert('Error: ' + data.message);
@@ -1726,13 +1864,89 @@ function submitPayment() {
     });
 }
 
+// ===== FUNCIÓN PARA ACTUALIZAR DATOS LOCALES =====
+function updateLocalAccountData(accountId, paymentAmount, serverResponse) {
+    // Encontrar y actualizar la cuenta en el array local
+    const accountIndex = accounts.findIndex(acc => acc.id == accountId);
+    if (accountIndex !== -1) {
+        // Actualizar monto pagado
+        accounts[accountIndex].paidAmount += paymentAmount;
+        
+        // Actualizar estado si viene en la respuesta
+        if (serverResponse.estado_actual) {
+            accounts[accountIndex].status = serverResponse.estado_actual;
+        } else {
+            // Actualizar estado basado en el nuevo saldo
+            const newPendingBalance = accounts[accountIndex].totalAmount - accounts[accountIndex].paidAmount;
+            
+            if (newPendingBalance <= 0) {
+                accounts[accountIndex].status = 'pagada';
+            } else {
+                accounts[accountIndex].status = 'parcial';
+            }
+        }
+        
+        // Si el servidor envió información actualizada, usarla
+        if (serverResponse.nuevo_saldo_pendiente !== undefined) {
+            accounts[accountIndex].paidAmount = accounts[accountIndex].totalAmount - serverResponse.nuevo_saldo_pendiente;
+        }
+        if (serverResponse.monto_pagado_total !== undefined) {
+            accounts[accountIndex].paidAmount = serverResponse.monto_pagado_total;
+        }
+    }
+    
+    // Actualizar también filteredAccounts si existe
+    const filteredIndex = filteredAccounts.findIndex(acc => acc.id == accountId);
+    if (filteredIndex !== -1) {
+        filteredAccounts[filteredIndex] = {...accounts[accountIndex]};
+    }
+    
+    // Actualizar estadísticas
+    updateStats();
+}
+
+function anularCuenta(id) {
+    if (confirm('¿Está seguro de que desea anular esta cuenta? Esta acción no se puede deshacer.')) {
+        fetch(`/anular-cuenta/${id}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                // Recargar la página para ver los cambios
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al anular la cuenta');
+        });
+    }
+}
+
 function exportData() {
     console.log('Exportando datos...');
+    
+    // Filtrar cuentas anuladas para la exportación
+    const nonAnulledAccounts = accounts.filter(account => account.status !== 'anulada');
+    
+    if (nonAnulledAccounts.length === 0) {
+        alert('No hay datos para exportar');
+        return;
+    }
+    
     let csvContent = "data:text/csv;charset=utf-8,";
     const headers = ["Cliente", "Teléfono", "Factura", "Productos", "Fecha Venta", "Vencimiento", "Monto Total", "Monto Pagado", "Monto Pendiente", "Estado", "Observaciones"];
     csvContent += headers.join(";") + "\n";
 
-    accounts.forEach(account => {
+    nonAnulledAccounts.forEach(account => {
         const pendingBalance = account.totalAmount - account.paidAmount;
         const productos = account.products.map(p => `${p.nombre} (x${p.cantidad})`).join(" | ");
         
@@ -1772,6 +1986,31 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('statusFilter').addEventListener('change', applyFilters);
     document.getElementById('dateFrom').addEventListener('change', applyFilters);
     document.getElementById('dateTo').addEventListener('change', applyFilters);
+    
+    // Agregar validación en tiempo real al campo de monto
+    const paymentAmountInput = document.getElementById('paymentAmountInput');
+    if (paymentAmountInput) {
+        paymentAmountInput.addEventListener('input', function() {
+            const amount = parseFloat(this.value);
+            const accountId = document.getElementById('paymentAccountId').value;
+            const account = accounts.find(acc => acc.id == accountId);
+            
+            if (account) {
+                const maxAmount = account.totalAmount - account.paidAmount;
+                const errorElement = document.getElementById('paymentAmountError');
+                
+                if (amount > maxAmount) {
+                    errorElement.textContent = `El monto no puede exceder RD$ ${maxAmount.toLocaleString('es-DO')}`;
+                    errorElement.style.display = 'block';
+                } else if (amount <= 0) {
+                    errorElement.textContent = 'El monto debe ser mayor a 0';
+                    errorElement.style.display = 'block';
+                } else {
+                    errorElement.style.display = 'none';
+                }
+            }
+        });
+    }
     
     // Cerrar modales al hacer clic fuera
     document.getElementById('detailsModal').addEventListener('click', function(e) {

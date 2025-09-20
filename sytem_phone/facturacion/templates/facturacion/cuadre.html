@@ -948,7 +948,7 @@
                             <h2><i class='bx bx-stats'></i> Resumen Financiero</h2>
                         </div>
                         <div class="summary-item">
-                            <h3><i class='bx bx-wallet'></i> Monto Inicial</h3>
+                            <h3><i class='bx bx-wallet'></i> Monto Inicial de caja</h3>
                             <p id="initial-amount">
                                 {% if caja %}RD${{ caja.monto_inicial|floatformat:2 }}{% else %}RD$0.00{% endif %}
                             </p>
@@ -959,12 +959,7 @@
                                 {% if cierre %}RD${{ cierre.monto_efectivo_real|floatformat:2 }}{% else %}RD$0.00{% endif %}
                             </p>
                         </div>
-                        <div class="summary-item">
-                            <h3><i class='bx bx-credit-card'></i> Crédito</h3>
-                            <p id="credit-amount">
-                                {% if ventas %}RD${{ ventas.credito|floatformat:2 }}{% else %}RD$0.00{% endif %}
-                            </p>
-                        </div>
+                       
                         <div class="summary-item">
                             <h3><i class='bx bx-transfer'></i> Diferencia</h3>
                             <div id="difference-display" class="status">
@@ -1014,12 +1009,7 @@
                             {% if ventas %}RD${{ ventas.transferencia|floatformat:2 }}{% else %}RD$0.00{% endif %}
                         </span>
                     </div>
-                    <div class="payment-method">
-                        <span class="label"><i class='bx bx-credit-card'></i> Crédito</span>
-                        <span class="value" id="credit-sales">
-                            {% if ventas %}RD${{ ventas.credito|floatformat:2 }}{% else %}RD$0.00{% endif %}
-                        </span>
-                    </div>
+
                 </div>
 
                 <!-- Observaciones -->

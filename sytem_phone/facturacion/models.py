@@ -487,6 +487,15 @@ class Venta(models.Model):
     descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     descuento_monto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2)
+    montoinicial = models.DecimalField(max_digits=12, decimal_places=2)
+    es_financiada = models.BooleanField(default=False)
+    tasa_interes = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    plazo_meses = models.PositiveIntegerField(default=1)
+    monto_financiado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    interes_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cuota_mensual = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_con_interes = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_a_pagar = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
     # Para pagos en efectivo
     efectivo_recibido = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -499,6 +508,12 @@ class Venta(models.Model):
     # Auditoría
     fecha_registro = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    anulada = models.BooleanField(default=False)
+    motivo_anulacion = models.TextField(blank=True, null=True)
+    fecha_anulacion = models.DateTimeField(blank=True, null=True)
+    usuario_anulacion = models.ForeignKey(User, on_delete=models.PROTECT, 
+                                         related_name='ventas_anuladas', 
+                                         blank=True, null=True)
 
     
     
@@ -545,27 +560,28 @@ class DetalleVenta(models.Model):
         verbose_name_plural = "Detalles de Venta"
 
 
-
-
-
 class CuentaPorCobrar(models.Model):
     ESTADOS = (
         ('pendiente', 'Pendiente'),
         ('vencida', 'Vencida'),
         ('pagada', 'Pagada'),
         ('parcial', 'Pago Parcial'),
+        ('anulada', 'Anulada'),
     )
 
     venta = models.OneToOneField('Venta', on_delete=models.CASCADE, related_name='cuenta_por_cobrar')
     cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='cuentas_por_cobrar')
-    monto_total = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto Total")
+    monto_total = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto Total Original")
+    monto_total_con_interes = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto Total con Interés", default=0)
     monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Monto Pagado")
     fecha_vencimiento = models.DateField(verbose_name="Fecha de Vencimiento")
     estado = models.CharField(max_length=10, choices=ESTADOS, default='pendiente')
-    productos = models.TextField(verbose_name="Productos de la Venta", blank=True)  # NUEVO CAMPO
+    productos = models.TextField(verbose_name="Productos de la Venta", blank=True)
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    anulada = models.BooleanField(default=False)
+    fecha_anulacion = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'cuentas_por_cobrar'
@@ -573,16 +589,36 @@ class CuentaPorCobrar(models.Model):
         verbose_name_plural = 'Cuentas por Cobrar'
         ordering = ['-fecha_creacion']
     
+    def save(self, *args, **kwargs):
+        # Al guardar, asegurarse de que monto_total_con_interes sea igual al total_con_interes de la venta
+        if self.venta and hasattr(self.venta, 'total_con_interes'):
+            self.monto_total_con_interes = self.venta.total_con_interes
+        elif not self.monto_total_con_interes:
+            self.monto_total_con_interes = self.monto_total
+        
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return f"Cuenta #{self.id} - {self.cliente.full_name} - {self.venta.numero_factura}"
     
     @property
     def saldo_pendiente(self):
-        return self.monto_total - self.monto_pagado
+        if self.anulada:
+            return Decimal('0.00')
+        return self.monto_total_con_interes - self.monto_pagado
     
     @property
     def esta_vencida(self):
+        if self.anulada:
+            return False
         return timezone.now().date() > self.fecha_vencimiento and self.estado != 'pagada'
+    
+    def anular_cuenta(self):
+        """Método para anular la cuenta"""
+        self.anulada = True
+        self.estado = 'anulada'
+        self.fecha_anulacion = timezone.now()
+        self.save()
 
 
 class PagoCuentaPorCobrar(models.Model):
@@ -688,3 +724,67 @@ class CierreCaja(models.Model):
     
     def __str__(self):
         return f"Cierre {self.id} - {self.caja.usuario.username} - {self.fecha_cierre.strftime('%Y-%m-%d')}"
+    
+
+
+
+
+
+
+
+
+
+class Devolucion(models.Model):
+    venta = models.ForeignKey(Venta, on_delete=models.PROTECT)
+    producto = models.ForeignKey(EntradaProducto, on_delete=models.PROTECT)
+    cantidad = models.PositiveIntegerField()
+    motivo = models.CharField(max_length=100)
+    observaciones = models.TextField(blank=True, null=True)
+    fecha_devolucion = models.DateTimeField(default=timezone.now)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    
+    def __str__(self):
+        return f"Devolución #{self.id} - {self.venta.numero_factura}"
+
+
+
+
+
+class ComprobantePago(models.Model):
+    TIPOS_COMPROBANTE = (
+        ('recibo', 'Recibo de Pago'),
+        ('comprobante', 'Comprobante de Pago'),
+    )
+    
+    numero_comprobante = models.CharField(max_length=20, unique=True, verbose_name="Número de Comprobante")
+    pago = models.OneToOneField('PagoCuentaPorCobrar', on_delete=models.CASCADE, related_name='comprobante')
+    cuenta = models.ForeignKey('CuentaPorCobrar', on_delete=models.CASCADE, related_name='comprobantes')
+    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='comprobantes_pago')
+    tipo_comprobante = models.CharField(max_length=15, choices=TIPOS_COMPROBANTE, default='recibo')
+    fecha_emision = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'comprobantes_pago'
+        verbose_name = 'Comprobante de Pago'
+        verbose_name_plural = 'Comprobantes de Pago'
+        ordering = ['-fecha_emision']
+    
+    def save(self, *args, **kwargs):
+        if not self.numero_comprobante:
+            # Generar número de comprobante único
+            año = timezone.now().year
+            ultimo_comprobante = ComprobantePago.objects.filter(fecha_emision__year=año).order_by('-id').first()
+            if ultimo_comprobante and ultimo_comprobante.numero_comprobante:
+                try:
+                    ultimo_numero = int(ultimo_comprobante.numero_comprobante.split('-')[-1])
+                    nuevo_numero = ultimo_numero + 1
+                except (ValueError, IndexError):
+                    nuevo_numero = 1
+            else:
+                nuevo_numero = 1
+            self.numero_comprobante = f"CP-{año}-{nuevo_numero:06d}"
+        
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Comprobante {self.numero_comprobante} - {self.cliente.full_name} - RD${self.pago.monto}"

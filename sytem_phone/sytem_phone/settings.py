@@ -80,7 +80,7 @@ WSGI_APPLICATION = 'sytem_phone.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "phonedb",
+        "NAME": "ddmaxmotoimport",
         "USER": "root",
         "PASSWORD": "",
         "HOST": "localhost",
@@ -146,7 +146,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+
+# Configuración de archivos estáticos
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "facturacion" / "static"]  
+STATIC_ROOT = BASE_DIR / "staticfiles"   # aquí se copiará todo
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

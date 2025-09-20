@@ -42,8 +42,22 @@ urlpatterns = [
     path('cuadre', views.cuadre, name='cuadre'),
     path('reavastecer', views.reavastecer, name='reavastecer'),
     path('actualizar-stock/', views.actualizar_stock, name='actualizar_stock'),
-
+    path('devoluciones', views.devoluciones, name='devoluciones'),
+    path('roles', views.roles, name='roles'),
+    path('anular', views.anular, name='anular'),
+    path('buscar-factura/', views.buscar_factura, name='buscar_factura'),
+    path('anular-factura/', views.anular_factura, name='anular_factura_action'),
+    path('buscar-factura-devolucion/', views.buscar_factura_devolucion, name='buscar_factura_devolucion'),
+    path('procesar-devolucion/', views.procesar_devolucion, name='procesar_devolucion'),
+    path('anular-cuenta/<int:cuenta_id>/', views.anular_cuenta, name='anular_cuenta'),
+    path('generar-comprobante-pdf/<int:comprobante_id>/', views.generar_comprobante_pdf, name='generar_comprobante_pdf'),
+    path('lista-comprobantes/', views.lista_comprobantes, name='lista_comprobantes'),
 ]
+
+    
+
+
+
     
 
 

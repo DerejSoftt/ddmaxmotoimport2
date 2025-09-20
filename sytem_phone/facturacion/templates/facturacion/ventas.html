@@ -7,7 +7,7 @@
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <style>
-        * {
+         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -435,7 +435,7 @@
         .badge {
             display: inline-block;
             padding: 4px 10px;
-            border-radius: 20px;
+            borderRadius: 20px;
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
@@ -712,6 +712,8 @@
 
         .modal-header {
             margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e1e8ed;
         }
 
         .modal-title {
@@ -725,6 +727,8 @@
 
         .modal-body {
             margin-bottom: 30px;
+            max-height: 60vh;
+            overflow-y: auto;
         }
 
         .modal-footer {
@@ -871,6 +875,78 @@
             padding: 15px;
             font-size: 1.1rem;
             height: 50px;
+        }
+
+        /* Nuevos estilos para campos de crédito */
+        .credit-fields {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #764ba2;
+        }
+        
+        .credit-field-group {
+            margin-bottom: 15px;
+        }
+        
+        .credit-field-group label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        
+        .credit-field-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #fff;
+            transition: all 0.3s ease;
+        }
+        
+        .credit-field-group input:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.1);
+        }
+        
+        .credit-summary {
+            margin-top: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            border: 1px solid #e1e8ed;
+        }
+        
+        .credit-summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+        
+        .credit-summary-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .credit-summary-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .credit-summary-value {
+            font-weight: 700;
+            color: #764ba2;
+        }
+        
+        .credit-profit {
+            color: #4cc9f0;
         }
 
         /* Responsive */
@@ -1078,6 +1154,15 @@
         .product-search-results::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.5);
         }
+
+        /* Estilo adicional para campos de crédito */
+        .credit-summary-item.highlight {
+            background-color: rgba(118, 75, 162, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -1239,6 +1324,59 @@
                                     {% endfor %}
                                 </div>
                             </div>
+
+                             <!-- Total de la Venta -->
+                            <div class="total-display">
+                                <span class="total-label">Subtotal</span>
+                                <span id="total-amount" class="total-value">RD$0.00</span>
+                            </div>
+                            
+                            
+                            <!-- Campos de crédito (solo para crédito) -->
+                            <div id="credit-fields-container" class="credit-fields hidden">
+                                <div class="credit-field-group">
+                                    <label for="initial-payment">Monto Inicial (RD$)</label>
+                                    <input type="number" id="initial-payment" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                
+                                <div class="credit-field-group">
+                                    <label for="interest-rate">Tasa de Interés (%)</label>
+                                    <input type="number" id="interest-rate" step="0.1" min="0" placeholder="0.0" value="3">
+                                </div>
+                                
+                                <div class="credit-field-group">
+                                    <label for="credit-term">Plazo (meses)</label>
+                                    <input type="number" id="credit-term" min="1" placeholder="12" value="12">
+                                </div>
+                                
+                                <div class="credit-summary" id="credit-summary">
+                                    <div class="credit-summary-item">
+                                        <span class="credit-summary-label">Monto a Financiar:</span>
+                                        <span id="financed-amount" class="credit-summary-value">RD$0.00</span>
+                                    </div>
+                                    <div class="credit-summary-item">
+                                        <span class="credit-summary-label">Interés Mensual:</span>
+                                        <span id="monthly-interest" class="credit-summary-value">RD$0.00</span>
+                                    </div>
+                                    
+                                    <div class="credit-summary-item">
+                                        <span class="credit-summary-label">Ganancia por Interés:</span>
+                                        <span id="interest-profit" class="credit-summary-value credit-profit">RD$0.00</span>
+                                    </div>
+                                     <div class="credit-summary-item">
+                                        <span class="credit-summary-label">Balence:</span>
+                                        <span id="total-with-interest" class="credit-summary-value">RD$0.00</span>
+                                    </div>
+                                    <div class="credit-summary-item">
+                                        <span class="credit-summary-label">Cuota Mensual:</span>
+                                        <span id="monthly-payment" class="credit-summary-value">RD$0.00</span>
+                                    </div>
+                                    <div class="credit-summary-item highlight">
+                                        <span class="credit-summary-label">Total a Pagar:</span>
+                                        <span id="total-to-pay" class="credit-summary-value">RD$0.00</span>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <!-- Información del Cliente (solo para contado) -->
                             <div id="cash-info-container" class="cash-info">
@@ -1262,17 +1400,12 @@
                                 </div>
                             </div>
                             
-                            <!-- Total de la Venta -->
-                            <div class="total-display">
-                                <span class="total-label">Subtotal</span>
-                                <span id="total-amount" class="total-value">RD$0.00</span>
-                            </div>
-                            
+                           
                             <!-- Descuento en porcentaje -->
                             <div class="form-group">
-                                <label for="discount-input" class="form-label">Descuento (%)</label>
+                                <label for="discount-input" class="form-label">Descuento (RD$)</label>
                                 <div class="input-group">
-                                    <input type="number" id="discount-input" class="form-control" placeholder="%" step="1" min="0" max="100" >
+                                    <input type="number" id="discount-input" class="form-control" placeholder="RD$0.00" step="0.01" min="0" max="" >
                                 </div>
                             </div>
                             
@@ -1281,7 +1414,7 @@
                                 <span class="discount-label">Descuento aplicado</span>
                                 <span id="discount-amount" class="discount-value">RD$0.00</span>
                             </div>
-                            
+                            <!--total a pagar general -->
                             <div class="final-total-display">
                                 <span class="final-total-label">Total a Pagar</span>
                                 <span id="final-total-amount" class="final-total-value">RD$0.00</span>
@@ -1388,9 +1521,20 @@
         <input type="hidden" name="cash_received" id="cash-received-field">
         <input type="hidden" name="change_amount" id="change-amount-field">
         <input type="hidden" name="sale_items" id="sale-items-field">
+        
+        <!-- Campos adicionales para crédito -->
+        <input type="hidden" name="monto_inicial" id="monto-inicial-field">
+        <input type="hidden" name="tasa_interes" id="tasa-interes-field">
+        <input type="hidden" name="plazo_meses" id="plazo-meses-field">
+        <input type="hidden" name="monto_financiado" id="monto-financiado-field">
+        <input type="hidden" name="interes_mensual" id="interes-mensual-field">
+        <input type="hidden" name="cuota_mensual" id="cuota-mensual-field">
+        <input type="hidden" name="ganancia_interes" id="ganancia-interes-field">
+        <input type="hidden" name="total_con_interes" id="total-con-interes-field">
+        <input type="hidden" name="total_a_pagar" id="total-a-pagar-field">
     </form>
 
-  <script>
+<script>
 // Funciones para el sidebar
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
@@ -1427,7 +1571,16 @@ document.addEventListener("DOMContentLoaded", () => {
         discountAmount: 0,
         finalTotal: 0,
         cashReceived: 0,
-        changeAmount: 0
+        changeAmount: 0,
+        initialPayment: 0,
+        interestRate: 0,
+        creditTerm: 0,
+        financedAmount: 0,
+        monthlyInterest: 0,
+        monthlyPayment: 0,
+        totalToPay: 0,
+        interestProfit: 0,
+        totalWithInterest: 0
     };
 
     // Elementos del DOM
@@ -1438,6 +1591,16 @@ document.addEventListener("DOMContentLoaded", () => {
         clientInfoContainer: document.getElementById('client-info-container'),
         clientSearch: document.getElementById('client-search'),
         clientResults: document.getElementById('client-results'),
+        creditFieldsContainer: document.getElementById('credit-fields-container'),
+        initialPaymentInput: document.getElementById('initial-payment'),
+        interestRateInput: document.getElementById('interest-rate'),
+        creditTermInput: document.getElementById('credit-term'),
+        financedAmountDisplay: document.getElementById('financed-amount'),
+        monthlyInterestDisplay: document.getElementById('monthly-interest'),
+        monthlyPaymentDisplay: document.getElementById('monthly-payment'),
+        totalToPayDisplay: document.getElementById('total-to-pay'),
+        interestProfitDisplay: document.getElementById('interest-profit'),
+        totalWithInterestDisplay: document.getElementById('total-with-interest'),
         cashInfoContainer: document.getElementById('cash-info-container'),
         cashClientName: document.getElementById('cash-client-name'),
         cashClientDocument: document.getElementById('cash-client-document'),
@@ -1477,7 +1640,17 @@ document.addEventListener("DOMContentLoaded", () => {
         totalField: document.getElementById('total'),
         cashReceivedField: document.getElementById('cash-received-field'),
         changeAmountField: document.getElementById('change-amount-field'),
-        saleItemsField: document.getElementById('sale-items-field')
+        saleItemsField: document.getElementById('sale-items-field'),
+        // Campos adicionales para crédito
+        montoInicialField: document.getElementById('monto-inicial-field'),
+        tasaInteresField: document.getElementById('tasa-interes-field'),
+        plazoMesesField: document.getElementById('plazo-meses-field'),
+        montoFinanciadoField: document.getElementById('monto-financiado-field'),
+        interesMensualField: document.getElementById('interes-mensual-field'),
+        cuotaMensualField: document.getElementById('cuota-mensual-field'),
+        gananciaInteresField: document.getElementById('ganancia-interes-field'),
+        totalConInteresField: document.getElementById('total-con-interes-field'),
+        totalAPagarField: document.getElementById('total-a-pagar-field')
     };
 
     // Formatear moneda en pesos dominicanos
@@ -1694,475 +1867,465 @@ document.addEventListener("DOMContentLoaded", () => {
     // Actualizar total de la venta
     const updateTotal = () => {
         state.totalSales = state.saleItems.reduce((total, item) => total + item.subtotal, 0);
-        DOM.totalAmount.textContent = formatCurrency(state.totalSales);
+        
+        // Aplicar descuento directamente al subtotal mostrado
+        const discountInput = parseFloat(DOM.discountInput.value) || 0;
+        state.discountAmount = Math.max(0, Math.min(discountInput, state.totalSales));
+        const subtotalWithDiscount = state.totalSales - state.discountAmount;
+        
+        DOM.totalAmount.textContent = formatCurrency(subtotalWithDiscount);
         updateDiscount();
     };
 
     // Actualizar descuento y total final
     const updateDiscount = () => {
-        const discountInput = parseInt(DOM.discountInput.value) || 0;
-        state.discountPercentage = Math.max(0, Math.min(discountInput, 100));
-        state.discountAmount = state.totalSales * (state.discountPercentage / 100);
-        state.finalTotal = Math.max(0, state.totalSales - state.discountAmount);
+        const discountInput = parseFloat(DOM.discountInput.value) || 0;
+        state.discountAmount = Math.max(0, Math.min(discountInput, state.totalSales));
+        state.discountPercentage = state.totalSales > 0 ? (state.discountAmount / state.totalSales) * 100 : 0;
+        state.finalTotal = state.totalSales - state.discountAmount;
         
+        // Actualizar el subtotal mostrado con descuento aplicado
+        DOM.totalAmount.textContent = formatCurrency(state.finalTotal);
         DOM.discountAmountDisplay.textContent = formatCurrency(state.discountAmount);
-        DOM.finalTotalAmount.textContent = formatCurrency(state.finalTotal);
         
-        if (state.paymentType === 'contado') {
+        // Actualizar el total final según el tipo de pago
+        if (state.paymentType === 'credito') {
+            calculateCredit();
+        } else {
+            // Para contado, usar el total con descuento
+            DOM.finalTotalAmount.textContent = formatCurrency(state.finalTotal);
             calculateChange();
         }
     };
 
-    // Cambiar tipo de pago
-    const setPaymentType = (type) => {
-        // Mapear a los valores que espera el backend
-        state.paymentType = type === 'cash' ? 'contado' : 'credito';
+    // Calcular financiamiento a crédito
+    const calculateCredit = () => {
+        if (state.paymentType !== 'credito') return;
         
-        if (type === 'cash') {
-            DOM.cashPaymentBtn.classList.add('active');
-            DOM.creditPaymentBtn.classList.remove('active');
-            DOM.clientInfoContainer.classList.add('hidden');
-            DOM.cashInfoContainer.classList.remove('hidden');
-            DOM.cashPaymentFields.style.display = 'block';
-            state.selectedClient = null;
+        // Obtener valores actualizados
+        state.initialPayment = parseFloat(DOM.initialPaymentInput.value) || 0;
+        state.interestRate = parseFloat(DOM.interestRateInput.value) || 0;
+        state.creditTerm = parseInt(DOM.creditTermInput.value) || 1;
+        
+        // Validar que el pago inicial no sea mayor al total
+        if (state.initialPayment > state.finalTotal) {
+            showAlert('El pago inicial no puede ser mayor al total de la venta', 'error');
+            DOM.initialPaymentInput.value = Math.max(0, Math.min(state.initialPayment, state.finalTotal));
+            state.initialPayment = parseFloat(DOM.initialPaymentInput.value);
+        }
+        
+        // Calcular monto a financiar
+        state.financedAmount = state.finalTotal - state.initialPayment;
+        
+        // Calcular interés mensual según la fórmula especificada
+        if (state.financedAmount > 0 && state.creditTerm > 0 && state.interestRate > 0) {
+            // Calcular el interés mensual
+            state.monthlyInterest = state.financedAmount * (state.interestRate / 100);
             
-            document.querySelectorAll('.client-item').forEach(item => {
-                item.style.backgroundColor = '';
-                item.style.borderLeft = '';
-            });
+            // Calcular el total con interés
+            state.totalWithInterest = state.financedAmount + (state.monthlyInterest * state.creditTerm);
             
-            // Limpiar información del cliente
-            const clientInfoDisplay = document.querySelector('.client-info-display');
-            if (clientInfoDisplay) clientInfoDisplay.remove();
+            // Calcular la cuota mensual
+            state.monthlyPayment = state.totalWithInterest / state.creditTerm;
+            
+            // Calcular total a pagar y ganancia por interés
+            state.totalToPay = state.initialPayment + state.totalWithInterest;
+            state.interestProfit = state.totalToPay - state.finalTotal;
         } else {
-            DOM.cashPaymentBtn.classList.remove('active');
-            DOM.creditPaymentBtn.classList.add('active');
-            DOM.clientInfoContainer.classList.remove('hidden');
-            DOM.cashInfoContainer.classList.add('hidden');
-            DOM.cashPaymentFields.style.display = 'none';
-            DOM.clientSearch.value = '';
-            renderClientResults();
+            // Si no hay interés o plazo, calcular valores básicos
+            state.monthlyInterest = 0;
+            state.monthlyPayment = state.financedAmount / state.creditTerm;
+            state.totalToPay = state.finalTotal;
+            state.interestProfit = 0;
+            state.totalWithInterest = state.financedAmount;
+        }
+        
+        // Actualizar displays
+        DOM.financedAmountDisplay.textContent = formatCurrency(state.financedAmount);
+        DOM.monthlyInterestDisplay.textContent = formatCurrency(state.monthlyInterest);
+        DOM.monthlyPaymentDisplay.textContent = formatCurrency(state.monthlyPayment);
+        DOM.totalToPayDisplay.textContent = formatCurrency(state.totalToPay);
+        DOM.interestProfitDisplay.textContent = formatCurrency(state.interestProfit);
+        DOM.totalWithInterestDisplay.textContent = formatCurrency(state.totalWithInterest);
+        
+        // Sincronizar el total final con el total a pagar del crédito
+        DOM.finalTotalAmount.textContent = formatCurrency(state.totalToPay);
+        
+        // Llenar campos ocultos para el formulario
+        DOM.montoInicialField.value = state.initialPayment;
+        DOM.tasaInteresField.value = state.interestRate;
+        DOM.plazoMesesField.value = state.creditTerm;
+        DOM.montoFinanciadoField.value = state.financedAmount;
+        DOM.interesMensualField.value = state.monthlyInterest;
+        DOM.cuotaMensualField.value = state.monthlyPayment;
+        DOM.gananciaInteresField.value = state.interestProfit;
+        DOM.totalConInteresField.value = state.totalWithInterest;
+        
+        // IMPORTANTE: Guardar el total a pagar específico para crédito
+        DOM.totalAPagarField.value = state.totalToPay;
+    };
+
+    // Calcular cambio para pago en efectivo
+    const calculateChange = () => {
+        if (state.paymentType !== 'contado' || state.paymentMethod !== 'efectivo') return;
+        
+        state.cashReceived = parseFloat(DOM.cashReceivedInput.value) || 0;
+        state.changeAmount = Math.max(0, state.cashReceived - state.finalTotal);
+        DOM.changeAmountDisplay.textContent = formatCurrency(state.changeAmount);
+    };
+
+    // Cambiar tipo de pago (contado/crédito)
+    const setPaymentType = (type) => {
+        state.paymentType = type;
+        
+        // Actualizar botones
+        DOM.cashPaymentBtn.classList.toggle('active', type === 'contado');
+        DOM.creditPaymentBtn.classList.toggle('active', type === 'credito');
+        
+        // Mostrar/ocultar secciones según el tipo
+        DOM.clientInfoContainer.classList.toggle('hidden', type === 'contado');
+        DOM.creditFieldsContainer.classList.toggle('hidden', type === 'contado');
+        DOM.cashInfoContainer.classList.toggle('hidden', type === 'credito');
+        DOM.cashPaymentFields.classList.toggle('hidden', type !== 'contado' || state.paymentMethod !== 'efectivo');
+        
+        // Actualizar cálculos y total final
+        if (type === 'contado') {
+            calculateChange();
+            // Para contado, usar el total con descuento
+            DOM.finalTotalAmount.textContent = formatCurrency(state.finalTotal);
+            // Para contado, el total a pagar es el total final
+            DOM.totalAPagarField.value = state.finalTotal;
+        } else if (type === 'credito') {
+            calculateCredit();
+            // Para crédito, el total final se actualiza en calculateCredit()
         }
     };
 
-    // Cambiar método de pago
+    // Cambiar método de pago (efectivo/tarjeta/transferencia)
     const setPaymentMethod = (method) => {
-        // Mapear a los valores que espera el backend
-        const methodMap = {
-            'cash': 'efectivo',
-            'card': 'tarjeta', 
-            'transfer': 'transferencia'
+        state.paymentMethod = method;
+        
+        // Actualizar botones
+        DOM.cashMethodBtn.classList.toggle('active', method === 'efectivo');
+        DOM.cardMethodBtn.classList.toggle('active', method === 'tarjeta');
+        DOM.transferMethodBtn.classList.toggle('active', method === 'transferencia');
+        
+        // Mostrar/ocultar campos de efectivo
+        DOM.cashPaymentFields.classList.toggle('hidden', method !== 'efectivo');
+        
+        // Si es efectivo, calcular cambio
+        if (method === 'efectivo') {
+            calculateChange();
+        }
+    };
+
+    // Seleccionar cliente
+    const selectClient = (clientElement) => {
+        const clientId = clientElement.getAttribute('data-id');
+        const clientName = clientElement.getAttribute('data-name');
+        const clientDocument = clientElement.getAttribute('data-document');
+        const creditLimit = parseFloat(clientElement.getAttribute('data-credit-limit') || 0);
+        
+        state.selectedClient = {
+            id: clientId,
+            name: clientName,
+            document: clientDocument,
+            creditLimit: creditLimit
         };
         
-        state.paymentMethod = methodMap[method] || 'efectivo';
+        DOM.clientSearch.value = `${clientName} (${clientDocument})`;
         
-        DOM.cashMethodBtn.classList.remove('active');
-        DOM.cardMethodBtn.classList.remove('active');
-        DOM.transferMethodBtn.classList.remove('active');
-        
-        if (method === 'cash') {
-            DOM.cashMethodBtn.classList.add('active');
-        } else if (method === 'card') {
-            DOM.cardMethodBtn.classList.add('active');
-        } else if (method === 'transfer') {
-            DOM.transferMethodBtn.classList.add('active');
-        }
-    };
-
-    // Función para calcular el cambio
-    const calculateChange = () => {
-        if (state.paymentType === 'contado' && state.paymentMethod === 'efectivo') {
-            const cashReceived = parseFloat(DOM.cashReceivedInput.value) || 0;
-            state.cashReceived = cashReceived;
-            state.changeAmount = Math.max(0, cashReceived - state.finalTotal);
-            DOM.changeAmountDisplay.textContent = formatCurrency(state.changeAmount);
-            
-            if (cashReceived < state.finalTotal) {
-                DOM.changeAmountDisplay.style.color = '#f72585';
-            } else {
-                DOM.changeAmountDisplay.style.color = '#4cc9f0';
-            }
-        }
-    };
-
-    // Función para limpiar la búsqueda de productos
-    const clearProductSearch = () => {
-        DOM.productSearch.value = '';
-        state.selectedProduct = null;
-        DOM.productQuantity.value = '1';
-        DOM.productResults.innerHTML = `
-            <div class="empty-search-state" style="padding: 15px; text-align: center; color: #888;">
-                <p style="margin: 0; font-size: 2rem;"><i class='bx bx-search-alt'></i></p>
-                <p style="margin: 5px 0;">Busque productos por nombre o código</p>
-            </div>
-        `;
-        
-        document.querySelectorAll('.product-item').forEach(item => {
-            item.style.backgroundColor = '';
-            item.style.borderLeft = '';
+        // Ocultar resultados
+        DOM.clientResults.querySelectorAll('.client-item').forEach(item => {
+            item.style.display = 'none';
         });
-    };
-
-    // Función para validar límite de crédito
-    const validarLimiteCredito = () => {
-        if (state.paymentType === 'credito' && state.selectedClient) {
-            const limiteCredito = state.selectedClient.credit_limit;
-            if (state.finalTotal > limiteCredito) {
-                showAlert(
-                    `⚠️ Límite de crédito excedido\n` +
-                    `Límite del cliente: ${formatCurrency(limiteCredito)}\n` +
-                    `Total de la venta: ${formatCurrency(state.finalTotal)}\n` +
-                    `Excedente: ${formatCurrency(state.finalTotal - limiteCredito)}`,
-                    'error'
-                );
-                return false;
-            }
-        }
-        return true;
-    };
-
-    // Función para mostrar información del cliente seleccionado
-    const mostrarInfoCliente = () => {
-        // Remover info anterior si existe
-        const oldInfo = document.querySelector('.client-info-display');
-        if (oldInfo) oldInfo.remove();
         
-        if (state.selectedClient) {
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'client-info-display';
-            infoDiv.style.cssText = `
-                padding: 12px;
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                border-radius: 10px;
-                margin-top: 15px;
-                border-left: 4px solid #667eea;
-                font-size: 0.9rem;
-                line-height: 1.4;
-            `;
-            
-            const saldoDisponible = state.selectedClient.credit_limit - state.finalTotal;
-            const claseSaldo = saldoDisponible < 0 ? 'credit-limit-danger' : 'credit-limit-warning';
-            
-            infoDiv.innerHTML = `
-                <strong>Cliente seleccionado:</strong> ${state.selectedClient.full_name}<br>
-                <strong>Límite de crédito:</strong> ${formatCurrency(state.selectedClient.credit_limit)}<br>
-                <strong>Saldo disponible:</strong> <span class="${claseSaldo}">${formatCurrency(saldoDisponible)}</span>
-            `;
-            
-            DOM.clientInfoContainer.appendChild(infoDiv);
+        // Verificar límite de crédito
+        if (state.finalTotal > creditLimit) {
+            showAlert(`El total de la venta (${formatCurrency(state.finalTotal)}) excede el límite de crédito del cliente (${formatCurrency(creditLimit)})`, 'warning');
         }
     };
 
-    // Función para procesar la venta con AJAX
-    const procesarVenta = async () => {
-        if (state.saleItems.length === 0) {
-            showAlert('Debe agregar al menos un producto a la venta', 'error');
-            return;
-        }
+    // Seleccionar producto
+    const selectProduct = (productElement) => {
+        const productId = productElement.getAttribute('data-id');
+        const productName = productElement.getAttribute('data-name');
+        const productPrice = parseFloat(productElement.getAttribute('data-price'));
+        const productStock = parseInt(productElement.getAttribute('data-stock'));
         
-        if (state.paymentType === 'credito' && !state.selectedClient) {
-            showAlert('Debe seleccionar un cliente para ventas a crédito', 'error');
-            return;
-        }
+        state.selectedProduct = {
+            id: productId,
+            name: productName,
+            price: productPrice,
+            stock: productStock
+        };
         
-        if (state.paymentType === 'credito' && !validarLimiteCredito()) {
-            return; // Detener si excede el límite de crédito
-        }
+        DOM.productSearch.value = productName;
+        DOM.productQuantity.max = productStock;
         
-        if (state.paymentType === 'contado' && !DOM.cashClientName.value.trim()) {
-            showAlert('Debe ingresar el nombre del cliente para ventas al contado', 'error');
-            return;
-        }
-        
-        if (state.paymentType === 'contado' && state.paymentMethod === 'efectivo') {
-            if (state.cashReceived < state.finalTotal) {
-                showAlert(`El monto recibido (${formatCurrency(state.cashReceived)}) es menor que el total a pagar (${formatCurrency(state.finalTotal)})`, 'error');
-                return;
-            }
-        }
-        
-        try {
-            // Mostrar indicador de carga
-            DOM.completeSaleButton.innerHTML = '<i class="bx bx-loader bx-spin"></i> Procesando...';
-            DOM.completeSaleButton.disabled = true;
-            
-            // Crear FormData para enviar los datos
-            const formData = new FormData();
-            formData.append('payment_type', state.paymentType);
-            formData.append('payment_method', state.paymentMethod);
-            formData.append('client_id', state.selectedClient ? state.selectedClient.id : '');
-            formData.append('client_name', state.paymentType === 'contado' ? DOM.cashClientName.value.trim() : (state.selectedClient ? state.selectedClient.full_name : ''));
-            formData.append('client_document', state.paymentType === 'contado' ? DOM.cashClientDocument.value.trim() : (state.selectedClient ? state.selectedClient.document : ''));
-            formData.append('subtotal', safeDecimal(state.totalSales));
-            formData.append('discount_percentage', safeDecimal(state.discountPercentage));
-            formData.append('discount_amount', safeDecimal(state.discountAmount));
-            formData.append('total', safeDecimal(state.finalTotal));
-            formData.append('cash_received', safeDecimal(state.cashReceived));
-            formData.append('change_amount', safeDecimal(state.changeAmount));
-            
-            // Preparar items para enviar
-            const saleItemsForServer = state.saleItems.map(item => ({
-                productId: item.productId,
-                name: item.name,
-                price: safeDecimal(item.price),
-                quantity: parseInt(item.quantity) || 1,
-                subtotal: safeDecimal(item.subtotal)
-            }));
-            
-            formData.append('sale_items', JSON.stringify(saleItemsForServer));
-            
-            // Obtener el token CSRF
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
-            // Enviar datos al servidor
-            const response = await fetch("{% url 'procesar_venta' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                },
-                body: formData
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                let mensaje = 'Venta procesada correctamente';
-                
-                // Mensaje adicional para ventas a crédito
-                if (state.paymentType === 'credito') {
-                    mensaje += '\n✅ Cuenta por cobrar creada automáticamente';
-                }
-                
-                showAlert(mensaje, 'success');
-                
-                // Limpiar la venta actual
-                state.saleItems = [];
-                updateTotal();
-                renderSaleItems();
-                clearProductSearch();
-                
-                // Limpiar campos de cliente
-                if (state.paymentType === 'contado') {
-                    DOM.cashClientName.value = '';
-                    DOM.cashClientDocument.value = '';
-                } else {
-                    DOM.clientSearch.value = '';
-                    state.selectedClient = null;
-                    document.querySelectorAll('.client-item').forEach(item => {
-                        item.style.backgroundColor = '';
-                        item.style.borderLeft = '';
-                    });
-                }
-                
-                // Limpiar campos de pago
-                DOM.cashReceivedInput.value = '';
-                DOM.changeAmountDisplay.textContent = formatCurrency(0);
-                
-                // Redirigir a comprobante después de 2 segundos
-                setTimeout(() => {
-                    if (result.venta_id) {
-                        window.location.href = `/comprobante-venta/${result.venta_id}/`;
-                    }
-                }, 2000);
-            } else {
-                showAlert(result.message, 'error');
-            }
-            
-        } catch (error) {
-            console.error('Error al procesar la venta:', error);
-            showAlert('Error al procesar la venta. Intente nuevamente.', 'error');
-        } finally {
-            // Restaurar botón
-            DOM.completeSaleButton.innerHTML = '<i class="bx bx-check"></i> Finalizar Venta';
-            DOM.completeSaleButton.disabled = false;
+        if (DOM.productQuantity.value > productStock) {
+            DOM.productQuantity.value = productStock;
         }
     };
 
-    // EVENTOS DEL DOM
-
-    DOM.cashPaymentBtn.addEventListener('click', () => setPaymentType('cash'));
-    DOM.creditPaymentBtn.addEventListener('click', () => setPaymentType('credit'));
-    DOM.cashMethodBtn.addEventListener('click', () => setPaymentMethod('cash'));
-    DOM.cardMethodBtn.addEventListener('click', () => setPaymentMethod('card'));
-    DOM.transferMethodBtn.addEventListener('click', () => setPaymentMethod('transfer'));
-
-    DOM.discountInput.addEventListener('input', updateDiscount);
-    DOM.cashReceivedInput.addEventListener('input', calculateChange);
-
-    DOM.clientSearch.addEventListener('input', (e) => {
-        const searchTerm = e.target.value;
-        renderClientResults(searchTerm);
-        
-        if (searchTerm && state.selectedClient) {
-            state.selectedClient = null;
-            document.querySelectorAll('.client-item').forEach(item => {
-                item.style.backgroundColor = '';
-                item.style.borderLeft = '';
-            });
-            
-            // Limpiar información del cliente
-            const clientInfoDisplay = document.querySelector('.client-info-display');
-            if (clientInfoDisplay) clientInfoDisplay.remove();
-        }
-    });
-
-    // Evento de búsqueda de productos
-    DOM.productSearch.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.trim();
-        
-        // Limpiar selección si cambia la búsqueda
-        if (searchTerm && state.selectedProduct && state.selectedProduct.name !== searchTerm) {
-            state.selectedProduct = null;
-            document.querySelectorAll('.product-item').forEach(item => {
-                item.style.backgroundColor = '';
-                item.style.borderLeft = '';
-            });
-        }
-        
-        // Usar debounce para la búsqueda AJAX
-        debouncedSearch(searchTerm);
-    });
-
-    // Evento de selección de cliente
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('.client-item')) {
-            const clientItem = e.target.closest('.client-item');
-            
-            document.querySelectorAll('.client-item').forEach(item => {
-                item.style.backgroundColor = '';
-                item.style.borderLeft = '';
-            });
-            
-            clientItem.style.backgroundColor = '#f8f9fa';
-            clientItem.style.borderLeft = '4px solid #667eea';
-            
-            state.selectedClient = {
-                id: clientItem.dataset.id,
-                full_name: clientItem.dataset.name,
-                document: clientItem.dataset.document,
-                phone: clientItem.dataset.phone,
-                credit_limit: parseFloat(clientItem.dataset.creditLimit) || 0
-            };
-            
-            DOM.clientSearch.value = state.selectedClient.full_name;
-            
-            // Mostrar información del cliente
-            mostrarInfoCliente();
-            
-            // Validar límite de crédito automáticamente
-            if (state.paymentType === 'credito') {
-                validarLimiteCredito();
-            }
-        }
-    });
-
-    // Evento de selección de producto (usar delegación de eventos)
-    DOM.productResults.addEventListener('click', (e) => {
-        const productItem = e.target.closest('.product-item');
-        if (productItem) {
-            document.querySelectorAll('.product-item').forEach(item => {
-                item.style.backgroundColor = '';
-                item.style.borderLeft = '';
-            });
-            
-            productItem.style.backgroundColor = '#f8f9fa';
-            productItem.style.borderLeft = '4px solid #667eea';
-            
-            state.selectedProduct = {
-                id: productItem.dataset.id,
-                name: productItem.dataset.name,
-                price: parseFloat(productItem.dataset.price) || 0,
-                stock: parseInt(productItem.dataset.stock) || 0
-            };
-            
-            DOM.productSearch.value = state.selectedProduct.name;
-            DOM.productQuantity.focus(); // Enfocar el campo de cantidad
-        }
-    });
-
-    // Evento agregar producto
-    DOM.addProductButton.addEventListener('click', () => {
+    // Agregar producto a la venta
+    const addProductToSale = () => {
         if (!state.selectedProduct) {
-            showAlert('Por favor seleccione un producto de la lista', 'error');
+            showAlert('Debe seleccionar un producto primero', 'error');
             return;
         }
         
-        const quantity = parseInt(DOM.productQuantity.value);
+        const quantity = parseInt(DOM.productQuantity.value) || 1;
         
-        if (isNaN(quantity) || quantity <= 0) {
-            showAlert('Por favor ingrese una cantidad válida mayor a 0', 'error');
+        if (quantity <= 0) {
+            showAlert('La cantidad debe ser mayor a cero', 'error');
             return;
         }
         
         if (quantity > state.selectedProduct.stock) {
-            showAlert(`Stock insuficiente. Disponible: ${state.selectedProduct.stock}`, 'error');
+            showAlert(`No hay suficiente stock. Disponible: ${state.selectedProduct.stock}`, 'error');
             return;
         }
         
-        const existingItemIndex = state.saleItems.findIndex(item => item.productId === state.selectedProduct.id);
+        // Verificar si el producto ya está en la venta
+        const existingItemIndex = state.saleItems.findIndex(item => item.id === state.selectedProduct.id);
         
-        if (existingItemIndex >= 0) {
-            const existingItem = state.saleItems[existingItemIndex];
-            const newQuantity = existingItem.quantity + quantity;
-            
-            if (newQuantity > state.selectedProduct.stock) {
-                showAlert(`Stock insuficiente. Ya tiene ${existingItem.quantity} en la venta. Disponible: ${state.selectedProduct.stock}`, 'error');
-                return;
-            }
-            
-            existingItem.quantity = newQuantity;
-            existingItem.subtotal = existingItem.quantity * existingItem.price;
-            
-            showAlert(`Cantidad actualizada: ${existingItem.name} x${existingItem.quantity}`, 'success');
+        if (existingItemIndex !== -1) {
+            // Actualizar cantidad si ya existe
+            state.saleItems[existingItemIndex].quantity += quantity;
+            state.saleItems[existingItemIndex].subtotal = state.saleItems[existingItemIndex].quantity * state.selectedProduct.price;
         } else {
+            // Agregar nuevo item
             state.saleItems.push({
-                id: Date.now().toString(),
-                productId: state.selectedProduct.id,
+                id: state.selectedProduct.id,
                 name: state.selectedProduct.name,
                 price: state.selectedProduct.price,
                 quantity: quantity,
                 subtotal: quantity * state.selectedProduct.price
             });
-            
-            showAlert(`Producto agregado: ${state.selectedProduct.name} x${quantity}`, 'success');
         }
         
-        clearProductSearch();
+        // Actualizar UI
         updateTotal();
         renderSaleItems();
         
-        // Actualizar información del cliente si es crédito
-        if (state.paymentType === 'credito' && state.selectedClient) {
-            mostrarInfoCliente();
-            validarLimiteCredito();
+        // Limpiar selección
+        state.selectedProduct = null;
+        DOM.productSearch.value = '';
+        DOM.productQuantity.value = '1';
+        
+        showAlert(`Producto agregado: ${state.selectedProduct.name}`, 'success');
+    };
+
+    // Preparar campos del formulario antes de enviar
+    const prepareFormFields = () => {
+        DOM.paymentTypeField.value = state.paymentType;
+        DOM.paymentMethodField.value = state.paymentMethod;
+        
+        if (state.paymentType === 'credito') {
+            DOM.clientIdField.value = state.selectedClient ? state.selectedClient.id : '';
+            DOM.clientNameField.value = state.selectedClient ? state.selectedClient.name : '';
+            DOM.clientDocumentField.value = state.selectedClient ? state.selectedClient.document : '';
+        } else {
+            DOM.clientNameField.value = DOM.cashClientName.value.trim();
+            DOM.clientDocumentField.value = DOM.cashClientDocument.value.trim();
+        }
+        
+        DOM.subtotalField.value = state.totalSales;
+        DOM.discountPercentageField.value = state.discountPercentage;
+        DOM.discountAmountField.value = state.discountAmount;
+        DOM.totalField.value = state.finalTotal;
+        DOM.cashReceivedField.value = state.cashReceived;
+        DOM.changeAmountField.value = state.changeAmount;
+        DOM.saleItemsField.value = JSON.stringify(state.saleItems);
+        
+        // Campos de crédito - asegurar valores incluso para contado
+        DOM.montoInicialField.value = state.paymentType === 'credito' ? state.initialPayment : 0;
+        DOM.tasaInteresField.value = state.paymentType === 'credito' ? state.interestRate : 0;
+        DOM.plazoMesesField.value = state.paymentType === 'credito' ? state.creditTerm : 0;
+        DOM.montoFinanciadoField.value = state.paymentType === 'credito' ? state.financedAmount : 0;
+        DOM.interesMensualField.value = state.paymentType === 'credito' ? state.monthlyInterest : 0;
+        DOM.cuotaMensualField.value = state.paymentType === 'credito' ? state.monthlyPayment : 0;
+        DOM.gananciaInteresField.value = state.paymentType === 'credito' ? state.interestProfit : 0;
+        DOM.totalConInteresField.value = state.paymentType === 'credito' ? state.totalWithInterest : 0;
+        
+        // IMPORTANTE: Guardar el total a pagar específico para crédito
+        DOM.totalAPagarField.value = state.paymentType === 'credito' ? state.totalToPay : state.finalTotal;
+    };
+
+    // Validar y completar la venta
+    const completeSale = async () => {
+        if (state.saleItems.length === 0) {
+            showAlert('Debe agregar al menos un producto a la venta', 'error');
+            return;
+        }
+        
+        if (state.paymentType === 'credito') {
+            // Validaciones para crédito
+            if (!state.selectedClient) {
+                showAlert('Debe seleccionar un cliente para venta a crédito', 'error');
+                return;
+            }
+            
+            if (state.initialPayment < 0) {
+                showAlert('El pago inicial no puede ser negativo', 'error');
+                return;
+            }
+            
+            if (state.initialPayment > state.finalTotal) {
+                showAlert('El pago inicial no puede ser mayor al total de la venta', 'error');
+                return;
+            }
+            
+            if (state.interestRate < 0) {
+                showAlert('La tasa de interés no puede ser negativa', 'error');
+                return;
+            }
+            
+            if (state.creditTerm <= 0) {
+                showAlert('El plazo debe ser mayor a cero', 'error');
+                return;
+            }
+            
+            // Verificar límite de crédito
+            const creditLimit = parseFloat(state.selectedClient.creditLimit || 0);
+            if (state.finalTotal > creditLimit) {
+                showAlert(`El total de la venta (${formatCurrency(state.finalTotal)}) excede el límite de crédito del cliente (${formatCurrency(creditLimit)})`, 'error');
+                return;
+            }
+            
+            // Calcular crédito para asegurar que tenemos valores actualizados
+            calculateCredit();
+        } else {
+            // Validaciones para contado
+            if (state.paymentMethod === 'efectivo') {
+                if (state.cashReceived < state.finalTotal) {
+                    showAlert(`El monto recibido (${formatCurrency(state.cashReceived)}) es menor que el total a pagar (${formatCurrency(state.finalTotal)})`, 'error');
+                    return;
+                }
+            }
+            
+            // Validar información del cliente para contado
+            if (!DOM.cashClientName.value.trim()) {
+                showAlert('Debe ingresar el nombre del cliente', 'error');
+                return;
+            }
+        }
+        
+        try {
+            // Preparar datos
+            prepareFormFields();
+            
+            // Enviar mediante AJAX
+            const formData = new FormData(DOM.saleForm);
+            
+            const response = await fetch(DOM.saleForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Venta procesada correctamente. Redirigiendo al comprobante...', 'success');
+                
+                // Redirigir al comprobante de venta después de 2 segundos
+                setTimeout(() => {
+                    window.location.href = `/comprobante-venta/${result.venta_id}/`;
+                }, 2000);
+            } else {
+                showAlert(result.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('Error al procesar la venta', 'error');
+        }
+    };
+
+    // Event Listeners
+    DOM.cashPaymentBtn.addEventListener('click', () => setPaymentType('contado'));
+    DOM.creditPaymentBtn.addEventListener('click', () => setPaymentType('credito'));
+    
+    DOM.cashMethodBtn.addEventListener('click', () => setPaymentMethod('efectivo'));
+    DOM.cardMethodBtn.addEventListener('click', () => setPaymentMethod('tarjeta'));
+    DOM.transferMethodBtn.addEventListener('click', () => setPaymentMethod('transferencia'));
+    
+    DOM.clientSearch.addEventListener('input', (e) => {
+        renderClientResults(e.target.value);
+    });
+    
+    DOM.clientResults.addEventListener('click', (e) => {
+        const clientItem = e.target.closest('.client-item');
+        if (clientItem) {
+            selectClient(clientItem);
         }
     });
-
-    // Evento para cerrar caja
+    
+    DOM.productSearch.addEventListener('input', (e) => {
+        debouncedSearch(e.target.value);
+    });
+    
+    DOM.productResults.addEventListener('click', (e) => {
+        const productItem = e.target.closest('.product-item');
+        if (productItem) {
+            selectProduct(productItem);
+        }
+    });
+    
+    DOM.addProductButton.addEventListener('click', addProductToSale);
+    
+    DOM.discountInput.addEventListener('input', updateDiscount);
+    
+    DOM.cashReceivedInput.addEventListener('input', calculateChange);
+    
+    DOM.initialPaymentInput.addEventListener('input', calculateCredit);
+    DOM.interestRateInput.addEventListener('input', calculateCredit);
+    DOM.creditTermInput.addEventListener('input', calculateCredit);
+    
+    DOM.completeSaleButton.addEventListener('click', completeSale);
+    
     DOM.closeRegisterButton.addEventListener('click', () => {
         DOM.closeRegisterModal.classList.add('active');
     });
-
+    
     DOM.cancelCloseRegister.addEventListener('click', () => {
         DOM.closeRegisterModal.classList.remove('active');
     });
-
+    
     DOM.confirmCloseRegister.addEventListener('click', () => {
         window.location.href = "{% url 'cierredecaja' %}";
     });
-
-    // Evento para completar venta
-    DOM.completeSaleButton.addEventListener('click', procesarVenta);
-
-    // Evento para cerrar alerta
+    
     DOM.alertOkButton.addEventListener('click', closeAlert);
-
+    
     // Inicializar la interfaz
-    setPaymentType('cash'); // Esto se mapeará a 'contado'
-    setPaymentMethod('cash'); // Esto se mapeará a 'efectivo'
-    updateTotal();
+    setPaymentType('contado');
+    setPaymentMethod('efectivo');
     renderSaleItems();
+    updateTotal();
+    
+    // Permitir agregar producto con Enter
+    DOM.productSearch.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            addProductToSale();
+        }
+    });
+    
+    DOM.productQuantity.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            addProductToSale();
+        }
+    });
 });
+
 </script>
 </body>
 </html>
+
+
+
+
+
