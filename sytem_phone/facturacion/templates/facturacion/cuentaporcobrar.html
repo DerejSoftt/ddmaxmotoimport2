@@ -1208,7 +1208,6 @@
         </div>
     </div>
 </div>
-
 <script>
 // ===== CONFIGURACIÓN INICIAL =====
 console.log('Inicializando sistema de cuentas por cobrar...');
@@ -1315,7 +1314,7 @@ function groupAccountsByClient(accountsData) {
                 clientName: account.clientName,
                 clientPhone: account.clientPhone,
                 invoices: [],
-                totalPending: 0,  // Ahora será la suma de saldos pendientes
+                totalPending: 0,  // CAMBIO: Suma de saldos pendientes (lo que falta por pagar)
                 status: 'pagada',
                 isExpanded: false
             };
@@ -1343,7 +1342,7 @@ function groupAccountsByClient(accountsData) {
             anulada: account.status === 'anulada'
         });
         
-        // CAMBIO PRINCIPAL: Sumar el saldo pendiente real, no el monto total
+        // CAMBIO PRINCIPAL: Sumar el saldo pendiente real (lo que falta por pagar)
         clientsMap[clientKey].totalPending += pendingBalance;
         
         // Actualizar estado general
@@ -1359,7 +1358,7 @@ function groupAccountsByClient(accountsData) {
     return Object.values(clientsMap);
 }
 
-// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS (CORREGIDA) =====
+// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS (MANTENIDA IGUAL) =====
 function updateStats(accountsData = accounts) {
     console.log('Actualizando estadísticas...');
     
@@ -1452,6 +1451,7 @@ function renderTable(data = accounts) {
     groupedClients.forEach(client => {
         const isClientExpanded = client.isExpanded;
         
+        // CAMBIO: Usar totalPending (saldo pendiente) en lugar de totalAmount
         tableRowsHTML += `
             <tr class="client-row" data-client-key="${client.clientName}-${client.clientPhone}">
                 <td><strong>${client.clientName}</strong></td>
@@ -1578,12 +1578,20 @@ function toggleInvoiceProducts(invoiceId, clientKey) {
     }
 }
 
+// FUNCIÓN PAYALLINVOICES CORREGIDA
 function payAllInvoices(clientKey) {
     const client = groupedClients.find(c => `${c.clientName}-${c.clientPhone}` === clientKey);
     
-    if (client && confirm(`¿Está seguro de que desea pagar todas las facturas pendientes de ${client.clientName} por un total de RD$ ${client.totalPending.toLocaleString('es-DO')}?`)) {
-        // Aquí implementarías la lógica para pagar todas las facturas
-        alert(`Funcionalidad de pago total para ${client.clientName} será implementada próximamente.`);
+    if (client) {
+        // El total pendiente ya está calculado correctamente en client.totalPending
+        if (client.totalPending <= 0) {
+            alert('Todas las facturas de este cliente ya están pagadas.');
+            return;
+        }
+        
+        if (confirm(`¿Está seguro de que desea pagar todas las facturas pendientes de ${client.clientName} por un total de RD$ ${client.totalPending.toLocaleString('es-DO')}?`)) {
+            alert(`Funcionalidad de pago total para ${client.clientName} será implementada próximamente.`);
+        }
     }
 }
 
