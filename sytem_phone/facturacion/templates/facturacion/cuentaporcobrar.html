@@ -6,6 +6,8 @@
     <title>Cuentas por Cobrar - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.12/dist/sweetalert2.min.css">
     <style>
         * {
             margin: 0;
@@ -852,7 +854,10 @@
             width: 6px;
             height: 6px;
         }
-
+        /* Nuevo estilo para asegurar que las alertas estén por encima del modal */
+        .swal2-container {
+            z-index: 3000 !important;
+        }
         .sidebar::-webkit-scrollbar-track,
         .modal-content::-webkit-scrollbar-track,
         .table-container::-webkit-scrollbar-track {
@@ -882,81 +887,83 @@
 <!-- Sidebar Overlay -->
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-<!-- Sidebar Navigation -->
-<nav class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-        <h2>
-            <i class='bx bx-mobile-alt'></i>
-            DEREJSOFT
-        </h2>
-        <p>Derejsoft - superadmin</p>
-        <p>derejsoft2003@gmail.com</p>
-    </div>
-    <div class="sidebar-menu">
-        <a href="#" class="menu-item">
-            <i class='bx bx-home-alt'></i>
-            <span>Inicio</span>
-        </a>
-        
-        <a href="{% url 'ventas'  %}" class="menu-item">
-            <i class='bx bx-dollar-circle'></i>
-            <span>Facturacion</span>
-        </a>
-        
-        <a href="{% url 'registrodecliente'  %}" class="menu-item ">
-            <i class='bx bx-user-plus'></i>
-            <span>Resgistrar Clientes</span>
-        </a>
+<   <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>
+                <i class='bx bx-mobile-alt'></i>
+                DEREJSOFT
+            </h2>
+            <p>Usuario: {{ user.username }}</p>
+            <p>{{ user.email }}</p>
+        </div>
+        <div class="sidebar-menu">
+            <a href="#" class="menu-item">
+                <i class='bx bx-home-alt'></i>
+                <span>Inicio</span>
+            </a>
+            <a href="{% url 'ventas' %}" class="menu-item">
+                <i class='bx bx-package'></i>
+                <span>facturacion</span>
+            </a>
+            <a href="{% url 'registrodecliente'  %}" class="menu-item">
+                <i class='bx bx-dollar-circle'></i>
+                <span>Registrar Cliente</span>
+            </a>
+            <a href="{% url 'listadecliente' %}" class="menu-item">
+                <i class='bx bx-user-plus'></i>
+                <span>Clientes</span>
+            </a>
+            <a href="{% url 'entrada'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Entrada mercancia</span>
+            </a>
+            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item active">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Cuenta por Cobrar</span>
+            </a>
+            <a href="{% url 'inventario'  %}" class="menu-item">
+                <i class='bx bx-credit-card'></i>
+                <span>Inventario</span>
+            </a>
+            <a href="{% url 'registrosuplidores'  %}" class="menu-item">
+                <i class='bx bx-bar-chart-alt-2'></i>
+                <span>Registrar Suplidores</span>
+            </a>
+            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Suplidores</span>
+            </a>
+                        <a href="{% url 'devoluciones'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Devoluciones</span>
+            </a>
+            <a href="{% url 'roles'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Roles</span>
+            </a>
+            <a href="{% url 'anular'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Anular Factura</span>
+            </a>
 
-        <a href="{% url 'listadecliente'  %}" class="menu-item">
-            <i class='bx bx-shopping-bag'></i>
-            <span>Clientes</span>
-        </a>
-       
-        <a href="{% url 'cuentaporcobrar'  %}" class="menu-item active" >
-            <i class='bx bx-credit-card'></i>
-            <span>Cuenta Por Cobrar</span>
-        </a>
-
-        <a href="{% url 'entrada'  %}" class="menu-item">
-            <i class='bx bx-bar-chart-alt-2'></i>
-            <span>Entrada De Mecancia</span>
-        </a>
-       
-        <a href="{% url 'inventario'  %}" class="menu-item ">
-            <i class='bx bx-user'></i>
-            <span> Inventario</span>
-        </a>
-
-        <a href="{% url 'registrosuplidores'  %}" class="menu-item">
-            <i class='bx bx-trending-up'></i>
-            <span>Registrar suplidores</span>
-        </a>
-        
-        <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
-            <i class='bx bx-store'></i>
-            <span>suplidores</span>
-        </a>
-
-        <a href="{% url 'reavastecer'  %}" class="menu-item">
-            <i class='bx bx-cog'></i>
-            <span>Ajuste Inventario</span>
-        </a>
-
-        <a href="{% url 'dashboard'  %}" class="menu-item">
-            <i class='bx bx-cog'></i>
-            <span>dashboard</span>
-        </a>
-       
-        <a href="{% url 'index'  %}" class="menu-item">
-            <i class='bx bx-log-out'></i>
-            <span>Cerrar Sesión</span>
-        </a>
-    </div>
-    <div class="sidebar-footer">
-        <p>Dalecompra v 1.2.2</p>
-    </div>
-</nav>
+            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
+                <i class='bx bx-store'></i>
+                <span>Ajuste Inventario</span>
+            </a> -->
+            <a href="{% url 'dashboard'  %}" class="menu-item">
+                <i class='bx bx-cog'></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{% url 'index'  %}" class="menu-item">
+                <i class='bx bx-log-out'></i>
+                <span>Cerrar Sesión</span>
+            </a>
+        </div>
+        <div class="sidebar-footer">
+            <p>Derejsoft v 1.2.2</p>
+        </div>
+    </nav>
 
 <!-- Main Content -->
 <div class="main-content">
@@ -1208,6 +1215,10 @@
         </div>
     </div>
 </div>
+
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.12/dist/sweetalert2.all.min.js"></script>
+
 <script>
 // ===== CONFIGURACIÓN INICIAL =====
 console.log('Inicializando sistema de cuentas por cobrar...');
@@ -1314,7 +1325,7 @@ function groupAccountsByClient(accountsData) {
                 clientName: account.clientName,
                 clientPhone: account.clientPhone,
                 invoices: [],
-                totalPending: 0,  // CAMBIO: Suma de saldos pendientes (lo que falta por pagar)
+                totalPending: 0,  // Ahora será la suma de saldos pendientes
                 status: 'pagada',
                 isExpanded: false
             };
@@ -1342,7 +1353,7 @@ function groupAccountsByClient(accountsData) {
             anulada: account.status === 'anulada'
         });
         
-        // CAMBIO PRINCIPAL: Sumar el saldo pendiente real (lo que falta por pagar)
+        // CAMBIO PRINCIPAL: Sumar el saldo pendiente real, no el monto total
         clientsMap[clientKey].totalPending += pendingBalance;
         
         // Actualizar estado general
@@ -1358,7 +1369,7 @@ function groupAccountsByClient(accountsData) {
     return Object.values(clientsMap);
 }
 
-// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS (MANTENIDA IGUAL) =====
+// ===== FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS (CORREGIDA) =====
 function updateStats(accountsData = accounts) {
     console.log('Actualizando estadísticas...');
     
@@ -1451,7 +1462,6 @@ function renderTable(data = accounts) {
     groupedClients.forEach(client => {
         const isClientExpanded = client.isExpanded;
         
-        // CAMBIO: Usar totalPending (saldo pendiente) en lugar de totalAmount
         tableRowsHTML += `
             <tr class="client-row" data-client-key="${client.clientName}-${client.clientPhone}">
                 <td><strong>${client.clientName}</strong></td>
@@ -1578,20 +1588,30 @@ function toggleInvoiceProducts(invoiceId, clientKey) {
     }
 }
 
-// FUNCIÓN PAYALLINVOICES CORREGIDA
 function payAllInvoices(clientKey) {
     const client = groupedClients.find(c => `${c.clientName}-${c.clientPhone}` === clientKey);
     
     if (client) {
-        // El total pendiente ya está calculado correctamente en client.totalPending
-        if (client.totalPending <= 0) {
-            alert('Todas las facturas de este cliente ya están pagadas.');
-            return;
-        }
-        
-        if (confirm(`¿Está seguro de que desea pagar todas las facturas pendientes de ${client.clientName} por un total de RD$ ${client.totalPending.toLocaleString('es-DO')}?`)) {
-            alert(`Funcionalidad de pago total para ${client.clientName} será implementada próximamente.`);
-        }
+        Swal.fire({
+            title: '¿Pagar todas las facturas?',
+            text: `¿Está seguro de que desea pagar todas las facturas pendientes de ${client.clientName} por un total de RD$ ${client.totalPending.toLocaleString('es-DO')}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, pagar todo',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Aquí implementarías la lógica para pagar todas las facturas
+                Swal.fire({
+                    title: 'Función en desarrollo',
+                    text: `Funcionalidad de pago total para ${client.clientName} será implementada próximamente.`,
+                    icon: 'info',
+                    confirmButtonColor: '#667eea'
+                });
+            }
+        });
     }
 }
 
@@ -1642,7 +1662,12 @@ function viewDetails(id) {
     console.log('Viendo detalles de cuenta:', id);
     const account = accounts.find(acc => acc.id === id);
     if (!account) {
-        alert('Cuenta no encontrada');
+        Swal.fire({
+            title: 'Error',
+            text: 'Cuenta no encontrada',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
         return;
     }
 
@@ -1719,7 +1744,12 @@ function openPaymentModal(id) {
 
     // Verificar que la cuenta no esté anulada
     if (account.status === 'anulada') {
-        alert('No se puede realizar pagos en una cuenta anulada');
+        Swal.fire({
+            title: 'Cuenta Anulada',
+            text: 'No se puede realizar pagos en una cuenta anulada',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
         return;
     }
 
@@ -1728,7 +1758,12 @@ function openPaymentModal(id) {
     
     // Verificar que haya saldo pendiente
     if (currentPendingBalance <= 0) {
-        alert('Esta cuenta ya está completamente pagada');
+        Swal.fire({
+            title: 'Cuenta Pagada',
+            text: 'Esta cuenta ya está completamente pagada',
+            icon: 'info',
+            confirmButtonColor: '#28a745'
+        });
         return;
     }
     
@@ -1800,14 +1835,24 @@ function submitPayment() {
     }
     
     if (!method) {
-        alert('Seleccione un método de pago');
+        Swal.fire({
+            title: 'Campo requerido',
+            text: 'Seleccione un método de pago',
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
         return;
     }
     
     // Encontrar la cuenta actual para validaciones
     const currentAccount = accounts.find(acc => acc.id == accountId);
     if (!currentAccount) {
-        alert('Error: Cuenta no encontrada');
+        Swal.fire({
+            title: 'Error',
+            text: 'Cuenta no encontrada',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
         return;
     }
     
@@ -1820,55 +1865,139 @@ function submitPayment() {
         return;
     }
     
-    // Enviar pago al servidor
-    fetch('registrar-pago/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken(),
-        },
-        body: JSON.stringify({
-            cuenta_id: accountId,
-            monto: amount,
-            metodo_pago: method,
-            referencia: reference,
-            observaciones: observations
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Mostrar información del comprobante generado
-            const comprobanteMensaje = data.comprobante_numero ? 
-                `\nComprobante generado: ${data.comprobante_numero}` : '';
-            
-            const saldoMensaje = data.nuevo_saldo_pendiente !== undefined ? 
-                `\nNuevo saldo pendiente: RD$ ${data.nuevo_saldo_pendiente.toLocaleString('es-DO')}` : '';
-            
-            // Preguntar si desea ver el comprobante
-            if (data.comprobante_id) {
-                if (confirm(data.message + comprobanteMensaje + saldoMensaje + '\n\n¿Desea ver el comprobante?')) {
-                    // Abrir el comprobante en una nueva pestaña
-                    window.open(`/generar-comprobante-pdf/${data.comprobante_id}/`, '_blank');
+    // Mostrar confirmación con SweetAlert2
+    Swal.fire({
+        title: 'Confirmar Pago',
+        html: `
+            <div style="text-align: left; margin: 10px 0;">
+                <p><strong>Cliente:</strong> ${currentAccount.clientName}</p>
+                <p><strong>Factura:</strong> ${currentAccount.invoiceNumber}</p>
+                <p><strong>Monto a Pagar:</strong> RD$ ${amount.toLocaleString('es-DO')}</p>
+                <p><strong>Método de Pago:</strong> ${method}</p>
+                ${reference ? `<p><strong>Referencia:</strong> ${reference}</p>` : ''}
+            </div>
+            <p>¿Desea confirmar este pago?</p>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, registrar pago',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Procesando pago...',
+                text: 'Por favor espere',
+                icon: 'info',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
                 }
-            } else {
-                alert(data.message + comprobanteMensaje + saldoMensaje);
-            }
-            
-            // Actualizar los datos localmente
-            updateLocalAccountData(accountId, amount, data);
-            
-            closePaymentModal();
-            
-            // Recargar la página para ver los cambios actualizados
-            window.location.reload();
-        } else {
-            alert('Error: ' + data.message);
+            });
+
+            // Enviar pago al servidor
+            fetch('registrar-pago/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                body: JSON.stringify({
+                    cuenta_id: accountId,
+                    monto: amount,
+                    metodo_pago: method,
+                    referencia: reference,
+                    observaciones: observations
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar información del comprobante generado
+                    const comprobanteMensaje = data.comprobante_numero ? 
+                        `\nComprobante generado: ${data.comprobante_numero}` : '';
+                    
+                    const saldoMensaje = data.nuevo_saldo_pendiente !== undefined ? 
+                        `\nNuevo saldo pendiente: RD$ ${data.nuevo_saldo_pendiente.toLocaleString('es-DO')}` : '';
+                    
+                    // Preguntar si desea ver el comprobante
+                    if (data.comprobante_id) {
+                        Swal.fire({
+                            title: '¡Pago Registrado!',
+                            html: `
+                                <div style="text-align: left; margin: 15px 0;">
+                                    <p>${data.message}</p>
+                                    ${data.comprobante_numero ? `<p><strong>Comprobante:</strong> ${data.comprobante_numero}</p>` : ''}
+                                    ${data.nuevo_saldo_pendiente !== undefined ? `<p><strong>Nuevo saldo pendiente:</strong> RD$ ${data.nuevo_saldo_pendiente.toLocaleString('es-DO')}</p>` : ''}
+                                </div>
+                                <p>¿Desea ver el comprobante?</p>
+                            `,
+                            icon: 'success',
+                            showCancelButton: true,
+                            confirmButtonColor: '#28a745',
+                            cancelButtonColor: '#6c757d',
+                            confirmButtonText: 'Ver comprobante',
+                            cancelButtonText: 'Cerrar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                // Abrir el comprobante en una nueva pestaña
+                                window.open(`/generar-comprobante-pdf/${data.comprobante_id}/`, '_blank');
+                            }
+                            
+                            // Actualizar los datos localmente
+                            updateLocalAccountData(accountId, amount, data);
+                            
+                            closePaymentModal();
+                            
+                            // Recargar la página para ver los cambios actualizados
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: '¡Pago Registrado!',
+                            html: `
+                                <div style="text-align: left; margin: 15px 0;">
+                                    <p>${data.message}</p>
+                                    ${comprobanteMensaje ? `<p>${comprobanteMensaje}</p>` : ''}
+                                    ${saldoMensaje ? `<p>${saldoMensaje}</p>` : ''}
+                                </div>
+                            `,
+                            icon: 'success',
+                            confirmButtonColor: '#28a745'
+                        }).then(() => {
+                            // Actualizar los datos localmente
+                            updateLocalAccountData(accountId, amount, data);
+                            
+                            closePaymentModal();
+                            
+                            // Recargar la página para ver los cambios actualizados
+                            window.location.reload();
+                        });
+                    }
+                } else {
+                    Swal.fire({
+                        title: 'Error al registrar pago',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error de conexión',
+                    text: 'Error al registrar el pago. Verifique su conexión e intente nuevamente.',
+                    icon: 'error',
+                    confirmButtonColor: '#dc3545'
+                });
+            });
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al registrar el pago');
     });
 }
 
@@ -1914,29 +2043,80 @@ function updateLocalAccountData(accountId, paymentAmount, serverResponse) {
 }
 
 function anularCuenta(id) {
-    if (confirm('¿Está seguro de que desea anular esta cuenta? Esta acción no se puede deshacer.')) {
-        fetch(`/anular-cuenta/${id}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken(),
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                // Recargar la página para ver los cambios
-                window.location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al anular la cuenta');
-        });
-    }
+    const account = accounts.find(acc => acc.id === id);
+    if (!account) return;
+
+    Swal.fire({
+        title: '¿Anular cuenta?',
+        html: `
+            <div style="text-align: left; margin: 15px 0;">
+                <p><strong>Cliente:</strong> ${account.clientName}</p>
+                <p><strong>Factura:</strong> ${account.invoiceNumber}</p>
+                <p><strong>Monto:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
+            </div>
+            <p style="color: #dc3545; font-weight: bold;">¡Esta acción no se puede deshacer!</p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, anular cuenta',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Anulando cuenta...',
+                text: 'Por favor espere',
+                icon: 'info',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/anular-cuenta/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Cuenta Anulada!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonColor: '#28a745'
+                    }).then(() => {
+                        // Recargar la página para ver los cambios
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error al anular cuenta',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error de conexión',
+                    text: 'Error al anular la cuenta. Verifique su conexión e intente nuevamente.',
+                    icon: 'error',
+                    confirmButtonColor: '#dc3545'
+                });
+            });
+        }
+    });
 }
 
 function exportData() {
@@ -1946,7 +2126,12 @@ function exportData() {
     const nonAnulledAccounts = accounts.filter(account => account.status !== 'anulada');
     
     if (nonAnulledAccounts.length === 0) {
-        alert('No hay datos para exportar');
+        Swal.fire({
+            title: 'Sin datos',
+            text: 'No hay datos para exportar',
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
         return;
     }
     
@@ -1982,7 +2167,13 @@ function exportData() {
     link.click();
     document.body.removeChild(link);
     
-    alert('Datos exportados a cuentas_por_cobrar.csv');
+    Swal.fire({
+        title: '¡Exportación exitosa!',
+        text: 'Datos exportados a cuentas_por_cobrar.csv',
+        icon: 'success',
+        confirmButtonColor: '#28a745',
+        timer: 2000
+    });
 }
 
 // ===== INICIALIZACIÓN =====

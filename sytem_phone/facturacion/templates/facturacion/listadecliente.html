@@ -791,78 +791,81 @@
         <span id="notificationMessage"></span>
     </div>
 
-    <!-- Sidebar Navigation -->
+      <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>
                 <i class='bx bx-mobile-alt'></i>
                 DEREJSOFT
             </h2>
-            <p>Derejsoft - superadmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ user.username }}</p>
+            <p>{{ user.email }}</p>
         </div>
         <div class="sidebar-menu">
             <a href="#" class="menu-item">
                 <i class='bx bx-home-alt'></i>
                 <span>Inicio</span>
             </a>
-            <a href="{% url 'ventas'  %}" class="menu-item">
+            <a href="{% url 'ventas' %}" class="menu-item">
                 <i class='bx bx-package'></i>
-                <span>Facturacion</span>
+                <span>facturacion</span>
             </a>
-            
             <a href="{% url 'registrodecliente'  %}" class="menu-item">
                 <i class='bx bx-dollar-circle'></i>
-                <span>Registrar clientes</span>
+                <span>Registrar Cliente</span>
             </a>
-
-            <a href="{% url 'listadecliente'  %}" class="menu-item active">
+            <a href="{% url 'listadecliente' %}" class="menu-item active">
                 <i class='bx bx-user-plus'></i>
                 <span>Clientes</span>
             </a>
-
+            <a href="{% url 'entrada'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Entrada mercancia</span>
+            </a>
             <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
                 <i class='bx bx-shopping-bag'></i>
-                <span>Cuenta Por Cobrar</span>
+                <span>Cuenta por Cobrar</span>
             </a>
-
-            <a href="{% url 'entrada'  %}" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Entrada de mercancia</span>
-            </a>
-
             <a href="{% url 'inventario'  %}" class="menu-item">
-                <i class='bx bx-bar-chart-alt-2'></i>
+                <i class='bx bx-credit-card'></i>
                 <span>Inventario</span>
             </a>
-        
             <a href="{% url 'registrosuplidores'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>suplidores</span>
+                <i class='bx bx-bar-chart-alt-2'></i>
+                <span>Registrar Suplidores</span>
             </a>
-
             <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
-                <span>suplidores</span>
+                <span>Suplidores</span>
             </a>
-            
-            <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-store'></i>
-                <span>Ajuste Inventario</span>
+                        <a href="{% url 'devoluciones'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Devoluciones</span>
+            </a>
+            <a href="{% url 'roles'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Roles</span>
+            </a>
+            <a href="{% url 'anular'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Anular Factura</span>
             </a>
 
+            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
+                <i class='bx bx-store'></i>
+                <span>Ajuste Inventario</span>
+            </a> -->
             <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
                 <span>Dashboard</span>
             </a>
-            
             <a href="{% url 'index'  %}" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
         </div>
         <div class="sidebar-footer">
-            <p>Dalecompra v 1.2.2</p>
+            <p>Derejsoft v 1.2.2</p>
         </div>
     </nav>
 
@@ -877,10 +880,10 @@
                     </h1>
                     <p>Gestión y Visualización de Clientes Registrados - Derejsoft</p>
                 </div>
-                <a href="registrodecliente.html" class="btn btn-primary">
+                <!-- <a href="registrodecliente.html" class="btn btn-primary">
                     <i class='bx bx-plus'></i>
                     Nuevo Cliente
-                </a>
+                </a> -->
             </div>
 
             <div class="content-container">
@@ -903,7 +906,7 @@
                                 <th>Dirección</th>
                                 <th>Teléfono Principal</th>
                                 <th>Teléfono Secundario</th>
-                                <th>Límite de Crédito</th>
+                                <!-- <th>Límite de Crédito</th> -->
                                 <th>Fecha Registro</th>
                                 <th>Acciones</th>
                             </tr>
@@ -973,10 +976,10 @@
                                 <input type="tel" id="editSecondaryPhone" name="secondaryPhone" class="form-input">
                             </div>
 
-                            <div class="form-group">
+                            <!-- <div class="form-group">
                                 <label class="form-label" for="editCreditLimit">Límite de Crédito (RD$)</label>
                                 <input type="number" id="editCreditLimit" name="creditLimit" class="form-input" step="0.01" min="0">
-                            </div>
+                            </div> -->
                         </div>
                     </div>
                 </form>
@@ -1131,7 +1134,7 @@
                         <td>${client.address}</td>
                         <td>${client.primary_phone}</td>
                         <td>${client.secondary_phone || 'N/A'}</td>
-                        <td class="credit-limit ${creditLimitClass}">${formatCurrency(creditLimit)}</td>
+                        <!-- <td class="credit-limit ${creditLimitClass}">${formatCurrency(creditLimit)}</td> -->
                         <td>${date}</td>
                         <td>
                             <div class="actions">
@@ -1185,7 +1188,7 @@
                             <td>${client.address}</td>
                             <td>${client.primary_phone}</td>
                             <td>${client.secondary_phone || 'N/A'}</td>
-                            <td class="credit-limit ${creditLimitClass}">${formatCurrency(creditLimit)}</td>
+                           <!-- <td class="credit-limit ${creditLimitClass}">${formatCurrency(creditLimit)}</td> -->
                             <td>${date}</td>
                             <td>
                                 <div class="actions">
@@ -1252,7 +1255,7 @@
             document.getElementById('editAddress').value = client.address;
             document.getElementById('editPrimaryPhone').value = client.primary_phone;
             document.getElementById('editSecondaryPhone').value = client.secondary_phone || '';
-            document.getElementById('editCreditLimit').value = client.credit_limit || 0;
+            // document.getElementById('editCreditLimit').value = client.credit_limit || 0;
 
             // Mostrar modal
             editClientModal.classList.add('active');

@@ -5,6 +5,7 @@ urlpatterns = [
        path('', views.index, name='login'),  # Página de login
     path("" , views.index, name="index"),
     path("dashboard" , views.dashboard, name="dashboard"),
+    path('dashboard/data/', views.dashboard_data, name='dashboard_data'),
     path("inventario", views.inventario, name="inventario"),
     path('inventario/datos/', views.inventario_datos, name='inventario_datos'),
     path('inventario/editar/<int:id>/', views.inventario_editar, name='inventario_editar'),
@@ -52,8 +53,9 @@ urlpatterns = [
     path('anular-cuenta/<int:cuenta_id>/', views.anular_cuenta, name='anular_cuenta'),
     path('generar-comprobante-pdf/<int:comprobante_id>/', views.generar_comprobante_pdf, name='generar_comprobante_pdf'),
     path('lista-comprobantes/', views.lista_comprobantes, name='lista_comprobantes'),
-    path('reimprimirfactura/', views.reimprimir_factura, name='reimprimir_factura'),
+    path('reimprimirfactura/', views.reimprimir_factura, name='reimprimirfactura'),
     path('ventas/buscar-facturaR/', views.buscar_facturaR, name='buscar_facturaR'),
+    path('ventas/ultima-factura/', views.ultima_factura, name='ultima_factura'),
 ]
 
     

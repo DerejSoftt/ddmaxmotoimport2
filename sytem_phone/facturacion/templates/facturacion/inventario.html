@@ -791,63 +791,54 @@
 
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
-
-    <!-- Sidebar Navigation -->
+   <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>
                 <i class='bx bx-mobile-alt'></i>
-               DEREJSOFT
+                DEREJSOFT
             </h2>
-            <p>Derejsoft - superadmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ user.username }}</p>
+            <p>{{ user.email }}</p>
         </div>
         <div class="sidebar-menu">
             <a href="#" class="menu-item">
                 <i class='bx bx-home-alt'></i>
                 <span>Inicio</span>
             </a>
-            <a href="{% url 'ventas'  %}" class="menu-item">
+            <a href="{% url 'ventas' %}" class="menu-item">
                 <i class='bx bx-package'></i>
-                <span>Facturacion</span>
+                <span>facturacion</span>
             </a>
-            
             <a href="{% url 'registrodecliente'  %}" class="menu-item">
                 <i class='bx bx-dollar-circle'></i>
-                <span>Registrar Clientes</span>
+                <span>Registrar Cliente</span>
             </a>
-
-           <a href="{% url 'listadecliente'  %}" class="menu-item ">
+            <a href="{% url 'listadecliente' %}" class="menu-item">
                 <i class='bx bx-user-plus'></i>
-                <span>clientes</span>
+                <span>Clientes</span>
             </a>
-
-            <a href="{% url 'cuentaporcobrar' %}" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Cuentas por Cobrar</span>
-            </a>
-
-            <a href=" {% url 'entrada' %}" class="menu-item">
+            <a href="{% url 'entrada'  %}" class="menu-item">
                 <i class='bx bx-shopping-bag'></i>
-                <span>Entrada de mercancia</span>
+                <span>Entrada mercancia</span>
             </a>
-           
+            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Cuenta por Cobrar</span>
+            </a>
             <a href="{% url 'inventario'  %}" class="menu-item active">
-                <i class='bx bx-bar-chart-alt-2'></i>
+                <i class='bx bx-credit-card'></i>
                 <span>Inventario</span>
             </a>
-
-
-              <a href="{% url 'registrosuplidores' %}" class="menu-item ">
-                <i class='bx bx-user'></i>
-                <span> Registrar Suplidores</span>
-            </a>
-
             <a href="{% url 'registrosuplidores'  %}" class="menu-item">
+                <i class='bx bx-bar-chart-alt-2'></i>
+                <span>Registrar Suplidores</span>
+            </a>
+            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
                 <span>Suplidores</span>
             </a>
-            <a href="{% url 'devoluciones'  %}" class="menu-item">
+                        <a href="{% url 'devoluciones'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
                 <span>Devoluciones</span>
             </a>
@@ -855,35 +846,26 @@
                 <i class='bx bx-trending-up'></i>
                 <span>Roles</span>
             </a>
-            <!-- <a href="{% url 'anular'  %}" class="menu-item">
+            <a href="{% url 'anular'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
                 <span>Anular Factura</span>
-            </a> -->
+            </a>
 
-             <a href="{% url 'gestiondesuplidores' %}" class="menu-item">
+            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
                 <i class='bx bx-store'></i>
-                <span>suplidores</span>
-            </a>
-
-            <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-cog'></i>
                 <span>Ajuste Inventario</span>
-            </a>
-            
+            </a> -->
             <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
                 <span>Dashboard</span>
             </a>
-
             <a href="{% url 'index'  %}" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
-
-
         </div>
         <div class="sidebar-footer">
-            <p>Dalecompra v 1.2.2</p>
+            <p>Derejsoft v 1.2.2</p>
         </div>
     </nav>
 
@@ -1102,352 +1084,363 @@
 
     <script>
         // Variables globales
-        let products = [];
-        let suppliers = [];
-        let filteredProducts = [];
+let products = [];
+let suppliers = [];
+let filteredProducts = [];
+let isSuperuser = false;
 
-        // Referencias a elementos del DOM
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
-        const searchInput = document.getElementById('searchInput');
-        const brandFilter = document.getElementById('brandFilter');
-        const conditionFilter = document.getElementById('conditionFilter');
-        const inventoryTableBody = document.getElementById('inventoryTableBody');
-        const noDataMessage = document.getElementById('noDataMessage');
-        const loadingData = document.getElementById('loadingData');
-        const editModal = document.getElementById('editModal');
-        const editForm = document.getElementById('editProductForm');
-        const csrfToken = document.getElementById('csrfToken').value;
+// Referencias a elementos del DOM
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.querySelector('.sidebar-overlay');
+const searchInput = document.getElementById('searchInput');
+const brandFilter = document.getElementById('brandFilter');
+const conditionFilter = document.getElementById('conditionFilter');
+const inventoryTableBody = document.getElementById('inventoryTableBody');
+const noDataMessage = document.getElementById('noDataMessage');
+const loadingData = document.getElementById('loadingData');
+const editModal = document.getElementById('editModal');
+const editForm = document.getElementById('editProductForm');
+const csrfToken = document.getElementById('csrfToken').value;
 
-        // Funciones para el sidebar
-        function toggleSidebar() {
-            sidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            
-            if (window.innerWidth <= 768) {
-                document.body.classList.toggle('sidebar-open');
+// Funciones para el sidebar
+function toggleSidebar() {
+    sidebar.classList.toggle('active');
+    sidebarOverlay.classList.toggle('active');
+    
+    if (window.innerWidth <= 768) {
+        document.body.classList.toggle('sidebar-open');
+    }
+}
+
+function closeSidebar() {
+    sidebar.classList.remove('active');
+    sidebarOverlay.classList.remove('active');
+    document.body.classList.remove('sidebar-open');
+}
+
+// Cerrar sidebar al hacer clic en un enlace (móvil)
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+            closeSidebar();
+        }
+    });
+});
+
+// Función para obtener el nombre de la marca
+function getBrandName(brand) {
+    const brands = {
+        'honda': 'Honda',
+        'yamaha': 'Yamaha',
+        'suzuki': 'Suzuki',
+        'kawasaki': 'Kawasaki',
+        'ktm': 'KTM',
+        'ducati': 'Ducati',
+        'bmw': 'BMW',
+        'harley-davidson': 'Harley-Davidson',
+        'bajaj': 'Bajaj',
+        'tvS': 'TVS',
+        'sym': 'SYM',
+        'vespa': 'Vespa',
+        'tauroCG': 'TAURO CG',
+        'tauro': 'TAURO',
+        'otros': 'Otros'
+    };
+    return brands[brand] || brand;
+}
+
+// Función para obtener el nombre del estado
+function getConditionName(condition) {
+    const conditions = {
+        'nuevo': 'Nuevo',
+        'usado': 'Usado',
+        'reacondicionado': 'Reacondicionado',
+        'exhibicion': 'Exhibición'
+    };
+    return conditions[condition] || condition;
+}
+
+// Función para obtener la clase CSS del estado
+function getConditionClass(condition) {
+    if (condition === 'nuevo') return 'status-nuevo';
+    if (condition === 'usado') return 'status-usado';
+    if (condition === 'reacondicionado') return 'status-reacondicionado';
+    if (condition === 'exhibicion') return 'status-defectuoso';
+    return 'status-usado';
+}
+
+// Función para cargar filtros
+function loadFilters() {
+    // Cargar marcas únicas
+    const uniqueBrands = [...new Set(products.map(p => p.marca))];
+    brandFilter.innerHTML = '<option value="">Todas las marcas</option>';
+    uniqueBrands.forEach(brand => {
+        const option = document.createElement('option');
+        option.value = brand;
+        option.textContent = getBrandName(brand);
+        brandFilter.appendChild(option);
+    });
+}
+
+// Función para renderizar la tabla
+function renderTable() {
+    if (filteredProducts.length === 0) {
+        inventoryTableBody.innerHTML = '';
+        noDataMessage.style.display = 'block';
+        return;
+    }
+
+    noDataMessage.style.display = 'none';
+    
+    const tableHTML = filteredProducts.map(product => {
+        return `
+            <tr>
+                <td><strong>${product.codigo_producto}</strong></td>
+                <td>${product.nombre_producto}</td>
+                <td>${getBrandName(product.marca)}</td>
+                <td>${product.capacidad || 'N/A'}</td>
+                <td>${product.color || 'N/A'}</td>
+                <td>
+                    <span class="status-badge ${getConditionClass(product.estado)}">
+                        ${getConditionName(product.estado)}
+                    </span>
+                </td>
+                <td><strong>${product.cantidad}</strong></td>
+                <td class="currency">RD$ ${parseFloat(product.costo_compra).toLocaleString()}</td>
+                <td class="currency">RD$ ${parseFloat(product.costo_venta).toLocaleString()}</td>
+                <td>
+                    <div class="actions">
+                        ${isSuperuser ? `
+                        <button class="btn btn-success" onclick="editProduct(${product.id})" title="Editar">
+                            <i class='bx bx-edit'></i>
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteProduct(${product.id})" title="Eliminar">
+                            <i class='bx bx-trash'></i>
+                        </button>
+                        ` : '<span class="text-muted">Solo superusuario</span>'}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    inventoryTableBody.innerHTML = tableHTML;
+}
+
+// Función de búsqueda y filtrado
+function filterProducts() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const brandValue = brandFilter.value;
+    const conditionValue = conditionFilter.value;
+    
+    filteredProducts = products.filter(product => {
+        const matchesSearch = !searchTerm || 
+            product.nombre_producto.toLowerCase().includes(searchTerm) ||
+            getBrandName(product.marca).toLowerCase().includes(searchTerm) ||
+            product.codigo_producto.toLowerCase().includes(searchTerm);
+        
+        const matchesBrand = !brandValue || product.marca === brandValue;
+        const matchesCondition = !conditionValue || product.estado === conditionValue;
+        
+        return matchesSearch && matchesBrand && matchesCondition;
+    });
+    
+    renderTable();
+}
+
+// Event listeners para filtros
+searchInput.addEventListener('input', filterProducts);
+brandFilter.addEventListener('change', filterProducts);
+conditionFilter.addEventListener('change', filterProducts);
+
+// Función para eliminar producto
+function deleteProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+
+    if (confirm(`¿Estás seguro de que deseas eliminar el producto "${product.nombre_producto}"?`)) {
+        // Enviar solicitud DELETE al servidor
+        fetch(`/inventario/eliminar/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
             }
-        }
-
-        function closeSidebar() {
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
-        }
-
-        // Cerrar sidebar al hacer clic en un enlace (móvil)
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    closeSidebar();
-                }
-            });
-        });
-
-        // Función para obtener el nombre de la marca
-        function getBrandName(brand) {
-            const brands = {
-                'apple': 'Apple',
-                'samsung': 'Samsung',
-                'xiaomi': 'Xiaomi',
-                'huawei': 'Huawei',
-                'lg': 'LG',
-                'motorola': 'Motorola',
-                'nokia': 'Nokia',
-                'sony': 'Sony',
-                'google': 'Google',
-                'oneplus': 'OnePlus',
-                'oppo': 'OPPO',
-                'vivo': 'Vivo',
-                'realme': 'Realme',
-                'tecno': 'Tecno',
-                'infinix': 'Infinix',
-                'alcatel': 'Alcatel',
-                'zte': 'ZTE',
-                'otros': 'Otros'
-            };
-            return brands[brand] || brand;
-        }
-
-        // Función para obtener el nombre del estado
-        function getConditionName(condition) {
-            const conditions = {
-                'nuevo': 'Nuevo',
-                'usado': 'Usado',
-                'reacondicionado': 'Reacondicionado',
-                'exhibicion': 'Exhibición'
-            };
-            return conditions[condition] || condition;
-        }
-
-        // Función para obtener la clase CSS del estado
-        function getConditionClass(condition) {
-            if (condition === 'nuevo') return 'status-nuevo';
-            if (condition === 'usado') return 'status-usado';
-            if (condition === 'reacondicionado') return 'status-reacondicionado';
-            if (condition === 'exhibicion') return 'status-defectuoso';
-            return 'status-usado';
-        }
-
-        // Función para cargar filtros
-        function loadFilters() {
-            // Cargar marcas únicas
-            const uniqueBrands = [...new Set(products.map(p => p.marca))];
-            brandFilter.innerHTML = '<option value="">Todas las marcas</option>';
-            uniqueBrands.forEach(brand => {
-                const option = document.createElement('option');
-                option.value = brand;
-                option.textContent = getBrandName(brand);
-                brandFilter.appendChild(option);
-            });
-        }
-
-        // Función para renderizar la tabla
-        function renderTable() {
-            if (filteredProducts.length === 0) {
-                inventoryTableBody.innerHTML = '';
-                noDataMessage.style.display = 'block';
-                return;
-            }
-
-            noDataMessage.style.display = 'none';
-            
-            const tableHTML = filteredProducts.map(product => {
-                return `
-                    <tr>
-                        <td><strong>${product.codigo_producto}</strong></td>
-                        <td>${product.nombre_producto}</td>
-                        <td>${getBrandName(product.marca)}</td>
-                        <td>${product.capacidad || 'N/A'}</td>
-                        <td>${product.color || 'N/A'}</td>
-                        <td>
-                            <span class="status-badge ${getConditionClass(product.estado)}">
-                                ${getConditionName(product.estado)}
-                            </span>
-                        </td>
-                        <td><strong>${product.cantidad}</strong></td>
-                        <td class="currency">RD$ ${parseFloat(product.costo_compra).toLocaleString()}</td>
-                        <td class="currency">RD$ ${parseFloat(product.costo_venta).toLocaleString()}</td>
-                        <td>
-                            <div class="actions">
-                                <button class="btn btn-success" onclick="editProduct(${product.id})" title="Editar">
-                                    <i class='bx bx-edit'></i>
-                                </button>
-                                <button class="btn btn-danger" onclick="deleteProduct(${product.id})" title="Eliminar">
-                                    <i class='bx bx-trash'></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            inventoryTableBody.innerHTML = tableHTML;
-        }
-
-        // Función de búsqueda y filtrado
-        function filterProducts() {
-            const searchTerm = searchInput.value.toLowerCase().trim();
-            const brandValue = brandFilter.value;
-            const conditionValue = conditionFilter.value;
-            
-            filteredProducts = products.filter(product => {
-                const matchesSearch = !searchTerm || 
-                    product.nombre_producto.toLowerCase().includes(searchTerm) ||
-                    getBrandName(product.marca).toLowerCase().includes(searchTerm) ||
-                    product.codigo_producto.toLowerCase().includes(searchTerm);
-                
-                const matchesBrand = !brandValue || product.marca === brandValue;
-                const matchesCondition = !conditionValue || product.estado === conditionValue;
-                
-                return matchesSearch && matchesBrand && matchesCondition;
-            });
-            
-            renderTable();
-        }
-
-        // Event listeners para filtros
-        searchInput.addEventListener('input', filterProducts);
-        brandFilter.addEventListener('change', filterProducts);
-        conditionFilter.addEventListener('change', filterProducts);
-
-        // Función para eliminar producto
-        function deleteProduct(id) {
-            const product = products.find(p => p.id === id);
-            if (!product) return;
-
-            if (confirm(`¿Estás seguro de que deseas eliminar el producto "${product.nombre_producto}"?`)) {
-                // Enviar solicitud DELETE al servidor
-                fetch(`/inventario/eliminar/${id}/`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        return response.json();
-                    }
-                    throw new Error('Error al eliminar el producto');
-                })
-                .then(data => {
-                    if (data.success) {
-                        // Actualizar la lista local
-                        products = products.filter(p => p.id !== id);
-                        filteredProducts = filteredProducts.filter(p => p.id !== id);
-                        renderTable();
-                        loadFilters(); // Recargar filtros por si se eliminó la última marca/condición
-                        alert('Producto eliminado exitosamente');
-                    } else {
-                        alert('Error al eliminar el producto: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al eliminar el producto');
+        })
+        .then(response => {
+            if (response.status === 403) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Permisos insuficientes. Solo superusuarios pueden eliminar productos.');
                 });
             }
-        }
-
-        // Función para abrir modal de edición
-        function editProduct(id) {
-            const product = products.find(p => p.id === id);
-            if (!product) return;
-
-            // Llenar el formulario con los datos del producto
-            document.getElementById('editProductId').value = product.id;
-            document.getElementById('editProductName').value = product.nombre_producto;
-            document.getElementById('editBrand').value = product.marca;
-            document.getElementById('editCapacity').value = product.capacidad || '';
-            document.getElementById('editCondition').value = product.estado;
-            document.getElementById('editColor').value = product.color || '';
-            document.getElementById('editPurchaseCost').value = product.costo_compra;
-            document.getElementById('editSaleCost').value = product.costo_venta;
-            document.getElementById('editObservations').value = product.observaciones || '';
-
-            // Mostrar modal
-            editModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-
-        // Función para cerrar modal de edición
-        function closeEditModal() {
-            editModal.classList.remove('active');
-            document.body.style.overflow = 'auto';
-            editForm.reset();
-        }
-
-        // Cerrar modal al hacer clic fuera de él
-        editModal.addEventListener('click', function(e) {
-            if (e.target === editModal) {
-                closeEditModal();
+            if (response.ok) {
+                return response.json();
             }
-        });
-
-        // Manejar envío del formulario de edición
-        editForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(editForm);
-            const productId = parseInt(formData.get('productId'));
-            
-            // Preparar datos para enviar
-            const data = {
-                nombre_producto: formData.get('nombre_producto'),
-                marca: formData.get('marca'),
-                capacidad: formData.get('capacidad'),
-                estado: formData.get('estado'),
-                color: formData.get('color'),
-                costo_compra: parseFloat(formData.get('costo_compra')),
-                costo_venta: parseFloat(formData.get('costo_venta')),
-                observaciones: formData.get('observaciones')
-            };
-
-            // Enviar solicitud PUT al servidor
-            fetch(`/inventario/editar/${productId}/`, {
-                method: 'PUT',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                }
-                throw new Error('Error al actualizar el producto');
-            })
-            .then(updatedProduct => {
-                // Actualizar el producto en la lista local
-                const index = products.findIndex(p => p.id === productId);
-                if (index !== -1) {
-                    products[index] = updatedProduct;
-                }
-                
-                // Actualizar tabla y filtros
-                filteredProducts = [...products];
-                filterProducts();
-                loadFilters();
-
-                // Cerrar modal
-                closeEditModal();
-
-                // Mostrar mensaje de éxito
-                alert('Producto actualizado exitosamente');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al actualizar el producto');
-            });
-        });
-
-        // Cerrar sidebar al redimensionar ventana
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
-                closeSidebar();
-            }
-        });
-
-        // Cargar datos desde el servidor
-        function loadDataFromServer() {
-            fetch('/inventario/datos/')
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                }
-                throw new Error('Error al cargar los datos');
-            })
-            .then(data => {
-                products = data.productos || [];
-                suppliers = data.proveedores || [];
-                filteredProducts = [...products];
-                
-                // Ocultar loading y renderizar tabla
-                loadingData.style.display = 'none';
-                loadFilters();
+            throw new Error('Error al eliminar el producto');
+        })
+        .then(data => {
+            if (data.success) {
+                // Actualizar la lista local
+                products = products.filter(p => p.id !== id);
+                filteredProducts = filteredProducts.filter(p => p.id !== id);
                 renderTable();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                loadingData.innerHTML = `
-                    <div class="no-data">
-                        <i class='bx bx-error'></i>
-                        <p>Error al cargar los datos del inventario</p>
-                        <button class="btn btn-primary" onclick="loadDataFromServer()" style="margin-top: 20px;">
-                            <i class='bx bx-refresh'></i>
-                            Reintentar
-                        </button>
-                    </div>
-                `;
+                loadFilters(); // Recargar filtros por si se eliminó la última marca/condición
+                alert('Producto eliminado exitosamente');
+            } else {
+                alert('Error al eliminar el producto: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error: ' + error.message);
+        });
+    }
+}
+
+// Función para abrir modal de edición
+function editProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+
+    // Llenar el formulario con los datos del producto
+    document.getElementById('editProductId').value = product.id;
+    document.getElementById('editProductName').value = product.nombre_producto;
+    document.getElementById('editBrand').value = product.marca;
+    document.getElementById('editCapacity').value = product.capacidad || '';
+    document.getElementById('editCondition').value = product.estado;
+    document.getElementById('editColor').value = product.color || '';
+    document.getElementById('editPurchaseCost').value = product.costo_compra;
+    document.getElementById('editSaleCost').value = product.costo_venta;
+    document.getElementById('editObservations').value = product.observaciones || '';
+
+    // Mostrar modal
+    editModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+// Función para cerrar modal de edición
+function closeEditModal() {
+    editModal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+    editForm.reset();
+}
+
+// Cerrar modal al hacer clic fuera de él
+editModal.addEventListener('click', function(e) {
+    if (e.target === editModal) {
+        closeEditModal();
+    }
+});
+
+// Manejar envío del formulario de edición
+editForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(editForm);
+    const productId = parseInt(formData.get('productId'));
+    
+    // Preparar datos para enviar
+    const data = {
+        nombre_producto: formData.get('nombre_producto'),
+        marca: formData.get('marca'),
+        capacidad: formData.get('capacidad'),
+        estado: formData.get('estado'),
+        color: formData.get('color'),
+        costo_compra: parseFloat(formData.get('costo_compra')),
+        costo_venta: parseFloat(formData.get('costo_venta')),
+        observaciones: formData.get('observaciones')
+    };
+
+    // Enviar solicitud PUT al servidor
+    fetch(`/inventario/editar/${productId}/`, {
+        method: 'PUT',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (response.status === 403) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Permisos insuficientes. Solo superusuarios pueden editar productos.');
             });
         }
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Error al actualizar el producto');
+    })
+    .then(updatedProduct => {
+        // Actualizar el producto en la lista local
+        const index = products.findIndex(p => p.id === productId);
+        if (index !== -1) {
+            products[index] = updatedProduct;
+        }
+        
+        // Actualizar tabla y filtros
+        filteredProducts = [...products];
+        filterProducts();
+        loadFilters();
 
-        // Inicializar la página
-        window.addEventListener('load', function() {
-            loadDataFromServer();
-        });
+        // Cerrar modal
+        closeEditModal();
+
+        // Mostrar mensaje de éxito
+        alert('Producto actualizado exitosamente');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error: ' + error.message);
+    });
+});
+
+// Cerrar sidebar al redimensionar ventana
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        closeSidebar();
+    }
+});
+
+// Cargar datos desde el servidor
+function loadDataFromServer() {
+    fetch('/inventario/datos/')
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Error al cargar los datos');
+    })
+    .then(data => {
+        products = data.productos || [];
+        suppliers = data.proveedores || [];
+        filteredProducts = [...products];
+        isSuperuser = data.user ? data.user.is_superuser : false;
+        
+        // Ocultar loading y renderizar tabla
+        loadingData.style.display = 'none';
+        loadFilters();
+        renderTable();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        loadingData.innerHTML = `
+            <div class="no-data">
+                <i class='bx bx-error'></i>
+                <p>Error al cargar los datos del inventario</p>
+                <button class="btn btn-primary" onclick="loadDataFromServer()" style="margin-top: 20px;">
+                    <i class='bx bx-refresh'></i>
+                    Reintentar
+                </button>
+            </div>
+        `;
+    });
+}
+
+// Inicializar la página
+window.addEventListener('load', function() {
+    loadDataFromServer();
+});
     </script>
 </body>
 </html>

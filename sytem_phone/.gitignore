@@ -13,3 +13,5 @@ __pycache__/
 
 null/
 env/
+*.sqlite3
+*.sql

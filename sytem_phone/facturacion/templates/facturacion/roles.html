@@ -820,100 +820,83 @@
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-    <!-- Sidebar Navigation -->
+   <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
-      <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>
                 <i class='bx bx-mobile-alt'></i>
-               DEREJSOFT
+                DEREJSOFT
             </h2>
-            <p>Derejsoft - superadmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ user.username }}</p>
+            <p>{{ user.email }}</p>
         </div>
         <div class="sidebar-menu">
             <a href="#" class="menu-item">
                 <i class='bx bx-home-alt'></i>
                 <span>Inicio</span>
             </a>
-            <a href="{% url 'ventas'  %}" class="menu-item">
+            <a href="{% url 'ventas' %}" class="menu-item">
                 <i class='bx bx-package'></i>
-                <span>Facturacion</span>
+                <span>facturacion</span>
             </a>
-            
             <a href="{% url 'registrodecliente'  %}" class="menu-item">
                 <i class='bx bx-dollar-circle'></i>
-                <span>Registrar Clientes</span>
+                <span>Registrar Cliente</span>
             </a>
-
-           <a href="{% url 'listadecliente'  %}" class="menu-item ">
+            <a href="{% url 'listadecliente' %}" class="menu-item">
                 <i class='bx bx-user-plus'></i>
-                <span>clientes</span>
+                <span>Clientes</span>
             </a>
-
-            <a href="{% url 'cuentaporcobrar' %}" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Cuentas por Cobrar</span>
-            </a>
-
-            <a href=" {% url 'entrada' %}" class="menu-item">
+            <a href="{% url 'entrada'  %}" class="menu-item">
                 <i class='bx bx-shopping-bag'></i>
-                <span>Entrada de mercancia</span>
+                <span>Entrada mercancia</span>
             </a>
-           
-            <a href="{% url 'inventario'  %}" class="menu-item ">
-                <i class='bx bx-bar-chart-alt-2'></i>
+            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Cuenta por Cobrar</span>
+            </a>
+            <a href="{% url 'inventario'  %}" class="menu-item">
+                <i class='bx bx-credit-card'></i>
                 <span>Inventario</span>
             </a>
-
-
-              <a href="{% url 'registrosuplidores' %}" class="menu-item ">
-                <i class='bx bx-user'></i>
-                <span> Registrar Suplidores</span>
-            </a>
-
             <a href="{% url 'registrosuplidores'  %}" class="menu-item">
+                <i class='bx bx-bar-chart-alt-2'></i>
+                <span>Registrar Suplidores</span>
+            </a>
+            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
                 <span>Suplidores</span>
             </a>
-            <a href="{% url 'devoluciones'  %}" class="menu-item">
+                        <a href="{% url 'devoluciones'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
                 <span>Devoluciones</span>
             </a>
-            <a href="{% url 'roles'  %}" class="menu-item active">
+            <a href="{% url 'roles'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
                 <span>Roles</span>
             </a>
+            <a href="{% url 'anular'  %}" class="menu-item active">
+                <i class='bx bx-trending-up'></i>
+                <span>Anular Factura</span>
+            </a>
 
-             <a href="{% url 'gestiondesuplidores' %}" class="menu-item">
+            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
                 <i class='bx bx-store'></i>
-                <span>suplidores</span>
-            </a>
-
-            <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-cog'></i>
                 <span>Ajuste Inventario</span>
-            </a>
-            
+            </a> -->
             <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
                 <span>Dashboard</span>
             </a>
-
             <a href="{% url 'index'  %}" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
-
-
         </div>
         <div class="sidebar-footer">
-            <p>Dalecompra v 1.2.2</p>
+            <p>Derejsoft v 1.2.2</p>
         </div>
     </nav>
-
-    </nav>
-
     <!-- Main Content -->
     <div class="main-content">
         <div class="container">

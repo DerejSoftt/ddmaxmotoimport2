@@ -41,6 +41,17 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import User, Group, Permission
 import csv
 from reportlab.pdfgen import canvas
+import traceback
+from django.http import JsonResponse
+from functools import wraps
+
+
+
+
+
+
+
+
 
 # Create your views her
 def index(request):
@@ -60,8 +71,693 @@ def index(request):
 
 
 
+def convert_to_native(obj):
+    """Convierte tipos de pandas/numpy a tipos nativos de Python"""
+    if hasattr(obj, 'item'):
+        return obj.item()
+    elif hasattr(obj, 'tolist'):
+        return obj.tolist()
+    elif pd.isna(obj):
+        return None
+    elif isinstance(obj, (int, float, str, bool)) or obj is None:
+        return obj
+    elif isinstance(obj, dict):
+        return {k: convert_to_native(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_to_native(item) for item in obj]
+    else:
+        return str(obj)
+
+# ------------------------------
+# DASHBOARD PRINCIPAL (HTML)
+# ------------------------------
+# ------------------------------
+# DASHBOARD PRINCIPAL (HTML)
+# ------------------------------
+# ------------------------------
+# DASHBOARD PRINCIPAL (HTML)
+# ------------------------------
 def dashboard(request):
-    return render(request, "facturacion/dashboard.html")
+    hoy = timezone.now().date()
+    inicio_mes = hoy.replace(day=1)
+    inicio_semana = hoy - timedelta(days=hoy.weekday())
+
+    try:
+        # CÁLCULO DE VENTAS CON LA NUEVA LÓGICA
+        # Ventas al contado (total_a_pagar de ventas contado)
+        ventas_contado_hoy = Venta.objects.filter(
+            fecha_venta__date=hoy, 
+            anulada=False, 
+            tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        # Ventas a crédito (solo monto_pagado)
+        ventas_credito_hoy = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date=hoy, 
+            venta__anulada=False,
+            venta__tipo_venta='credito',
+            anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        # Total ventas hoy
+        ventas_hoy = ventas_contado_hoy + ventas_credito_hoy
+
+        # Cálculo similar para el mes
+        ventas_contado_mes = Venta.objects.filter(
+            fecha_venta__date__gte=inicio_mes, 
+            anulada=False, 
+            tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        ventas_credito_mes = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date__gte=inicio_mes,
+            venta__anulada=False,
+            venta__tipo_venta='credito',
+            anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        ventas_mes = ventas_contado_mes + ventas_credito_mes
+
+        # Ventas de la semana con la nueva lógica
+        ventas_semana = []
+        dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+        
+        for i in range(7):
+            dia = inicio_semana + timedelta(days=i)
+            
+            # Ventas contado del día (total_a_pagar)
+            ventas_contado_dia = Venta.objects.filter(
+                fecha_venta__date=dia, 
+                anulada=False, 
+                tipo_venta='contado'
+            ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+            
+            # Ventas crédito del día (solo monto_pagado)
+            ventas_credito_dia = CuentaPorCobrar.objects.filter(
+                venta__fecha_venta__date=dia,
+                venta__anulada=False,
+                venta__tipo_venta='credito',
+                anulada=False
+            ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+            
+            # Total del día
+            total_dia = float(ventas_contado_dia + ventas_credito_dia)
+            ventas_semana.append(total_dia)
+
+        # Cobros reales (contado + pagos crédito) - usando total_a_pagar para contado
+        cobros_hoy_contado = Venta.objects.filter(
+            fecha_venta__date=hoy, anulada=False, tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        cobros_hoy_credito = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date=hoy, anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        cobros_hoy = float(cobros_hoy_contado + cobros_hoy_credito)
+
+        cobros_mes_contado = Venta.objects.filter(
+            fecha_venta__date__gte=inicio_mes, anulada=False, tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        cobros_mes_credito = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date__gte=inicio_mes, anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        cobros_mes = float(cobros_mes_contado + cobros_mes_credito)
+
+        # El resto del código permanece igual...
+        total_stock = EntradaProducto.objects.filter(activo=True).aggregate(total=Sum('cantidad'))['total'] or 0
+        productos_bajo_stock = EntradaProducto.objects.filter(
+            activo=True, cantidad__lte=F('cantidad_minima')
+        ).count()
+
+        # Top productos últimos 30 días
+        fecha_30_dias = hoy - timedelta(days=30)
+        top_productos = DetalleVenta.objects.filter(
+            venta__anulada=False,
+            venta__fecha_venta__date__gte=fecha_30_dias
+        ).values(
+            'producto__nombre_producto'
+        ).annotate(
+            total_vendido=Sum('cantidad')
+        ).order_by('-total_vendido')[:5]
+
+        # Convertir a la estructura correcta para el template
+        top_productos_list = [{
+            'nombre_producto': item['producto__nombre_producto'],
+            'total_vendido': item['total_vendido']
+        } for item in top_productos]
+
+        # Últimas ventas
+        ultimas_ventas = Venta.objects.filter(
+            anulada=False
+        ).select_related('cliente').order_by('-fecha_venta')[:8]
+
+        # Productos inventario
+        productos_inventario = list(
+            EntradaProducto.objects.filter(activo=True)
+            .values('nombre_producto', 'marca', 'cantidad', 'costo_venta')[:10]
+        )
+
+        # Alertas de stock bajo
+        alertas = [
+            f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
+            for p in EntradaProducto.objects.filter(
+                activo=True, cantidad__lte=F('cantidad_minima')
+            ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+        ]
+
+        # Cuentas vencidas
+        cuentas_vencidas = CuentaPorCobrar.objects.filter(
+            fecha_vencimiento__lt=hoy,
+            estado__in=['pendiente', 'parcial'],
+            anulada=False
+        ).count()
+
+        context = {
+            'ventas_hoy': float(ventas_hoy),
+            'ventas_mes': float(ventas_mes),
+            'cobros_hoy': cobros_hoy,
+            'cobros_mes': cobros_mes,
+            'total_stock': total_stock,
+            'productos_bajo_stock': productos_bajo_stock,
+            'cuentas_vencidas': cuentas_vencidas,
+            'ventas_semana': json.dumps(ventas_semana),
+            'dias_semana': json.dumps(dias_semana),
+            'top_productos': json.dumps(top_productos_list),
+            'ultimas_ventas': ultimas_ventas,
+            'productos_inventario': productos_inventario,
+            'alertas': json.dumps(alertas[:5]),
+        }
+
+        return render(request, "facturacion/dashboard.html", context)
+
+    except Exception as e:
+        print(f"Error en dashboard: {e}")
+        return dashboard_tradicional(request)
+
+
+# ------------------------------
+# DASHBOARD DATA (JSON)
+# ------------------------------
+def dashboard_data(request):
+    try:
+        hoy = timezone.now().date()
+        inicio_mes = hoy.replace(day=1)
+        inicio_semana = hoy - timedelta(days=hoy.weekday())
+
+        # CÁLCULO DE VENTAS CON LA NUEVA LÓGICA
+        # Ventas al contado (total_a_pagar de ventas contado)
+        ventas_contado_hoy = Venta.objects.filter(
+            fecha_venta__date=hoy, 
+            anulada=False, 
+            tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        # Ventas a crédito (solo monto_pagado)
+        ventas_credito_hoy = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date=hoy, 
+            venta__anulada=False,
+            venta__tipo_venta='credito',
+            anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        # Total ventas hoy
+        ventas_hoy = ventas_contado_hoy + ventas_credito_hoy
+
+        # Cálculo similar para el mes
+        ventas_contado_mes = Venta.objects.filter(
+            fecha_venta__date__gte=inicio_mes, 
+            anulada=False, 
+            tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        ventas_credito_mes = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date__gte=inicio_mes,
+            venta__anulada=False,
+            venta__tipo_venta='credito',
+            anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        ventas_mes = ventas_contado_mes + ventas_credito_mes
+
+        # Ventas de la semana con la nueva lógica
+        ventas_semana = []
+        dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+        
+        for i in range(7):
+            dia = inicio_semana + timedelta(days=i)
+            
+            # Ventas contado del día (total_a_pagar)
+            ventas_contado_dia = Venta.objects.filter(
+                fecha_venta__date=dia, 
+                anulada=False, 
+                tipo_venta='contado'
+            ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+            
+            # Ventas crédito del día (solo monto_pagado)
+            ventas_credito_dia = CuentaPorCobrar.objects.filter(
+                venta__fecha_venta__date=dia,
+                venta__anulada=False,
+                venta__tipo_venta='credito',
+                anulada=False
+            ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+            
+            # Total del día
+            total_dia = float(ventas_contado_dia + ventas_credito_dia)
+            ventas_semana.append(total_dia)
+
+        # Cobros reales
+        cobros_hoy_contado = Venta.objects.filter(
+            fecha_venta__date=hoy, anulada=False, tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        cobros_hoy_credito = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date=hoy, anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        cobros_hoy = float(cobros_hoy_contado + cobros_hoy_credito)
+
+        cobros_mes_contado = Venta.objects.filter(
+            fecha_venta__date__gte=inicio_mes, anulada=False, tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+        cobros_mes_credito = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date__gte=inicio_mes, anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+        cobros_mes = float(cobros_mes_contado + cobros_mes_credito)
+
+        # El resto del código permanece igual...
+        total_stock = EntradaProducto.objects.filter(activo=True).aggregate(total=Sum('cantidad'))['total'] or 0
+        productos_bajo_stock = EntradaProducto.objects.filter(
+            activo=True, cantidad__lte=F('cantidad_minima')
+        ).count()
+
+        # Top productos últimos 30 días
+        fecha_30_dias = hoy - timedelta(days=30)
+        top_productos = DetalleVenta.objects.filter(
+            venta__anulada=False,
+            venta__fecha_venta__date__gte=fecha_30_dias
+        ).values(
+            'producto__nombre_producto'
+        ).annotate(
+            total_vendido=Sum('cantidad')
+        ).order_by('-total_vendido')[:5]
+
+        # Últimas ventas
+        ultimas_ventas = Venta.objects.filter(
+            anulada=False
+        ).select_related('cliente').order_by('-fecha_venta')[:8]
+
+        # Inventario detalle
+        productos_inventario = list(
+            EntradaProducto.objects.filter(activo=True)
+            .values('nombre_producto', 'marca', 'cantidad', 'costo_venta', 'cantidad_minima')[:10]
+        )
+
+        # Alertas
+        alertas = [
+            f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
+            for p in EntradaProducto.objects.filter(
+                activo=True, cantidad__lte=F('cantidad_minima')
+            ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+        ]
+
+        # Cuentas vencidas
+        cuentas_vencidas = CuentaPorCobrar.objects.filter(
+            fecha_vencimiento__lt=hoy,
+            estado__in=['pendiente', 'parcial'],
+            anulada=False
+        ).count()
+
+        data = {
+            'sales': {
+                'daily': float(ventas_hoy),
+                'monthly': float(ventas_mes),
+                'dailyCobros': cobros_hoy,
+                'monthlyCobros': cobros_mes,
+                'weekly': ventas_semana,
+                'weekLabels': dias_semana,
+                'monthlyTrend': [float(ventas_mes)] * 12
+            },
+            'inventory': {
+                'totalStock': total_stock,
+                'totalSold': 0,
+                'lowStockItems': productos_bajo_stock,
+                'categories': [
+                    {'name': 'SuperGato', 'count': 75},
+                    {'name': 'Zusuki', 'count': 45},
+                    {'name': 'CG300', 'count': 25},
+                    {'name': 'Tauro', 'count': 11}
+                ]
+            },
+            'topProducts': [{
+                'nombre_producto': item['producto__nombre_producto'],
+                'total_vendido': item['total_vendido']
+            } for item in top_productos],
+            'recentSales': [{
+                'id': venta.id,
+                'producto': f"{venta.cliente_nombre} - {venta.numero_factura}",
+                'monto': float(venta.total),
+                'fecha': venta.fecha_venta.strftime('%Y-%m-%d'),
+                'hora': venta.fecha_venta.strftime('%H:%M'),
+                'estado': 'completada',
+                'cantidad': 1
+            } for venta in ultimas_ventas],
+            'inventoryItems': productos_inventario,
+            'lowStockAlerts': alertas[:5],
+            'overdueAccounts': cuentas_vencidas
+        }
+
+        return JsonResponse(data)
+
+    except Exception as e:
+        print(f"Error en dashboard_data: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+# ------------------------------
+# DASHBOARD TRADICIONAL (BACKUP)
+# ------------------------------
+def dashboard_tradicional(request):
+    """Versión tradicional sin pandas"""
+    hoy = timezone.now().date()
+    inicio_mes = hoy.replace(day=1)
+    inicio_semana = hoy - timedelta(days=hoy.weekday())
+    
+    # CÁLCULO DE VENTAS CON LA NUEVA LÓGICA
+    # Ventas al contado (total_a_pagar de ventas contado)
+    ventas_contado_hoy = Venta.objects.filter(
+        fecha_venta__date=hoy, 
+        anulada=False, 
+        tipo_venta='contado'
+    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+    # Ventas a crédito (solo monto_pagado)
+    ventas_credito_hoy = CuentaPorCobrar.objects.filter(
+        venta__fecha_venta__date=hoy, 
+        venta__anulada=False,
+        venta__tipo_venta='credito',
+        anulada=False
+    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+    # Total ventas hoy
+    ventas_hoy = ventas_contado_hoy + ventas_credito_hoy
+
+    # Cálculo similar para el mes
+    ventas_contado_mes = Venta.objects.filter(
+        fecha_venta__date__gte=inicio_mes, 
+        anulada=False, 
+        tipo_venta='contado'
+    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+    ventas_credito_mes = CuentaPorCobrar.objects.filter(
+        venta__fecha_venta__date__gte=inicio_mes,
+        venta__anulada=False,
+        venta__tipo_venta='credito',
+        anulada=False
+    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+    ventas_mes = ventas_contado_mes + ventas_credito_mes
+
+    # Ventas de la semana con la nueva lógica
+    ventas_semana = []
+    dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    
+    for i in range(7):
+        dia = inicio_semana + timedelta(days=i)
+        
+        # Ventas contado del día (total_a_pagar)
+        ventas_contado_dia = Venta.objects.filter(
+            fecha_venta__date=dia, 
+            anulada=False, 
+            tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        
+        # Ventas crédito del día (solo monto_pagado)
+        ventas_credito_dia = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date=dia,
+            venta__anulada=False,
+            venta__tipo_venta='credito',
+            anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+        
+        # Total del día
+        total_dia = float(ventas_contado_dia + ventas_credito_dia)
+        ventas_semana.append(total_dia)
+    
+    # El resto del código permanece igual...
+    total_stock = EntradaProducto.objects.filter(activo=True).aggregate(
+        total=Sum('cantidad')
+    )['total'] or 0
+    
+    productos_bajo_stock = EntradaProducto.objects.filter(
+        activo=True,
+        cantidad__lte=F('cantidad_minima')
+    ).count()
+    
+    # Top productos últimos 30 días
+    fecha_30_dias = hoy - timedelta(days=30)
+    top_productos = DetalleVenta.objects.filter(
+        venta__anulada=False,
+        venta__fecha_venta__date__gte=fecha_30_dias
+    ).values(
+        'producto__nombre_producto'
+    ).annotate(
+        total_vendido=Sum('cantidad')
+    ).order_by('-total_vendido')[:5]
+
+    # Convertir a la estructura correcta
+    top_productos_list = [{
+        'nombre_producto': item['producto__nombre_producto'],
+        'total_vendido': item['total_vendido']
+    } for item in top_productos]
+    
+    # Últimas ventas
+    ultimas_ventas = Venta.objects.filter(
+        anulada=False
+    ).select_related('cliente').order_by('-fecha_venta')[:8]
+    
+    # Productos en inventario
+    productos_inventario = EntradaProducto.objects.filter(
+        activo=True
+    ).values('nombre_producto', 'marca', 'cantidad', 'costo_venta')[:10]
+    
+    # Alertas de stock bajo
+    alertas_stock = EntradaProducto.objects.filter(
+        activo=True,
+        cantidad__lte=F('cantidad_minima')
+    ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+    
+    alertas = [
+        f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
+        for p in alertas_stock
+    ]
+    
+    # Cuentas por cobrar vencidas
+    cuentas_vencidas = CuentaPorCobrar.objects.filter(
+        fecha_vencimiento__lt=hoy,
+        estado__in=['pendiente', 'parcial'],
+        anulada=False
+    ).count()
+    
+    context = {
+        'ventas_hoy': float(ventas_hoy),
+        'ventas_mes': float(ventas_mes),
+        'total_stock': total_stock,
+        'productos_bajo_stock': productos_bajo_stock,
+        'cuentas_vencidas': cuentas_vencidas,
+        'ventas_semana': json.dumps(ventas_semana),
+        'dias_semana': json.dumps(dias_semana),
+        'top_productos': json.dumps(top_productos_list),
+        'ultimas_ventas': ultimas_ventas,
+        'productos_inventario': productos_inventario,
+        'alertas': json.dumps(alertas[:5]),
+    }
+    
+    return render(request, "facturacion/dashboard.html", context)
+
+
+# ------------------------------
+# DASHBOARD DATA TRADICIONAL (JSON BACKUP)
+# ------------------------------
+def dashboard_data_tradicional(request):
+    """Versión tradicional sin pandas para JSON"""
+    hoy = timezone.now().date()
+    inicio_mes = hoy.replace(day=1)
+    inicio_semana = hoy - timedelta(days=hoy.weekday())
+    
+    # CÁLCULO DE VENTAS CON LA NUEVA LÓGICA
+    # Ventas al contado (total_a_pagar de ventas contado)
+    ventas_contado_hoy = Venta.objects.filter(
+        fecha_venta__date=hoy, 
+        anulada=False, 
+        tipo_venta='contado'
+    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+    # Ventas a crédito (solo monto_pagado)
+    ventas_credito_hoy = CuentaPorCobrar.objects.filter(
+        venta__fecha_venta__date=hoy, 
+        venta__anulada=False,
+        venta__tipo_venta='credito',
+        anulada=False
+    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+    # Total ventas hoy
+    ventas_hoy = ventas_contado_hoy + ventas_credito_hoy
+
+    # Cálculo similar para el mes
+    ventas_contado_mes = Venta.objects.filter(
+        fecha_venta__date__gte=inicio_mes, 
+        anulada=False, 
+        tipo_venta='contado'
+    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+
+    ventas_credito_mes = CuentaPorCobrar.objects.filter(
+        venta__fecha_venta__date__gte=inicio_mes,
+        venta__anulada=False,
+        venta__tipo_venta='credito',
+        anulada=False
+    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+
+    ventas_mes = ventas_contado_mes + ventas_credito_mes
+
+    # Ventas de la semana con la nueva lógica
+    ventas_semana = []
+    dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    
+    for i in range(7):
+        dia = inicio_semana + timedelta(days=i)
+        
+        # Ventas contado del día (total_a_pagar)
+        ventas_contado_dia = Venta.objects.filter(
+            fecha_venta__date=dia, 
+            anulada=False, 
+            tipo_venta='contado'
+        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        
+        # Ventas crédito del día (solo monto_pagado)
+        ventas_credito_dia = CuentaPorCobrar.objects.filter(
+            venta__fecha_venta__date=dia,
+            venta__anulada=False,
+            venta__tipo_venta='credito',
+            anulada=False
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+        
+        # Total del día
+        total_dia = float(ventas_contado_dia + ventas_credito_dia)
+        ventas_semana.append(total_dia)
+    
+    # El resto del código permanece igual...
+    total_stock = EntradaProducto.objects.filter(activo=True).aggregate(
+        total=Sum('cantidad')
+    )['total'] or 0
+    
+    productos_bajo_stock = EntradaProducto.objects.filter(
+        activo=True,
+        cantidad__lte=F('cantidad_minima')
+    ).count()
+    
+    # Top productos últimos 30 días
+    fecha_30_dias = hoy - timedelta(days=30)
+    top_productos = DetalleVenta.objects.filter(
+        venta__anulada=False,
+        venta__fecha_venta__date__gte=fecha_30_dias
+    ).values(
+        'producto__nombre_producto'
+        ).annotate(
+            total_vendido=Sum('cantidad')
+        ).order_by('-total_vendido')[:5]
+    
+    # Últimas ventas
+    ultimas_ventas = Venta.objects.filter(
+        anulada=False
+    ).select_related('cliente').order_by('-fecha_venta')[:8]
+    
+    # Inventario
+    productos_inventario = list(EntradaProducto.objects.filter(
+        activo=True
+    ).values('nombre_producto', 'marca', 'cantidad', 'costo_venta', 'cantidad_minima')[:10])
+    
+    # Alertas
+    alertas_stock = EntradaProducto.objects.filter(
+        activo=True,
+        cantidad__lte=F('cantidad_minima')
+    ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+    
+    alertas = [
+        f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
+        for p in alertas_stock
+    ]
+    
+    # Cuentas por cobrar vencidas
+    cuentas_vencidas = CuentaPorCobrar.objects.filter(
+        fecha_vencimiento__lt=hoy,
+        estado__in=['pendiente', 'parcial'],
+        anulada=False
+    ).count()
+    
+    data = {
+        'sales': {
+            'daily': float(ventas_hoy),
+            'monthly': float(ventas_mes),
+            'weekly': ventas_semana,
+            'weekLabels': dias_semana,
+            'monthlyTrend': [float(ventas_mes)] * 12
+        },
+        'inventory': {
+            'totalStock': total_stock,
+            'totalSold': 0,
+            'lowStockItems': productos_bajo_stock,
+            'categories': [
+                {'name': 'Supergato', 'count': 75},
+                {'name': 'Accesorios', 'count': 45},
+                {'name': 'Repuestos', 'count': 25},
+                {'name': 'Tablets', 'count': 11}
+            ]
+        },
+        'topProducts': [{
+            'nombre_producto': item['producto__nombre_producto'],
+            'total_vendido': item['total_vendido']
+        } for item in top_productos],
+        'recentSales': [{
+            'id': venta.id,
+            'producto': f"{venta.cliente_nombre} - {venta.numero_factura}",
+            'monto': float(venta.total),
+            'fecha': venta.fecha_venta.strftime('%Y-%m-%d'),
+            'hora': venta.fecha_venta.strftime('%H:%M'),
+            'estado': 'completada',
+            'cantidad': 1
+        } for venta in ultimas_ventas],
+        'inventoryItems': productos_inventario,
+        'lowStockAlerts': alertas[:5],
+        'overdueAccounts': cuentas_vencidas
+    }
+    
+    return JsonResponse(data)
+# ------------------------------
+# inventario
+# ------------------------------
+# Función para verificar si el usuario es superusuario
+
+
+
+# Decorador personalizado para requerir superusuario
+def superuser_required(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        print(f"Usuario autenticado: {request.user.is_authenticated}")  # Debug
+        print(f"Es superusuario: {request.user.is_superuser}")  # Debug
+        print(f"Usuario: {request.user}")  # Debug
+        
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Authentication required', 'status': 401}, status=401)
+        if not request.user.is_superuser:
+            return JsonResponse({'error': 'Superuser privileges required', 'status': 403}, status=403)
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
 
 
 
@@ -78,15 +774,20 @@ def inventario_datos(request):
         
         return JsonResponse({
             'productos': productos,
-            'proveedores': proveedores
+            'proveedores': proveedores,
+            'user': {
+                'is_superuser': request.user.is_superuser,
+                'username': request.user.username
+            }
         })
     except Exception as e:
         return JsonResponse({'error': 'Error interno del servidor: ' + str(e)}, status=500)
 
 
-
+# ------------------------------
 @require_http_methods(["PUT"])
 @csrf_exempt
+@superuser_required
 def inventario_editar(request, id):
     try:
         # Obtener el producto
@@ -95,7 +796,6 @@ def inventario_editar(request, id):
         
         # Actualizar campos
         producto.numero_factura = data.get('numero_factura', producto.numero_factura)
-        
         
         # Manejar el proveedor (puede ser ID o objeto)
         proveedor_id = data.get('proveedor')
@@ -116,7 +816,7 @@ def inventario_editar(request, id):
         producto.costo_venta = data.get('costo_venta', producto.costo_venta)
         producto.observaciones = data.get('observaciones', producto.observaciones)
         
-        # Guardar cambios (los cálculos se harán automáticamente en el método save)
+        # Guardar cambios
         producto.save()
         
         # Devolver el producto actualizado
@@ -132,7 +832,10 @@ def inventario_editar(request, id):
             'costo_compra': float(producto.costo_compra),
             'costo_venta': float(producto.costo_venta),
             'ncf': producto.ncf,
-            'observaciones': producto.observaciones
+            'observaciones': producto.observaciones,
+            'proveedor': producto.proveedor.id if producto.proveedor else None,
+            'numero_factura': producto.numero_factura,
+            'porcentaje_itbis': float(producto.porcentaje_itbis) if producto.porcentaje_itbis else None
         }
         
         return JsonResponse(producto_actualizado)
@@ -140,9 +843,12 @@ def inventario_editar(request, id):
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+
 
 @require_http_methods(["DELETE"])
 @csrf_exempt
+@superuser_required
 def inventario_eliminar(request, id):
     try:
         producto = EntradaProducto.objects.get(id=id)
@@ -152,7 +858,6 @@ def inventario_eliminar(request, id):
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
 
 
 
@@ -1747,6 +2452,9 @@ def buscar_productos_similares(request):
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
 
 
+
+
+
 def cuentaporcobrar(request):
     # Obtener parámetros de filtrado
     search = request.GET.get('search', '')
@@ -1773,14 +2481,22 @@ def cuentaporcobrar(request):
     if date_to:
         cuentas = cuentas.filter(venta__fecha_venta__lte=date_to)
     
-    # Calcular estadísticas usando monto_total (solo cuentas no anuladas)
-    total_pendiente = cuentas.filter(estado__in=['pendiente', 'parcial']).aggregate(
-        total=Sum(F('monto_total') - F('monto_pagado'))
-    )['total'] or Decimal('0.00')
+    # Calcular estadísticas usando monto_total de CuentaPorCobrar (solo cuentas no anuladas)
+    total_pendiente = Decimal('0.00')
+    total_vencido = Decimal('0.00')
+    total_por_cobrar = Decimal('0.00')
     
-    total_vencido = cuentas.filter(estado='vencida').aggregate(
-        total=Sum(F('monto_total') - F('monto_pagado'))
-    )['total'] or Decimal('0.00')
+    for cuenta in cuentas:
+        # CAMBIO: Usar siempre monto_total de CuentaPorCobrar
+        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
+        
+        if cuenta.estado in ['pendiente', 'parcial']:
+            total_pendiente += saldo_pendiente
+        elif cuenta.estado == 'vencida':
+            total_vencido += saldo_pendiente
+        
+        if cuenta.estado != 'pagada':
+            total_por_cobrar += saldo_pendiente
     
     # Pagos del mes actual (solo de cuentas no anuladas)
     mes_actual = timezone.now().month
@@ -1790,10 +2506,6 @@ def cuentaporcobrar(request):
         fecha_pago__year=año_actual,
         cuenta__anulada=False
     ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
-    
-    total_por_cobrar = cuentas.exclude(estado='pagada').aggregate(
-        total=Sum(F('monto_total') - F('monto_pagado'))
-    )['total'] or Decimal('0.00')
     
     # Preparar datos para el template
     cuentas_data = []
@@ -1883,10 +2595,24 @@ def cuentaporcobrar(request):
         if cuenta.fecha_vencimiento:
             due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
         
-        # USAR MONTO_TOTAL PARA TODOS LOS CÁLCULOS
-        monto_total = float(cuenta.monto_total)
+        # CAMBIO PRINCIPAL: Usar total_a_pagar para "Monto Original" y monto_total de CuentaPorCobrar para cálculos
+        monto_total_original = 0  # total_a_pagar de Venta (solo para mostrar)
+        monto_cuenta_cobrar = float(cuenta.monto_total)  # monto_total de CuentaPorCobrar (para cálculos)
+        
+        if cuenta.venta:
+            # Usar total_a_pagar como "Monto Total Original" solo para mostrar
+            if cuenta.venta.total_a_pagar:
+                monto_total_original = float(cuenta.venta.total_a_pagar)
+            else:
+                monto_total_original = float(cuenta.venta.total or 0)
+        else:
+            # Fallback a los valores de la cuenta si no hay venta
+            monto_total_original = monto_cuenta_cobrar
+        
         monto_pagado = float(cuenta.monto_pagado)
-        saldo_pendiente = monto_total - monto_pagado
+        
+        # Calcular saldo pendiente basado en monto_total de CuentaPorCobrar
+        saldo_pendiente = monto_cuenta_cobrar - monto_pagado
         
         # Asegurarse de que el saldo pendiente no sea negativo
         if saldo_pendiente < 0:
@@ -1900,9 +2626,10 @@ def cuentaporcobrar(request):
             'products': productos,
             'saleDate': sale_date,
             'dueDate': due_date,
-            'totalAmount': monto_total,  # Usar monto_total aquí
+            'totalAmount': monto_total_original,  # total_a_pagar (solo para mostrar "Monto Original")
+            'totalWithInterest': monto_cuenta_cobrar,  # monto_total de CuentaPorCobrar (para cálculos y "Monto Total Pendiente")
             'paidAmount': monto_pagado,
-            'pendingBalance': saldo_pendiente,  # Calculado con monto_total
+            'pendingBalance': saldo_pendiente,  # basado en monto_total de CuentaPorCobrar
             'status': cuenta.estado,
             'observations': cuenta.observaciones or ''
         })
@@ -1943,8 +2670,14 @@ def registrar_pago(request):
                     'message': 'No se puede registrar pago en una cuenta anulada'
                 })
             
+            # CAMBIO: Calcular saldo pendiente basado en total_con_interes
+            monto_con_interes = cuenta.monto_total  # default
+            if cuenta.venta and cuenta.venta.total_con_interes:
+                monto_con_interes = cuenta.venta.total_con_interes
+            
+            saldo_pendiente = monto_con_interes - cuenta.monto_pagado
+            
             # Validar que el monto no exceda el saldo pendiente
-            saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
             if monto > saldo_pendiente:
                 return JsonResponse({
                     'success': False,
@@ -1973,26 +2706,25 @@ def registrar_pago(request):
             # Actualizar la cuenta
             cuenta.monto_pagado += monto
             
-            # Actualizar el estado basado en el monto total
-            if cuenta.monto_pagado >= cuenta.monto_total:
+            # Actualizar el estado basado en total_con_interes
+            nuevo_saldo = monto_con_interes - cuenta.monto_pagado
+            if nuevo_saldo <= 0:
                 cuenta.estado = 'pagada'
             elif cuenta.monto_pagado > 0:
                 cuenta.estado = 'parcial'
             
             cuenta.save()
             
-            # Calcular nuevo saldo pendiente
-            nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
-            
             return JsonResponse({
                 'success': True,
                 'message': f'Pago registrado exitosamente. Comprobante: {comprobante.numero_comprobante}',
                 'comprobante_numero': comprobante.numero_comprobante,
-                'comprobante_id': comprobante.id,  # AÑADIR ESTO PARA EL PDF
+                'comprobante_id': comprobante.id,
                 'nuevo_saldo_pendiente': float(nuevo_saldo),
-                'monto_total_original': float(cuenta.monto_total),
+                'monto_total_original': float(cuenta.venta.total_a_pagar if cuenta.venta and cuenta.venta.total_a_pagar else cuenta.monto_total),
+                'monto_total_con_interes': float(monto_con_interes),
                 'monto_pagado_total': float(cuenta.monto_pagado),
-                'estado_actual': cuenta.estado  # AÑADIR ESTADO ACTUALIZADO
+                'estado_actual': cuenta.estado
             })
             
         except Exception as e:
@@ -2015,6 +2747,11 @@ def generar_comprobante_pdf(request, comprobante_id):
         # Crear el objeto PDF
         p = canvas.Canvas(response)
         
+        # Obtener información de totales
+        monto_original = comprobante.cuenta.venta.total_a_pagar if comprobante.cuenta.venta and comprobante.cuenta.venta.total_a_pagar else comprobante.cuenta.monto_total
+        monto_con_interes = comprobante.cuenta.venta.total_con_interes if comprobante.cuenta.venta and comprobante.cuenta.venta.total_con_interes else monto_original
+        saldo_pendiente = monto_con_interes - comprobante.cuenta.monto_pagado
+        
         # Agregar contenido al PDF
         p.setFont("Helvetica-Bold", 16)
         p.drawString(100, 800, "COMPROBANTE DE PAGO")
@@ -2024,13 +2761,21 @@ def generar_comprobante_pdf(request, comprobante_id):
         p.drawString(100, 750, f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}")
         p.drawString(100, 730, f"Cliente: {comprobante.cliente.full_name}")
         p.drawString(100, 710, f"Factura: {comprobante.cuenta.venta.numero_factura}")
-        p.drawString(100, 690, f"Monto: RD$ {comprobante.pago.monto:,.2f}")
+        p.drawString(100, 690, f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}")
         p.drawString(100, 670, f"Método: {comprobante.pago.get_metodo_pago_display()}")
         
-        if comprobante.pago.referencia:
-            p.drawString(100, 650, f"Referencia: {comprobante.pago.referencia}")
+        # Información adicional de totales
+        p.drawString(100, 640, f"Monto Original Factura: RD$ {monto_original:,.2f}")
+        if monto_con_interes > monto_original:
+            p.drawString(100, 620, f"Total con Intereses: RD$ {monto_con_interes:,.2f}")
+            p.drawString(100, 600, f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}")
+        else:
+            p.drawString(100, 620, f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}")
         
-        p.drawString(100, 630, "¡Gracias por su pago!")
+        if comprobante.pago.referencia:
+            p.drawString(100, 580, f"Referencia: {comprobante.pago.referencia}")
+        
+        p.drawString(100, 550, "¡Gracias por su pago!")
         
         # Finalizar el PDF
         p.showPage()
@@ -2043,6 +2788,7 @@ def generar_comprobante_pdf(request, comprobante_id):
             'success': False,
             'message': f'Error al generar comprobante: {str(e)}'
         })
+
 # ===== VISTA PARA LISTAR COMPROBANTES =====
 def lista_comprobantes(request):
     comprobantes = ComprobantePago.objects.select_related(
@@ -2070,8 +2816,13 @@ def anular_cuenta(request, cuenta_id):
         try:
             cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
             
-            # Verificar que la cuenta no esté ya pagada completamente (usando monto_total)
-            if cuenta.monto_pagado >= cuenta.monto_total:
+            # CAMBIO: Verificar usando total_con_interes
+            monto_con_interes = cuenta.monto_total
+            if cuenta.venta and cuenta.venta.total_con_interes:
+                monto_con_interes = cuenta.venta.total_con_interes
+            
+            # Verificar que la cuenta no esté ya pagada completamente
+            if cuenta.monto_pagado >= monto_con_interes:
                 return JsonResponse({
                     'success': False,
                     'message': 'No se puede anular una cuenta completamente pagada'
@@ -2101,6 +2852,11 @@ def detalle_cuenta(request, cuenta_id):
     
     pagos = PagoCuentaPorCobrar.objects.filter(cuenta=cuenta).order_by('-fecha_pago')
     
+    # CAMBIO: Usar total_a_pagar y total_con_interes
+    monto_original = cuenta.venta.total_a_pagar if cuenta.venta and cuenta.venta.total_a_pagar else cuenta.monto_total
+    monto_con_interes = cuenta.venta.total_con_interes if cuenta.venta and cuenta.venta.total_con_interes else monto_original
+    saldo_pendiente = monto_con_interes - cuenta.monto_pagado
+    
     data = {
         'id': cuenta.id,
         'factura': cuenta.venta.numero_factura,
@@ -2113,12 +2869,13 @@ def detalle_cuenta(request, cuenta_id):
                 'precio': item.precio
             }
             for item in cuenta.venta.detalles.all()
-        ],
-        'fecha_venta': cuenta.venta.fecha_venta.strftime('%Y-%m-%d'),
-        'fecha_vencimiento': cuenta.fecha_vencimiento.strftime('%Y-%m-%d'),
-        'monto_total': float(cuenta.monto_total),
+        ] if cuenta.venta else [],
+        'fecha_venta': cuenta.venta.fecha_venta.strftime('%Y-%m-%d') if cuenta.venta else '',
+        'fecha_vencimiento': cuenta.fecha_vencimiento.strftime('%Y-%m-%d') if cuenta.fecha_vencimiento else '',
+        'monto_total_original': float(monto_original),  # total_a_pagar
+        'monto_total_con_interes': float(monto_con_interes),  # total_con_interes
         'monto_pagado': float(cuenta.monto_pagado),
-        'saldo_pendiente': float(cuenta.saldo_pendiente),
+        'saldo_pendiente': float(saldo_pendiente),  # basado en total_con_interes
         'estado': cuenta.get_estado_display(),
         'observaciones': cuenta.observaciones or 'N/A',
         'pagos': [
@@ -2138,16 +2895,17 @@ def detalle_cuenta(request, cuenta_id):
 
 
 
+
 def gestiondesuplidores(request):
     proveedores = Proveedor.objects.all().order_by('nombre_empresa')
     paises = Proveedor.PAIS_CHOICES
-    categorias = Proveedor.CATEGORIA_CHOICES
+    # categorias = Proveedor.CATEGORIA_CHOICES
     terminos_pago = Proveedor.TERMINOS_PAGO_CHOICES
     
     context = {
         'proveedores': proveedores,
         'paises': paises,
-        'categorias': categorias,
+        # 'categorias': categorias,
         'terminos_pago': terminos_pago,
     }
     return render(request, "facturacion/gestiondesuplidores.html", context)
@@ -2164,7 +2922,7 @@ def agregar_proveedor(request):
                 whatsapp=request.POST.get('whatsapp', ''),
                 pais=request.POST.get('country'),
                 ciudad=request.POST.get('city'),
-                categoria=request.POST.get('category'),
+                # categoria=request.POST.get('category'),
                 direccion=request.POST.get('address', ''),
                 terminos_pago=request.POST.get('paymentTerms', ''),
                 limite_credito=request.POST.get('creditLimit', 0) or 0,
@@ -2191,7 +2949,7 @@ def editar_proveedor(request):
             proveedor.whatsapp = request.POST.get('whatsapp', '')
             proveedor.pais = request.POST.get('country')
             proveedor.ciudad = request.POST.get('city')
-            proveedor.categoria = request.POST.get('category')
+            # proveedor.categoria = request.POST.get('category')
             proveedor.direccion = request.POST.get('address', '')
             proveedor.terminos_pago = request.POST.get('paymentTerms', '')
             proveedor.limite_credito = request.POST.get('creditLimit', 0) or 0
@@ -2230,7 +2988,7 @@ def get_proveedor_data(request, id):
         'whatsapp': proveedor.whatsapp or '',
         'pais': proveedor.pais,
         'ciudad': proveedor.ciudad,
-        'categoria': proveedor.categoria,
+        # 'categoria': proveedor.categoria,
         'direccion': proveedor.direccion or '',
         'terminos_pago': proveedor.terminos_pago or '',
         'limite_credito': str(proveedor.limite_credito),
@@ -2252,7 +3010,7 @@ def registrosuplidores(request):
                 whatsapp=request.POST.get('whatsapp', ''),  # Campo opcional
                 pais=request.POST.get('pais'),
                 ciudad=request.POST.get('ciudad'),
-                categoria=request.POST.get('categoria'),
+                # categoria=request.POST.get('categoria'),
                 direccion=request.POST.get('direccion', ''),  # Campo opcional
                 terminos_pago=request.POST.get('terminos_pago', ''),  # Campo opcional
                 limite_credito=request.POST.get('limite_credito', 0) or 0,  # Valor por defecto 0
@@ -3310,45 +4068,77 @@ def buscar_facturaR(request):
     # Esta vista busca una factura por su número y devuelve los datos en JSON
     numero_factura = request.GET.get('numero_factura')
     
+    if not numero_factura:
+        return JsonResponse({'error': 'Número de factura no proporcionado'}, status=400)
+    
     try:
         # Buscar la venta por número de factura
         venta = get_object_or_404(Venta, numero_factura=numero_factura)
         
+        # Verificar si la factura está anulada
+        if venta.anulada:
+            return JsonResponse({'error': 'Esta factura ha sido anulada'}, status=400)
+        
         # Obtener los detalles de la venta
         detalles = DetalleVenta.objects.filter(venta=venta)
+        
+        # Manejar el caso cuando el cliente es None
+        if venta.cliente:
+            # Usa los nombres correctos de los campos del modelo Cliente
+            # Revisa tu modelo Cliente para ver los nombres exactos
+            cliente_nombre = venta.cliente.name if hasattr(venta.cliente, 'name') else (
+                venta.cliente.nombres if hasattr(venta.cliente, 'nombres') else "Cliente"
+            )
+            cliente_documento = venta.cliente.cedula if hasattr(venta.cliente, 'cedula') else (
+                venta.cliente.documento if hasattr(venta.cliente, 'documento') else "N/A"
+            )
+            cliente_apodo = venta.cliente.apodo if hasattr(venta.cliente, 'apodo') else None
+            cliente_telefono = venta.cliente.telefono if hasattr(venta.cliente, 'telefono') else None
+            cliente_direccion = venta.cliente.direccion if hasattr(venta.cliente, 'direccion') else (
+                venta.cliente.direccion_completa if hasattr(venta.cliente, 'direccion_completa') else None
+            )
+        else:
+            cliente_nombre = venta.cliente_nombre or "Consumidor Final"
+            cliente_documento = venta.cliente_documento or "N/A"
+            cliente_apodo = None
+            cliente_telefono = None
+            cliente_direccion = None
         
         # Preparar los datos de la venta para la respuesta JSON
         datos_venta = {
             'fecha': venta.fecha_venta.strftime('%d/%m/%Y %H:%M'),
             'numero_factura': venta.numero_factura,
-            'ncf': venta.ncf,
-            'cliente_nombre': venta.cliente.nombre if venta.cliente else venta.cliente_nombre,
-            'cliente_documento': venta.cliente.cedula if venta.cliente and venta.cliente.cedula else venta.cliente_documento,
-            'cliente_apodo': venta.cliente.apodo if venta.cliente else None,
-            'cliente_telefono': venta.cliente.telefono if venta.cliente else None,
-            'cliente_direccion': venta.cliente.direccion if venta.cliente else None,
+            'ncf': venta.ncf if hasattr(venta, 'ncf') and venta.ncf else 'B0140000000',
+            'cliente_nombre': cliente_nombre,
+            'cliente_documento': cliente_documento,
+            'cliente_apodo': cliente_apodo,
+            'cliente_telefono': cliente_telefono,
+            'cliente_direccion': cliente_direccion,
             'tipo_venta': venta.tipo_venta,
             'tipo_venta_display': venta.get_tipo_venta_display(),
+            'metodo_pago': venta.metodo_pago,
             'metodo_pago_display': venta.get_metodo_pago_display(),
             'subtotal': float(venta.subtotal),
             'descuento_monto': float(venta.descuento_monto),
             'total_a_pagar': float(venta.total_a_pagar),
-            'fecha_vencimiento': venta.fecha_vencimiento.strftime('%d/%m/%Y') if venta.fecha_vencimiento else None,
-            'es_financiada': venta.es_financiada,
-            'cuota_mensual': float(venta.cuota_mensual) if venta.cuota_mensual else 0,
-            'interes_total': float(venta.interes_total) if venta.interes_total else 0,
-            'montoinicial': float(venta.montoinicial) if venta.montoinicial else 0,
-            'total_con_interes': float(venta.total_con_interes) if venta.total_con_interes else 0,
-            'vendedor_nombre': venta.vendedor.get_full_name() if venta.vendedor.get_full_name() else venta.vendedor.username,
+            'fecha_vencimiento': venta.fecha_vencimiento.strftime('%d/%m/%Y') if hasattr(venta, 'fecha_vencimiento') and venta.fecha_vencimiento else None,
+            'es_financiada': venta.es_financiada if hasattr(venta, 'es_financiada') else False,
+            'cuota_mensual': float(venta.cuota_mensual) if hasattr(venta, 'cuota_mensual') and venta.cuota_mensual else 0,
+            'interes_total': float(venta.interes_total) if hasattr(venta, 'interes_total') and venta.interes_total else 0,
+            'montoinicial': float(venta.montoinicial) if hasattr(venta, 'montoinicial') and venta.montoinicial else 0,
+            'total_con_interes': float(venta.total_con_interes) if hasattr(venta, 'total_con_interes') and venta.total_con_interes else 0,
+            'vendedor_nombre': venta.vendedor.get_full_name() if venta.vendedor and venta.vendedor.get_full_name() else (
+                venta.vendedor.username if venta.vendedor else "Sistema"
+            ),
             'detalles': []
         }
         
         # Agregar los detalles de los productos
         for detalle in detalles:
             datos_venta['detalles'].append({
-                'producto_codigo': detalle.producto.codigo_producto,
-                'producto_nombre': detalle.producto.nombre_producto,
-                'producto_descripcion': detalle.producto.descripcion,
+                'producto_codigo': detalle.producto.codigo_producto if detalle.producto and hasattr(detalle.producto, 'codigo_producto') else "N/A",
+                'producto_nombre': detalle.producto.nombre_producto if detalle.producto and hasattr(detalle.producto, 'nombre_producto') else "Producto",
+                'producto_descripcion': detalle.producto.descripcion if detalle.producto and hasattr(detalle.producto, 'descripcion') else "",
                 'cantidad': detalle.cantidad,
                 'precio_unitario': float(detalle.precio_unitario),
                 'subtotal': float(detalle.subtotal)
@@ -3358,3 +4148,37 @@ def buscar_facturaR(request):
         
     except Venta.DoesNotExist:
         return JsonResponse({'error': 'Factura no encontrada'}, status=404)
+    except Exception as e:
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error en buscar_facturaR: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+
+def ultima_factura(request):
+    # Esta vista devuelve la última factura según el tipo (crédito/contado)
+    tipo_venta = request.GET.get('tipo_venta')
+    
+    if not tipo_venta or tipo_venta not in ['contado', 'credito']:
+        return JsonResponse({'error': 'Tipo de venta no válido'}, status=400)
+    
+    try:
+        # Buscar la última venta del tipo especificado
+        ultima_venta = Venta.objects.filter(
+            tipo_venta=tipo_venta, 
+            anulada=False
+        ).order_by('-fecha_venta').first()
+        
+        if not ultima_venta:
+            return JsonResponse({'error': f'No hay facturas de tipo {tipo_venta}'}, status=404)
+        
+        return JsonResponse({
+            'numero_factura': ultima_venta.numero_factura,
+            'fecha': ultima_venta.fecha_venta.strftime('%d/%m/%Y %H:%M'),
+            'tipo_venta': ultima_venta.tipo_venta
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

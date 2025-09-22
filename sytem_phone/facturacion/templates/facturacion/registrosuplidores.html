@@ -271,7 +271,7 @@
         }
 
         .form-input:invalid:not(:placeholder-shown) {
-            border-color = '#dc3545';
+            border-color: '#dc3545';
         }
 
         .form-textarea {
@@ -508,69 +508,81 @@
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-    <!-- Sidebar Navigation -->
+   <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>
                 <i class='bx bx-mobile-alt'></i>
-               DEREJSOFT
+                DEREJSOFT
             </h2>
-            <p>Derejsoft - superadmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ user.username }}</p>
+            <p>{{ user.email }}</p>
         </div>
         <div class="sidebar-menu">
             <a href="#" class="menu-item">
                 <i class='bx bx-home-alt'></i>
                 <span>Inicio</span>
             </a>
-            <a href="{% url 'ventas'  %}" class="menu-item">
+            <a href="{% url 'ventas' %}" class="menu-item">
                 <i class='bx bx-package'></i>
-                <span>Facturacion</span>
+                <span>facturacion</span>
             </a>
             <a href="{% url 'registrodecliente'  %}" class="menu-item">
                 <i class='bx bx-dollar-circle'></i>
-                <span>Registrar Clientes</span>
+                <span>Registrar Cliente</span>
             </a>
-            <a href="{% url 'listadecliente'  %}" class="menu-item">
+            <a href="{% url 'listadecliente' %}" class="menu-item">
                 <i class='bx bx-user-plus'></i>
                 <span>Clientes</span>
             </a>
+            <a href="{% url 'entrada'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Entrada mercancia</span>
+            </a>
             <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
                 <i class='bx bx-shopping-bag'></i>
-                <span>Cuenta Por Cobrar</span>
-            </a>
-            <a href="{% url 'entrada'  %}" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Entrada De mercancia</span>
+                <span>Cuenta por Cobrar</span>
             </a>
             <a href="{% url 'inventario'  %}" class="menu-item">
-                <i class='bx bx-user'></i>
+                <i class='bx bx-credit-card'></i>
                 <span>Inventario</span>
             </a>
             <a href="{% url 'registrosuplidores'  %}" class="menu-item active">
-                <i class='bx bx-trending-up'></i>
+                <i class='bx bx-bar-chart-alt-2'></i>
                 <span>Registrar Suplidores</span>
             </a>
             <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
-                <i class='bx bx-store'></i>
-                <span>suplidores</span>
+                <i class='bx bx-trending-up'></i>
+                <span>Suplidores</span>
             </a>
-            <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-cog'></i>
-                <span>Ajuste Inventario</span>
+                        <a href="{% url 'devoluciones'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Devoluciones</span>
+            </a>
+            <a href="{% url 'roles'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Roles</span>
+            </a>
+            <a href="{% url 'anular'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Anular Factura</span>
             </a>
 
+            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
+                <i class='bx bx-store'></i>
+                <span>Ajuste Inventario</span>
+            </a> -->
             <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
                 <span>Dashboard</span>
-
+            </a>
             <a href="{% url 'index'  %}" class="menu-item">
                 <i class='bx bx-log-out'></i>
                 <span>Cerrar Sesión</span>
             </a>
         </div>
         <div class="sidebar-footer">
-            <p>Dalecompra v 1.2.2</p>
+            <p>Derejsoft v 1.2.2</p>
         </div>
     </nav>
 
@@ -673,6 +685,7 @@
                                 <option value="CN" {% if valores.pais == 'CN' %}selected{% endif %}>China</option>
                                 <option value="KR" {% if valores.pais == 'KR' %}selected{% endif %}>Corea del Sur</option>
                                 <option value="TW" {% if valores.pais == 'TW' %}selected{% endif %}>Taiwán</option>
+                                <option value="JP" {% if valores.pais == 'JP' %}selected{% endif %}>Japón</option>
                             </select>
                             <div class="error-message" id="paisError"></div>
                         </div>
@@ -685,7 +698,7 @@
                             <div class="error-message" id="ciudadError"></div>
                         </div>
 
-                        <div class="form-group">
+                        <!-- <div class="form-group">
                             <label class="form-label" for="categoria">Categoría de Productos *</label>
                             <select id="categoria" name="categoria" class="form-input form-select" required>
                                 <option value="">Seleccionar categoría</option>
@@ -699,7 +712,7 @@
                                 <option value="fundas" {% if valores.categoria == 'fundas' %}selected{% endif %}>Fundas y Protectores</option>
                             </select>
                             <div class="error-message" id="categoriaError"></div>
-                        </div>
+                        </div> -->
 
                         <div class="form-group full-width">
                             <label class="form-label" for="direccion">Dirección Completa</label>
@@ -898,12 +911,12 @@
                     }
                     break;
 
-                case 'categoria':
-                    if (!value) {
-                        errorMessage = 'Debe seleccionar una categoría';
-                        isValid = false;
-                    }
-                    break;
+                // case 'categoria':
+                //     if (!value) {
+                //         errorMessage = 'Debe seleccionar una categoría';
+                //         isValid = false;
+                //     }
+                //     break;
             }
 
             if (errorElement) {
@@ -938,7 +951,7 @@
 
         // Validar formulario antes de enviar
         document.getElementById('supplierForm').addEventListener('submit', function(e) {
-            const requiredFields = ['nombre_empresa', 'rnc', 'nombre_contacto', 'email', 'telefono', 'pais', 'ciudad', 'categoria'];
+            const requiredFields = ['nombre_empresa', 'rnc', 'nombre_contacto', 'email', 'telefono', 'pais', 'ciudad'];
             let isFormValid = true;
 
             requiredFields.forEach(fieldName => {

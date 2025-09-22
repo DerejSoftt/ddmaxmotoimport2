@@ -435,7 +435,7 @@
         .badge {
             display: inline-block;
             padding: 4px 10px;
-            borderRadius: 20px;
+            border-radius: 20px;
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
@@ -1173,8 +1173,7 @@
 
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
-
-    <!-- Sidebar Navigation -->
+   <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>
@@ -1221,10 +1220,23 @@
                 <i class='bx bx-trending-up'></i>
                 <span>Suplidores</span>
             </a>
-            <a href="{% url 'reavastecer'  %}" class="menu-item">
+                        <a href="{% url 'devoluciones'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Devoluciones</span>
+            </a>
+            <a href="{% url 'roles'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Roles</span>
+            </a>
+            <a href="{% url 'anular'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Anular Factura</span>
+            </a>
+
+            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
                 <i class='bx bx-store'></i>
                 <span>Ajuste Inventario</span>
-            </a>
+            </a> -->
             <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
                 <span>Dashboard</span>

@@ -715,73 +715,83 @@
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-    <!-- Sidebar Navigation -->
-    <div class="sidebar" id="sidebar">
+   <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>
                 <i class='bx bx-mobile-alt'></i>
-               DEREJSOFT
+                DEREJSOFT
             </h2>
-            <p>Derejsoft - superadmin</p>
-            <p>derejsoft2003@gmail.com</p>
+            <p>Usuario: {{ user.username }}</p>
+            <p>{{ user.email }}</p>
         </div>
-        <nav class="sidebar-menu">
-            <div class="sidebar-menu">
+        <div class="sidebar-menu">
+            <a href="#" class="menu-item">
+                <i class='bx bx-home-alt'></i>
+                <span>Inicio</span>
+            </a>
+            <a href="{% url 'ventas' %}" class="menu-item">
+                <i class='bx bx-package'></i>
+                <span>facturacion</span>
+            </a>
+            <a href="{% url 'registrodecliente'  %}" class="menu-item">
+                <i class='bx bx-dollar-circle'></i>
+                <span>Registrar Cliente</span>
+            </a>
+            <a href="{% url 'listadecliente' %}" class="menu-item">
+                <i class='bx bx-user-plus'></i>
+                <span>Clientes</span>
+            </a>
+            <a href="{% url 'entrada'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Entrada mercancia</span>
+            </a>
+            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
+                <i class='bx bx-shopping-bag'></i>
+                <span>Cuenta por Cobrar</span>
+            </a>
+            <a href="{% url 'inventario'  %}" class="menu-item">
+                <i class='bx bx-credit-card'></i>
+                <span>Inventario</span>
+            </a>
+            <a href="{% url 'registrosuplidores'  %}" class="menu-item">
+                <i class='bx bx-bar-chart-alt-2'></i>
+                <span>Registrar Suplidores</span>
+            </a>
+            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Suplidores</span>
+            </a>
+            <a href="{% url 'devoluciones'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Devoluciones</span>
+            </a>
+            <a href="{% url 'roles'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Roles</span>
+            </a>
+            <a href="{% url 'anular'  %}" class="menu-item">
+                <i class='bx bx-trending-up'></i>
+                <span>Anular Factura</span>
+            </a>
 
-                <a href="#" class="menu-item">
-                    <i class='bx bx-tachometer'></i>
-                    <span>Inicio</span>
-                </a>
-                <a href="{% url 'ventas'  %}" class="menu-item">
-                    <i class='bx bx-dollar-circle'></i>
-                    <span>Facturacion</span>
-                </a>
-                <a href="{% url 'registrodecliente'  %}" class="menu-item">
-                    <i class='bx bx-package'></i>
-                    <span>Registrar Clientes</span>
-                </a>
-                <a href="{% url 'listadecliente'  %}" class="menu-item">
-                    <i class='bx bx-credit-card'></i>
-                    <span>Clientes</span>
-                </a>
-                <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
-                    <i class='bx bx-user-plus'></i>
-                    <span>Cuenta Por cobrar</span>
-                </a>
-                <a href="{% url 'entrada'  %}" class="menu-item">
-                    <i class='bx bx-group'></i>
-                    <span>Entrada De mercancia</span>
-                </a>
-                <a href="{% url 'inventario'  %}" class="menu-item">
-                    <i class='bx bx-buildings'></i>
-                    <span>Inventario</span>
-                </a>
-                <a href="{% url 'registrosuplidores'  %}" class="menu-item">
-                    <i class='bx bx-clipboard'></i>
-                    <span>Registrar Suplidores</span>
-                </a>
-                <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
-                    <i class='bx bx-shopping-bag'></i>
-                    <span>Suplidores</span>
-                </a>
-                <a href="{% url 'reavastecer'  %}" class="menu-item">
-                    <i class='bx bx-wrench'></i>
-                    <span>Ajuste Inventario</span>
-                </a>
-                <a href="{% url 'dashboard'  %}" class="menu-item">
-                    <i class='bx bx-trending-up'></i>
-                    <span>Dashboard</span>
-
-                <a href="{% url 'index'  %}" class="menu-item active">
-                    <i class='bx bx-store'></i>
-                    <span>cierrar Sesion</span>
-                </a>
-            </div>
-        </nav>
+            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
+                <i class='bx bx-store'></i>
+                <span>Ajuste Inventario</span>
+            </a> -->
+            <a href="{% url 'dashboard'  %}" class="menu-item active">
+                <i class='bx bx-cog'></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{% url 'index'  %}" class="menu-item">
+                <i class='bx bx-log-out'></i>
+                <span>Cerrar Sesión</span>
+            </a>
+        </div>
         <div class="sidebar-footer">
-            <p>Dalecompra v 1.2.2</p>
+            <p>Derejsoft v 1.2.2</p>
         </div>
-    </div>
+    </nav>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -1009,7 +1019,7 @@
                                 </div>
                             </div>
                             <div>
-                                <h4 style="margin-bottom: 1rem;">Categorías</h4>
+                                <h4 style="margin-bottom: 1rem;">Marcas</h4>
                                 <div class="chart-container" style="height: 200px;">
                                     <canvas id="inventoryChart" class="chart"></canvas>
                                 </div>
@@ -1020,9 +1030,9 @@
                                 <thead>
                                     <tr>
                                         <th>Producto</th>
-                                        <th>Categoría</th>
+                                        <th>Marcas</th>
                                         <th>Stock</th>
-                                        <th>Precio</th>
+                                        <th>Monto</th>
                                         <th>Estado</th>
                                     </tr>
                                 </thead>
@@ -1119,462 +1129,427 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // Datos simulados del sistema
-        const dashboardData = {
-            sales: {
-                daily: 15420,
-                monthly: 342800,
-                weekly: [2400, 3200, 2800, 4100, 3600, 2900, 3800],
-                monthlyTrend: [22000, 24000, 28000, 30000, 32000, 34000, 36000, 38000, 40000, 42000, 44000, 46000],
-                weekLabels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                monthLabels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+       // Datos reales del sistema (se llenarán desde Django)
+let dashboardData = {
+    sales: {
+        daily: 0,
+        monthly: 0,
+        weekly: [],
+        monthlyTrend: [],
+        weekLabels: [],
+        monthLabels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    },
+    inventory: {
+        totalStock: 0,
+        totalSold: 0,
+        lowStockItems: 0,
+        categories: []
+    },
+    topProducts: [],
+    recentSales: [],
+    inventoryItems: [],
+    lowStockAlerts: []
+};
+
+// Variables para los gráficos
+let weeklySalesChart, salesChart, inventoryChart;
+
+// Formatear moneda
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('es-DO', {
+        style: 'currency',
+        currency: 'DOP',
+        minimumFractionDigits: 0
+    }).format(amount);
+}
+
+// Mostrar/ocultar sidebar
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    
+    sidebar.classList.toggle('show');
+    overlay.classList.toggle('active');
+}
+
+// Cambiar vista
+function showView(viewId) {
+    // Ocultar todas las vistas
+    document.querySelectorAll('.view-section').forEach(view => {
+        view.classList.remove('active');
+    });
+    
+    // Mostrar la vista seleccionada
+    const targetView = document.getElementById(viewId);
+    if (targetView) {
+        targetView.classList.add('active');
+    }
+    
+    // Actualizar pestañas de navegación
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    const activeTab = document.querySelector(`.nav-tab[data-view="${viewId}"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+    
+    // Actualizar título de página
+    updatePageTitle(viewId);
+    
+    // Pequeño delay para asegurar que el DOM esté listo antes de actualizar gráficos
+    setTimeout(() => {
+        updateViewContent(viewId);
+    }, 100);
+    
+    // Cerrar sidebar en móviles después de seleccionar
+    if (window.innerWidth <= 992) {
+        toggleSidebar();
+    }
+}
+
+// Actualizar título de página según la vista
+function updatePageTitle(viewId) {
+    const titles = {
+        'overview': 'Resumen General',
+        'sales': 'Análisis de Ventas',
+        'inventory': 'Gestión de Inventario',
+        'products': 'Catálogo de Productos',
+        'alerts': 'Alertas del Sistema',
+        'settings': 'Configuración',
+        'reports': 'Reportes'
+    };
+    
+    const subtitles = {
+        'overview': 'Vista general de las métricas del negocio',
+        'sales': 'Tendencias y análisis de ventas',
+        'inventory': 'Estado actual del inventario',
+        'products': 'Listado completo de productos',
+        'alerts': 'Notificaciones importantes',
+        'settings': 'Configuración del sistema',
+        'reports': 'Generación de reportes'
+    };
+    
+    document.getElementById('pageTitle').textContent = titles[viewId] || 'Dashboard';
+    document.getElementById('pageSubtitle').textContent = subtitles[viewId] || 'Panel de control';
+}
+
+// Actualizar contenido de la vista
+function updateViewContent(viewId) {
+    switch(viewId) {
+        case 'overview':
+            updateOverview();
+            break;
+        case 'sales':
+            updateSalesView();
+            break;
+        case 'inventory':
+            updateInventoryView();
+            break;
+        case 'products':
+            updateProductsView();
+            break;
+        case 'alerts':
+            updateAlertsView();
+            break;
+    }
+}
+
+// Actualizar vista de resumen
+function updateOverview() {
+    // Actualizar estadísticas
+    document.getElementById('dailySales').textContent = formatCurrency(dashboardData.sales.daily);
+    document.getElementById('monthlySales').textContent = formatCurrency(dashboardData.sales.monthly);
+    document.getElementById('totalStock').textContent = dashboardData.inventory.totalStock;
+    document.getElementById('lowStockItems').textContent = dashboardData.inventory.lowStockItems;
+    
+    // Crear/actualizar gráfico de ventas semanales
+    const weeklyCanvas = document.getElementById('weeklySalesChart');
+    if (weeklyCanvas && weeklyCanvas.getContext) {
+        if (weeklySalesChart) {
+            weeklySalesChart.destroy();
+        }
+        
+        const weeklyCtx = weeklyCanvas.getContext('2d');
+        weeklySalesChart = new Chart(weeklyCtx, {
+            type: 'bar',
+            data: {
+                labels: dashboardData.sales.weekLabels,
+                datasets: [{
+                    label: 'Ventas diarias',
+                    data: dashboardData.sales.weekly,
+                    backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 1
+                }]
             },
-            inventory: {
-                totalStock: 156,
-                totalSold: 89,
-                lowStockItems: 8,
-                categories: [
-                    { name: 'Smartphones', count: 75 },
-                    { name: 'Accesorios', count: 45 },
-                    { name: 'Repuestos', count: 25 },
-                    { name: 'Tablets', count: 11 }
-                ]
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatCurrency(context.raw);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Actualizar tabla de últimas ventas
+    const recentSalesTable = document.querySelector('#recentSalesTable tbody');
+    if (recentSalesTable) {
+        recentSalesTable.innerHTML = '';
+        
+        dashboardData.recentSales.slice(0, 5).forEach(sale => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${sale.producto}</td>
+                <td>${sale.hora}</td>
+                <td>${formatCurrency(sale.monto)}</td>
+            `;
+            recentSalesTable.appendChild(row);
+        });
+    }
+    
+    // Actualizar tabla de productos más vendidos
+    const topProductsTable = document.querySelector('#topProductsTable tbody');
+    if (topProductsTable) {
+        topProductsTable.innerHTML = '';
+        
+        dashboardData.topProducts.forEach((product, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${product.nombre_producto}</td>
+                <td>${product.total_vendido}</td>
+            `;
+            topProductsTable.appendChild(row);
+        });
+    }
+}
+
+// Actualizar vista de ventas
+function updateSalesView() {
+    // Crear/actualizar gráfico de ventas mensuales
+    if (salesChart) {
+        salesChart.destroy();
+    }
+    
+    const salesCanvas = document.getElementById('salesChart');
+    if (salesCanvas && salesCanvas.getContext) {
+        const salesCtx = salesCanvas.getContext('2d');
+        salesChart = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: dashboardData.sales.monthLabels,
+                datasets: [{
+                    label: 'Ventas mensuales',
+                    data: dashboardData.sales.monthlyTrend,
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
             },
-            topProducts: [
-                { id: 1, name: 'iPhone 15 Pro', sales: 45, price: 1299, brand: 'Apple', stock: 3, image: 'iphone.jpg' },
-                { id: 2, name: 'Samsung Galaxy S24', sales: 38, price: 899, brand: 'Samsung', stock: 6, image: 'samsung.jpg' },
-                { id: 3, name: 'Xiaomi Redmi Note 13', sales: 32, price: 299, brand: 'Xiaomi', stock: 12, image: 'xiaomi.jpg' },
-                { id: 4, name: 'iPhone 14', sales: 28, price: 999, brand: 'Apple', stock: 8, image: 'iphone.jpg' },
-                { id: 5, name: 'Samsung Galaxy A54', sales: 24, price: 599, brand: 'Samsung', stock: 15, image: 'samsung.jpg' }
-            ],
-            recentSales: [
-                { id: 1001, product: 'iPhone 15 Pro', amount: 1299, quantity: 1, date: '2023-06-15', time: '10:30 AM', status: 'completed' },
-                { id: 1002, product: 'AirPods Pro', amount: 249, quantity: 2, date: '2023-06-15', time: '10:15 AM', status: 'completed' },
-                { id: 1003, product: 'Samsung Galaxy S24', amount: 899, quantity: 1, date: '2023-06-15', time: '09:45 AM', status: 'completed' },
-                { id: 1004, product: 'Funda iPhone', amount: 25, quantity: 3, date: '2023-06-15', time: '09:30 AM', status: 'completed' },
-                { id: 1005, product: 'Cargador Inalámbrico', amount: 45, quantity: 1, date: '2023-06-15', time: '09:15 AM', status: 'completed' },
-                { id: 1006, product: 'Xiaomi Redmi Note 13', amount: 299, quantity: 1, date: '2023-06-15', time: '08:50 AM', status: 'completed' },
-                { id: 1007, product: 'Samsung Galaxy A54', amount: 599, quantity: 1, date: '2023-06-15', time: '08:30 AM', status: 'completed' },
-                { id: 1008, product: 'Protector de Pantalla', amount: 15, quantity: 2, date: '2023-06-15', time: '08:15 AM', status: 'completed' }
-            ],
-            inventoryItems: [
-                { id: 1, name: 'iPhone 15 Pro', category: 'Smartphones', stock: 3, price: 1299, status: 'low' },
-                { id: 2, name: 'Samsung Galaxy S24', category: 'Smartphones', stock: 6, price: 899, status: 'low' },
-                { id: 3, name: 'Xiaomi Redmi Note 13', category: 'Smartphones', stock: 12, price: 299, status: 'ok' },
-                { id: 4, name: 'iPhone 14', category: 'Smartphones', stock: 8, price: 999, status: 'ok' },
-                { id: 5, name: 'Samsung Galaxy A54', category: 'Smartphones', stock: 15, price: 599, status: 'ok' },
-                { id: 6, name: 'AirPods Pro', category: 'Accesorios', stock: 2, price: 249, status: 'low' },
-                { id: 7, name: 'Cargador USB-C', category: 'Accesorios', stock: 5, price: 25, status: 'low' },
-                { id: 8, name: 'Protector de Pantalla', category: 'Accesorios', stock: 4, price: 15, status: 'low' },
-                { id: 9, name: 'Funda iPhone', category: 'Accesorios', stock: 20, price: 25, status: 'ok' },
-                { id: 10, name: 'Cable Lightning', category: 'Accesorios', stock: 18, price: 19, status: 'ok' }
-            ],
-            lowStockAlerts: [
-                'iPhone 15 Pro - Solo 3 unidades restantes',
-                'AirPods Pro - Solo 2 unidades restantes',
-                'Cargador USB-C - Solo 5 unidades restantes',
-                'Protector de Pantalla - Solo 4 unidades restantes',
-                'Samsung Galaxy S24 - Solo 6 unidades restantes'
-            ]
-        };
-
-        // Variables para los gráficos
-        let weeklySalesChart, salesChart, inventoryChart;
-
-        // Formatear moneda
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('es-DO', {
-                style: 'currency',
-                currency: 'DOP',
-                minimumFractionDigits: 0
-            }).format(amount);
-        }
-
-        // Mostrar/ocultar sidebar
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.querySelector('.sidebar-overlay');
-            
-            sidebar.classList.toggle('show');
-            overlay.classList.toggle('active');
-        }
-
-        // Cambiar vista
-        function showView(viewId) {
-            // Ocultar todas las vistas
-            document.querySelectorAll('.view-section').forEach(view => {
-                view.classList.remove('active');
-            });
-            
-            // Mostrar la vista seleccionada
-            const targetView = document.getElementById(viewId);
-            if (targetView) {
-                targetView.classList.add('active');
-            }
-            
-            // Actualizar pestañas de navegación
-            document.querySelectorAll('.nav-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            const activeTab = document.querySelector(`.nav-tab[data-view="${viewId}"]`);
-            if (activeTab) {
-                activeTab.classList.add('active');
-            }
-            
-            // Actualizar título de página
-            updatePageTitle(viewId);
-            
-            // Pequeño delay para asegurar que el DOM esté listo antes de actualizar gráficos
-            setTimeout(() => {
-                updateViewContent(viewId);
-            }, 100);
-            
-            // Cerrar sidebar en móviles después de seleccionar
-            if (window.innerWidth <= 992) {
-                toggleSidebar();
-            }
-        }
-
-        // Actualizar título de página según la vista
-        function updatePageTitle(viewId) {
-            const titles = {
-                'overview': 'Resumen General',
-                'sales': 'Análisis de Ventas',
-                'inventory': 'Gestión de Inventario',
-                'products': 'Catálogo de Productos',
-                'alerts': 'Alertas del Sistema',
-                'settings': 'Configuración',
-                'reports': 'Reportes'
-            };
-            
-            const subtitles = {
-                'overview': 'Vista general de las métricas del negocio',
-                'sales': 'Tendencias y análisis de ventas',
-                'inventory': 'Estado actual del inventario',
-                'products': 'Listado completo de productos',
-                'alerts': 'Notificaciones importantes',
-                'settings': 'Configuración del sistema',
-                'reports': 'Generación de reportes'
-            };
-            
-            document.getElementById('pageTitle').textContent = titles[viewId] || 'Dashboard';
-            document.getElementById('pageSubtitle').textContent = subtitles[viewId] || 'Panel de control';
-        }
-
-        // Actualizar contenido de la vista
-        function updateViewContent(viewId) {
-            switch(viewId) {
-                case 'overview':
-                    updateOverview();
-                    break;
-                case 'sales':
-                    updateSalesView();
-                    break;
-                case 'inventory':
-                    updateInventoryView();
-                    break;
-                case 'products':
-                    updateProductsView();
-                    break;
-                case 'alerts':
-                    updateAlertsView();
-                    break;
-            }
-        }
-
-        // Actualizar vista de resumen
-        function updateOverview() {
-            // Actualizar estadísticas
-            document.getElementById('dailySales').textContent = formatCurrency(dashboardData.sales.daily);
-            document.getElementById('monthlySales').textContent = formatCurrency(dashboardData.sales.monthly);
-            document.getElementById('totalStock').textContent = dashboardData.inventory.totalStock;
-            document.getElementById('lowStockItems').textContent = dashboardData.inventory.lowStockItems;
-            
-            // Crear/actualizar gráfico de ventas semanales
-            const weeklyCanvas = document.getElementById('weeklySalesChart');
-            if (weeklyCanvas && weeklyCanvas.getContext) {
-                if (weeklySalesChart) {
-                    weeklySalesChart.destroy();
-                }
-                
-                const weeklyCtx = weeklyCanvas.getContext('2d');
-                weeklySalesChart = new Chart(weeklyCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: dashboardData.sales.weekLabels,
-                        datasets: [{
-                            label: 'Ventas diarias',
-                            data: dashboardData.sales.weekly,
-                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                            borderColor: 'rgba(102, 126, 234, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        return formatCurrency(value);
-                                    }
-                                }
-                            }
-                        },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return formatCurrency(context.raw);
-                                    }
-                                }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
                             }
                         }
                     }
-                });
-            }
-            
-            // Actualizar tabla de últimas ventas
-            const recentSalesTable = document.querySelector('#recentSalesTable tbody');
-            if (recentSalesTable) {
-                recentSalesTable.innerHTML = '';
-                
-                dashboardData.recentSales.slice(0, 5).forEach(sale => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${sale.product}</td>
-                        <td>${sale.time}</td>
-                        <td>${formatCurrency(sale.amount)}</td>
-                    `;
-                    recentSalesTable.appendChild(row);
-                });
-            }
-            
-            // Actualizar tabla de productos más vendidos
-            const topProductsTable = document.querySelector('#topProductsTable tbody');
-            if (topProductsTable) {
-                topProductsTable.innerHTML = '';
-                
-                dashboardData.topProducts.forEach((product, index) => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${index + 1}</td>
-                        <td>${product.name}</td>
-                        <td>${product.sales}</td>
-                    `;
-                    topProductsTable.appendChild(row);
-                });
-            }
-        }
-
-        // Actualizar vista de ventas
-        function updateSalesView() {
-            // Crear/actualizar gráfico de ventas mensuales
-            if (salesChart) {
-                salesChart.destroy();
-            }
-            
-            const salesCtx = document.getElementById('salesChart').getContext('2d');
-            salesChart = new Chart(salesCtx, {
-                type: 'line',
-                data: {
-                    labels: dashboardData.sales.monthLabels,
-                    datasets: [{
-                        label: 'Ventas mensuales',
-                        data: dashboardData.sales.monthlyTrend,
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        borderColor: 'rgba(102, 126, 234, 1)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: true
-                    }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatCurrency(value);
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return formatCurrency(context.raw);
-                                }
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatCurrency(context.raw);
                             }
                         }
                     }
                 }
-            });
-            
-            // Actualizar tabla de ventas
-            const salesTable = document.querySelector('#salesTable tbody');
-            salesTable.innerHTML = '';
-            
-            dashboardData.recentSales.forEach(sale => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>#${sale.id}</td>
-                    <td>${sale.date} ${sale.time}</td>
-                    <td>${sale.product}</td>
-                    <td>${sale.quantity}</td>
-                    <td>${formatCurrency(sale.amount)}</td>
-                    <td><span class="badge badge-success">${sale.status}</span></td>
-                `;
-                salesTable.appendChild(row);
-            });
-        }
-
-        // Actualizar vista de inventario
-        function updateInventoryView() {
-            // Actualizar estadísticas de inventario
-            const totalItems = dashboardData.inventory.totalStock + dashboardData.inventory.totalSold;
-            const stockPercentage = Math.round((dashboardData.inventory.totalStock / totalItems) * 100);
-            
-            document.getElementById('inventoryProgress').textContent = `${stockPercentage}%`;
-            document.getElementById('inventoryProgress').style.width = `${stockPercentage}%`;
-            document.getElementById('inventoryStock').textContent = dashboardData.inventory.totalStock;
-            document.getElementById('inventorySold').textContent = dashboardData.inventory.totalSold;
-            
-            // Crear/actualizar gráfico de categorías
-            if (inventoryChart) {
-                inventoryChart.destroy();
             }
-            
-            const inventoryCtx = document.getElementById('inventoryChart').getContext('2d');
-            inventoryChart = new Chart(inventoryCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: dashboardData.inventory.categories.map(c => c.name),
-                    datasets: [{
-                        data: dashboardData.inventory.categories.map(c => c.count),
-                        backgroundColor: [
-                            'rgba(102, 126, 234, 0.8)',
-                            'rgba(79, 172, 254, 0.8)',
-                            'rgba(255, 107, 107, 0.8)',
-                            'rgba(255, 193, 7, 0.8)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right'
-                        }
+        });
+    }
+    
+    // Actualizar tabla de ventas
+    const salesTable = document.querySelector('#salesTable tbody');
+    if (salesTable) {
+        salesTable.innerHTML = '';
+        
+        dashboardData.recentSales.forEach(sale => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>#${sale.id}</td>
+                <td>${sale.fecha} ${sale.hora}</td>
+                <td>${sale.producto}</td>
+                <td>${sale.cantidad}</td>
+                <td>${formatCurrency(sale.monto)}</td>
+                <td><span class="badge badge-success">${sale.estado}</span></td>
+            `;
+            salesTable.appendChild(row);
+        });
+    }
+}
+
+// Actualizar vista de inventario
+function updateInventoryView() {
+    // Actualizar estadísticas de inventario
+    const totalItems = dashboardData.inventory.totalStock + dashboardData.inventory.totalSold;
+    const stockPercentage = totalItems > 0 ? Math.round((dashboardData.inventory.totalStock / totalItems) * 100) : 0;
+    
+    document.getElementById('inventoryProgress').textContent = `${stockPercentage}%`;
+    document.getElementById('inventoryProgress').style.width = `${stockPercentage}%`;
+    document.getElementById('inventoryStock').textContent = dashboardData.inventory.totalStock;
+    document.getElementById('inventorySold').textContent = dashboardData.inventory.totalSold;
+    
+    // Crear/actualizar gráfico de categorías
+    const inventoryCanvas = document.getElementById('inventoryChart');
+    if (inventoryCanvas && inventoryCanvas.getContext) {
+        if (inventoryChart) {
+            inventoryChart.destroy();
+        }
+        
+        const inventoryCtx = inventoryCanvas.getContext('2d');
+        inventoryChart = new Chart(inventoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: dashboardData.inventory.categories.map(c => c.name),
+                datasets: [{
+                    data: dashboardData.inventory.categories.map(c => c.count),
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(79, 172, 254, 0.8)',
+                        'rgba(255, 107, 107, 0.8)',
+                        'rgba(255, 193, 7, 0.8)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
                     }
                 }
-            });
-            
-            // Actualizar tabla de inventario
-            const inventoryTable = document.querySelector('#inventoryTable tbody');
-            inventoryTable.innerHTML = '';
-            
-            dashboardData.inventoryItems.forEach(item => {
-                const row = document.createElement('tr');
-                const statusBadge = item.status === 'low' ? 
-                    '<span class="badge badge-danger">Bajo</span>' : 
-                    '<span class="badge badge-success">OK</span>';
-                
-                row.innerHTML = `
-                    <td>${item.name}</td>
-                    <td>${item.category}</td>
-                    <td>${item.stock}</td>
-                    <td>${formatCurrency(item.price)}</td>
-                    <td>${statusBadge}</td>
-                `;
-                inventoryTable.appendChild(row);
-            });
-        }
-
-        // Actualizar vista de productos
-        function updateProductsView() {
-            // Actualizar tabla de productos
-            const productsTable = document.querySelector('#productsTable tbody');
-            productsTable.innerHTML = '';
-            
-            dashboardData.topProducts.forEach(product => {
-                const row = document.createElement('tr');
-                const stockBadge = product.stock < 5 ? 
-                    '<span class="badge badge-danger">' + product.stock + '</span>' : 
-                    '<span class="badge badge-success">' + product.stock + '</span>';
-                
-                row.innerHTML = `
-                    <td><img src="https://via.placeholder.com/50" alt="${product.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
-                    <td>${product.name}</td>
-                    <td>${product.brand}</td>
-                    <td>${formatCurrency(product.price)}</td>
-                    <td>${stockBadge}</td>
-                    <td>
-                        <button style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-right: 0.25rem;">
-                            <i class='bx bx-edit'></i>
-                        </button>
-                        <button style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
-                            <i class='bx bx-trash'></i>
-                        </button>
-                    </td>
-                `;
-                productsTable.appendChild(row);
-            });
-        }
-
-        // Actualizar vista de alertas
-        function updateAlertsView() {
-            const alertsContainer = document.getElementById('alertsContainer');
-            alertsContainer.innerHTML = '';
-            
-            if (dashboardData.lowStockAlerts.length === 0) {
-                alertsContainer.innerHTML = `
-                    <div class="alert alert-warning">
-                        <i class='bx bx-check-circle alert-icon'></i>
-                        <div>No hay alertas de stock bajo en este momento.</div>
-                    </div>
-                `;
-                return;
             }
+        });
+    }
+    
+    // Actualizar tabla de inventario
+    const inventoryTable = document.querySelector('#inventoryTable tbody');
+    if (inventoryTable) {
+        inventoryTable.innerHTML = '';
+        
+        dashboardData.inventoryItems.forEach(item => {
+            const row = document.createElement('tr');
+            const statusBadge = item.cantidad <= item.cantidad_minima ? 
+                '<span class="badge badge-danger">Bajo</span>' : 
+                '<span class="badge badge-success">OK</span>';
             
-            dashboardData.lowStockAlerts.forEach(alert => {
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-danger';
-                alertDiv.innerHTML = `
-                    <i class='bx bx-error-circle alert-icon'></i>
-                    <div>${alert}</div>
-                `;
-                alertsContainer.appendChild(alertDiv);
-            });
-        }
+            row.innerHTML = `
+                <td>${item.nombre_producto}</td>
+                <td>${item.marca}</td>
+                <td>${item.cantidad}</td>
+                <td>${formatCurrency(item.costo_venta)}</td>
+                <td>${statusBadge}</td>
+            `;
+            inventoryTable.appendChild(row);
+        });
+    }
+}
 
-        // Refrescar datos
-        function refreshData() {
-            // Simular actualización de datos
-            dashboardData.sales.daily += Math.floor(Math.random() * 5000) - 2500;
-            dashboardData.sales.monthly += Math.floor(Math.random() * 50000) - 25000;
+// Actualizar vista de productos
+function updateProductsView() {
+    // Actualizar tabla de productos
+    const productsTable = document.querySelector('#productsTable tbody');
+    if (productsTable) {
+        productsTable.innerHTML = '';
+        
+        dashboardData.inventoryItems.forEach(product => {
+            const stockBadge = product.cantidad <= product.cantidad_minima ? 
+                '<span class="badge badge-danger">' + product.cantidad + '</span>' : 
+                '<span class="badge badge-success">' + product.cantidad + '</span>';
             
-            // Actualizar datos semanales
-            dashboardData.sales.weekly = dashboardData.sales.weekly.map(value => 
-                Math.max(1000, value + Math.floor(Math.random() * 1000) - 500)
-            );
-            
-            // Actualizar tendencia mensual
-            dashboardData.sales.monthlyTrend = dashboardData.sales.monthlyTrend.map(value => 
-                Math.max(10000, value + Math.floor(Math.random() * 5000) - 2500)
-            );
-            
-            // Actualizar inventario
-            dashboardData.inventory.totalStock += Math.floor(Math.random() * 10) - 5;
-            dashboardData.inventory.totalSold += Math.floor(Math.random() * 5);
-            dashboardData.inventory.lowStockItems = Math.max(0, dashboardData.inventory.lowStockItems + Math.floor(Math.random() * 3) - 1);
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><img src="https://via.placeholder.com/50" alt="${product.nombre_producto}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+                <td>${product.nombre_producto}</td>
+                <td>${product.marca}</td>
+                <td>${formatCurrency(product.costo_venta)}</td>
+                <td>${stockBadge}</td>
+                <td>
+                    <button style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-right: 0.25rem;">
+                        <i class='bx bx-edit'></i>
+                    </button>
+                    <button style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
+                        <i class='bx bx-trash'></i>
+                    </button>
+                </td>
+            `;
+            productsTable.appendChild(row);
+        });
+    }
+}
+
+// Actualizar vista de alertas
+function updateAlertsView() {
+    const alertsContainer = document.getElementById('alertsContainer');
+    if (alertsContainer) {
+        alertsContainer.innerHTML = '';
+        
+        if (dashboardData.lowStockAlerts.length === 0) {
+            alertsContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class='bx bx-check-circle alert-icon'></i>
+                    <div>No hay alertas de stock bajo en este momento.</div>
+                </div>
+            `;
+            return;
+        }
+        
+        dashboardData.lowStockAlerts.forEach(alert => {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger';
+            alertDiv.innerHTML = `
+                <i class='bx bx-error-circle alert-icon'></i>
+                <div>${alert}</div>
+            `;
+            alertsContainer.appendChild(alertDiv);
+        });
+    }
+}
+
+// Refrescar datos
+function refreshData() {
+    // Hacer una solicitud al servidor para obtener datos actualizados
+    fetch('/dashboard/data/')
+        .then(response => response.json())
+        .then(data => {
+            // Actualizar dashboardData con los nuevos datos
+            dashboardData = data;
             
             // Actualizar la vista actual
             const activeView = document.querySelector('.view-section.active').id;
@@ -1588,42 +1563,62 @@
             
             setTimeout(() => {
                 btn.innerHTML = originalText;
-                btn.style.background = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
+                btn.style.background = '';
             }, 2000);
-        }
-
-        // Inicializar el dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            // Pequeño delay para asegurar que todo el DOM esté cargado
+        })
+        .catch(error => {
+            console.error('Error al actualizar datos:', error);
+            
+            // Mostrar mensaje de error
+            const btn = document.querySelector('.refresh-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bx bx-error"></i> Error';
+            btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            
             setTimeout(() => {
-                // Cargar datos iniciales
-                updateOverview();
-            }, 200);
-            
-            // Configurar eventos solo para las pestañas
-            document.querySelectorAll('.nav-tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    showView(this.dataset.view);
-                });
-            });
-            
-            // Manejar redimensionamiento de ventana
-            window.addEventListener('resize', function() {
-                const sidebar = document.getElementById('sidebar');
-                const overlay = document.querySelector('.sidebar-overlay');
-                
-                if (window.innerWidth > 992) {
-                    sidebar.classList.remove('show');
-                    overlay.classList.remove('active');
-                }
-                
-                // Re-renderizar gráficos después de redimensionar
-                setTimeout(() => {
-                    const activeView = document.querySelector('.view-section.active').id;
-                    updateViewContent(activeView);
-                }, 300);
-            });
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 2000);
         });
+}
+
+// Inicializar el dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar datos iniciales desde Django
+    fetch('/dashboard/data/')
+        .then(response => response.json())
+        .then(data => {
+            dashboardData = data;
+            updateOverview();
+        })
+        .catch(error => {
+            console.error('Error al cargar datos iniciales:', error);
+        });
+    
+    // Configurar eventos para las pestañas
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            showView(this.dataset.view);
+        });
+    });
+    
+    // Manejar redimensionamiento de ventana
+    window.addEventListener('resize', function() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
+        
+        if (window.innerWidth > 992) {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('active');
+        }
+        
+        // Re-renderizar gráficos después de redimensionar
+        setTimeout(() => {
+            const activeView = document.querySelector('.view-section.active').id;
+            updateViewContent(activeView);
+        }, 300);
+    });
+});
     </script>
 </body>
 </html>

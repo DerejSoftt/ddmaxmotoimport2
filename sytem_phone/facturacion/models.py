@@ -21,18 +21,19 @@ class Proveedor(models.Model):
         ('CN', 'China'),
         ('KR', 'Corea del Sur'),
         ('TW', 'Taiwán'),
+        ('JP', 'Japón'),
     ]
     
-    CATEGORIA_CHOICES = [
-        ('smartphones', 'Smartphones'),
-        ('accesorios', 'Accesorios'),
-        ('repuestos', 'Repuestos'),
-        ('tablets', 'Tablets'),
-        ('smartwatch', 'Smartwatch'),
-        ('audio', 'Audio y Auriculares'),
-        ('cargadores', 'Cargadores y Cables'),
-        ('fundas', 'Fundas y Protectores'),
-    ]
+    # CATEGORIA_CHOICES = [
+    #     ('smartphones', 'Smartphones'),
+    #     ('accesorios', 'Accesorios'),
+    #     ('repuestos', 'Repuestos'),
+    #     ('tablets', 'Tablets'),
+    #     ('smartwatch', 'Smartwatch'),
+    #     ('audio', 'Audio y Auriculares'),
+    #     ('cargadores', 'Cargadores y Cables'),
+    #     ('fundas', 'Fundas y Protectores'),
+    # ]
     
     TERMINOS_PAGO_CHOICES = [
         ('contado', 'Contado'),
@@ -50,7 +51,7 @@ class Proveedor(models.Model):
     whatsapp = models.CharField(max_length=20, blank=True, null=True, verbose_name="WhatsApp")
     pais = models.CharField(max_length=2, choices=PAIS_CHOICES, default='DO', verbose_name="País")
     ciudad = models.CharField(max_length=50, verbose_name="Ciudad")
-    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, verbose_name="Categoría de Productos")
+    # categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, verbose_name="Categoría de Productos")
     direccion = models.TextField(verbose_name="Dirección Completa", blank=True, null=True)
     terminos_pago = models.CharField(max_length=20, choices=TERMINOS_PAGO_CHOICES, blank=True, null=True, verbose_name="Términos de Pago")
     limite_credito = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Límite de Crédito (RD$)")
@@ -77,24 +78,18 @@ class Proveedor(models.Model):
 
 class EntradaProducto(models.Model):
     MARCAS = (
-        ('apple', 'Apple'),
-        ('samsung', 'Samsung'),
-        ('xiaomi', 'Xiaomi'),
-        ('huawei', 'Huawei'),
-        ('lg', 'LG'),
-        ('motorola', 'Motorola'),
-        ('nokia', 'Nokia'),
-        ('sony', 'Sony'),
-        ('google', 'Google'),
-        ('oneplus', 'OnePlus'),
-        ('oppo', 'Oppo'),
-        ('vivo', 'Vivo'),
-        ('realme', 'Realme'),
-        ('tecno', 'Tecno'),
-        ('infinix', 'Infinix'),
-        ('alcatel', 'Alcatel'),
-        ('zte', 'ZTE'),
-        ('otros', 'Otros'),
+    ('honda', 'Honda'),
+    ('yamaha', 'Yamaha'),
+    ('suzuki', 'Suzuki'),
+    ('kawasaki', 'Kawasaki'),
+    ('tvs', 'TVS'),
+    ('hero', 'Hero'),
+    ('loncin', 'Loncin'),
+    ('kove', 'Kove'),
+    ('x1000', 'X1000'),
+    ('ktm', 'KTM'),
+    ('bajaj', 'Bajaj'),
+    ('otros', 'Otros'),
     )
     
     CAPACIDADES = (
