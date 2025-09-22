@@ -192,23 +192,53 @@
             background-color: #1a252f;
         }
         
-        /* Estilos para impresión */
+        /* Estilos para impresión - MODIFICADO */
         @media print {
             body {
-                background-color: white;
-                padding: 0;
-                margin: 0;
+                background-color: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
             
-            .invoice-container {
-                width: 100%;
-                height: auto;
-                padding: 0.5cm;
-                box-shadow: none;
-            }
-            
+            /* Ocultar todos los elementos que no son la factura */
+            .menu-toggle,
+            .sidebar-overlay,
+            .sidebar,
+            .main-content .container,
             .controls {
-                display: none;
+                display: none !important;
+            }
+            
+            /* Mostrar solo el contenedor de la factura */
+            .invoice-container {
+                width: 100% !important;
+                height: auto !important;
+                padding: 0.5cm !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                display: block !important;
+                position: relative !important;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+            
+            /* Asegurar que el contenido de la factura sea visible */
+            .invoice-container .content-wrapper {
+                display: block !important;
+            }
+            
+            /* Resetear márgenes y padding para impresión */
+            .main-content {
+                margin-left: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                min-height: auto !important;
+                display: block !important;
+            }
+            
+            /* Ocultar el fondo gradiente en impresión */
+            body, .main-content {
+                background: white !important;
             }
         }
 
@@ -800,7 +830,7 @@
 
     <!-- Main Content -->
     <div class="main-content">
-        <div class="container">
+        <div class="container" id="search-container">
             <div class="header">
                 <h1>
                     <i class='bx bx-printer'></i>
@@ -935,7 +965,7 @@
             </div>
             
             <div class="controls">
-                <button onclick="window.print()">Imprimir Factura</button>
+                <button onclick="imprimirFactura()">Imprimir Factura</button>
                 <button onclick="volverABusqueda()">Volver a Búsqueda</button>
             </div>
         </div>
@@ -1061,11 +1091,12 @@
                     // Llenar los datos de la factura
                     llenarDatosFactura(data);
                     
-                    // Mostrar la factura
+                    // Mostrar la factura y ocultar elementos de búsqueda
                     document.getElementById('factura-container').style.display = 'block';
+                    document.getElementById('search-container').style.display = 'none';
                     
                     // Desplazarse a la factura
-                    document.getElementById('factura-container').scrollIntoView();
+                    document.getElementById('factura-container').scrollIntoView({ behavior: 'smooth' });
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -1164,11 +1195,20 @@
             }
         }
 
+        // Función para imprimir solo la factura
+        function imprimirFactura() {
+            window.print();
+        }
+
         // Función para volver a la búsqueda
         function volverABusqueda() {
             document.getElementById('factura-container').style.display = 'none';
+            document.getElementById('search-container').style.display = 'block';
             document.getElementById('numero-factura').value = '';
             document.getElementById('numero-factura').focus();
+            
+            // Desplazarse al inicio de la página
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // Permitir buscar con la tecla Enter
