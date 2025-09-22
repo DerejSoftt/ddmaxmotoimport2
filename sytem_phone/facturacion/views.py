@@ -1338,8 +1338,6 @@ def safe_int(value, default=0):
     except (ValueError, TypeError):
         return default
 
-
-
 @csrf_exempt
 @require_POST
 @transaction.atomic
@@ -1421,14 +1419,14 @@ def procesar_venta(request):
             try:
                 cliente = Cliente.objects.get(id=client_id, status=True)
                 
-                # Validar límite de crédito
-                total_a_validar = total_a_pagar if total_a_pagar > 0 else total
-                
-                if total_a_validar > cliente.credit_limit:
-                    return JsonResponse({
-                        'success': False, 
-                        'message': f'El monto excede el límite de crédito del cliente. Límite: RD${cliente.credit_limit}, Solicitado: RD${total_a_validar}'
-                    })
+                # Validar límite de crédito - OMITIDO SEGÚN SOLICITUD
+                # total_a_validar = total_a_pagar if total_a_pagar > 0 else total
+                # 
+                # if total_a_validar > cliente.credit_limit:
+                #     return JsonResponse({
+                #         'success': False, 
+                #         'message': f'El monto excede el límite de crédito del cliente. Límite: RD${cliente.credit_limit}, Solicitado: RD${total_a_validar}'
+                #     })
             except Cliente.DoesNotExist:
                 return JsonResponse({'success': False, 'message': 'Cliente no válido'})
         else:
@@ -1658,6 +1656,325 @@ Productos:
         import traceback
         print(f"Error completo: {traceback.format_exc()}")
         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
+
+# @csrf_exempt
+# @require_POST
+# @transaction.atomic
+# @login_required
+# def procesar_venta(request):
+#     try:
+#         data = request.POST
+#         user = request.user
+        
+#         # Validar que hay datos
+#         if not data:
+#             return JsonResponse({'success': False, 'message': 'No se recibieron datos'})
+        
+#         # Convertir valores usando safe_decimal y safe_int
+#         payment_type = data.get('payment_type', 'contado')
+#         payment_method = data.get('payment_method', 'efectivo')
+#         subtotal = safe_decimal(data.get('subtotal', 0))
+#         discount_percentage = safe_decimal(data.get('discount_percentage', 0))
+#         discount_amount = safe_decimal(data.get('discount_amount', 0))
+#         total = safe_decimal(data.get('total', 0))
+#         cash_received = safe_decimal(data.get('cash_received', 0))
+#         change_amount = safe_decimal(data.get('change_amount', 0))
+        
+#         # Campos de financiamiento - usar safe_int para enteros
+#         plazo_meses = safe_int(data.get('plazo_meses', 0))
+#         monto_inicial = safe_decimal(data.get('monto_inicial', 0))
+#         tasa_interes = safe_decimal(data.get('tasa_interes', 0))
+#         monto_financiado = safe_decimal(data.get('monto_financiado', 0))
+#         interes_mensual = safe_decimal(data.get('interes_mensual', 0))
+#         cuota_mensual = safe_decimal(data.get('cuota_mensual', 0))
+#         ganancia_interes = safe_decimal(data.get('ganancia_interes', 0))
+#         total_con_interes = safe_decimal(data.get('total_con_interes', 0))
+#         total_a_pagar = safe_decimal(data.get('total_a_pagar', 0))
+        
+#         # Para ventas a contado, resetear campos de crédito
+#         if payment_type != 'credito':
+#             plazo_meses = 0
+#             monto_inicial = 0
+#             tasa_interes = 0
+#             monto_financiado = 0
+#             interes_mensual = 0
+#             cuota_mensual = 0
+#             ganancia_interes = 0
+#             total_con_interes = 0
+#             total_a_pagar = total  # Usar el total normal
+        
+#         # Validaciones
+#         if payment_type not in ['contado', 'credito']:
+#             return JsonResponse({'success': False, 'message': 'Tipo de pago inválido'})
+        
+#         if payment_method not in ['efectivo', 'tarjeta', 'transferencia']:
+#             return JsonResponse({'success': False, 'message': 'Método de pago inválido'})
+        
+#         if subtotal <= 0:
+#             return JsonResponse({'success': False, 'message': 'El subtotal debe ser mayor a 0'})
+        
+#         if total <= 0:
+#             return JsonResponse({'success': False, 'message': 'El total debe ser mayor a 0'})
+        
+#         # Validaciones específicas para crédito
+#         if payment_type == 'credito':
+#             if plazo_meses <= 0:
+#                 return JsonResponse({'success': False, 'message': 'El plazo debe ser mayor a 0'})
+#             if tasa_interes < 0:
+#                 return JsonResponse({'success': False, 'message': 'La tasa de interés no puede ser negativa'})
+#             if monto_inicial < 0:
+#                 return JsonResponse({'success': False, 'message': 'El monto inicial no puede ser negativo'})
+        
+#         # Procesar información del cliente
+#         client_id = data.get('client_id')
+#         client_name = data.get('client_name', '').strip()
+#         client_document = data.get('client_document', '').strip()
+        
+#         cliente = None
+#         if payment_type == 'credito':
+#             if not client_id:
+#                 return JsonResponse({'success': False, 'message': 'Debe seleccionar un cliente para ventas a crédito'})
+            
+#             try:
+#                 cliente = Cliente.objects.get(id=client_id, status=True)
+                
+#                 # Validar límite de crédito
+#                 total_a_validar = total_a_pagar if total_a_pagar > 0 else total
+                
+#                 if total_a_validar > cliente.credit_limit:
+#                     return JsonResponse({
+#                         'success': False, 
+#                         'message': f'El monto excede el límite de crédito del cliente. Límite: RD${cliente.credit_limit}, Solicitado: RD${total_a_validar}'
+#                     })
+#             except Cliente.DoesNotExist:
+#                 return JsonResponse({'success': False, 'message': 'Cliente no válido'})
+#         else:
+#             if not client_name:
+#                 return JsonResponse({'success': False, 'message': 'Debe ingresar el nombre del cliente'})
+        
+#         # Procesar items de la venta
+#         sale_items_json = data.get('sale_items')
+#         if not sale_items_json:
+#             return JsonResponse({'success': False, 'message': 'No hay productos en la venta'})
+        
+#         sale_items = json.loads(sale_items_json)
+#         if not sale_items:
+#             return JsonResponse({'success': False, 'message': 'No hay productos en la venta'})
+        
+#         # Verificar stock antes de procesar la venta
+#         for item in sale_items:
+#             try:
+#                 producto = EntradaProducto.objects.get(id=item['id'], activo=True)
+#                 cantidad_solicitada = int(item['quantity'])
+                
+#                 if producto.cantidad < cantidad_solicitada:
+#                     return JsonResponse({
+#                         'success': False, 
+#                         'message': f'Stock insuficiente para {producto.nombre_producto}. Disponible: {producto.cantidad}'
+#                     })
+#             except EntradaProducto.DoesNotExist:
+#                 return JsonResponse({'success': False, 'message': f'Producto no encontrado: {item.get("name", "Desconocido")}'})
+#             except (ValueError, KeyError):
+#                 return JsonResponse({'success': False, 'message': f'Cantidad inválida para producto: {item.get("name", "Desconocido")}'})
+        
+#         # Determinar si es financiada
+#         es_financiada = payment_type == 'credito' and monto_financiado > 0
+        
+#         # Usar el total con interés si es financiada, de lo contrario usar el total normal
+#         total_final = total_con_interes if es_financiada and total_con_interes > 0 else total
+        
+#         # Crear la venta con todos los campos
+#         venta = Venta(
+#             vendedor=user,
+#             cliente=cliente,
+#             cliente_nombre=client_name,
+#             cliente_documento=client_document,
+#             tipo_venta=payment_type,
+#             metodo_pago=payment_method,
+#             subtotal=subtotal,
+#             descuento_porcentaje=discount_percentage,
+#             descuento_monto=discount_amount,
+#             total=total_final,
+#             montoinicial=monto_inicial,
+#             efectivo_recibido=cash_received,
+#             cambio=change_amount,
+#             completada=True,
+#             fecha_venta=timezone.now(),
+#             # Campos de financiamiento
+#             es_financiada=es_financiada,
+#             tasa_interes=tasa_interes,
+#             plazo_meses=plazo_meses,
+#             monto_financiado=monto_financiado,
+#             interes_total=ganancia_interes,
+#             cuota_mensual=cuota_mensual,
+#             total_con_interes=total_con_interes,
+#             total_a_pagar=total_a_pagar if payment_type == 'credito' else total_final
+#         )
+        
+#         # Guardar para generar número de factura
+#         venta.save()
+        
+#         # Registrar en logs los valores guardados
+#         print(f"=== VENTA CREADA ===")
+#         print(f"Factura: {venta.numero_factura}")
+#         print(f"Subtotal: RD${venta.subtotal}")
+#         print(f"Descuento %: {venta.descuento_porcentaje}%")
+#         print(f"Descuento monto: RD${venta.descuento_monto}")
+#         print(f"Total: RD${venta.total}")
+#         print(f"Efectivo recibido: RD${venta.efectivo_recibido}")
+#         print(f"Cambio: RD${venta.cambio}")
+#         print(f"Tipo: {venta.tipo_venta}")
+#         print(f"Método: {venta.metodo_pago}")
+        
+#         if es_financiada:
+#             print(f"=== FINANCIAMIENTO ===")
+#             print(f"Monto Inicial: RD${venta.montoinicial}")
+#             print(f"Tasa interés: {venta.tasa_interes}%")
+#             print(f"Plazo meses: {venta.plazo_meses}")
+#             print(f"Monto financiado: RD${venta.monto_financiado}")
+#             print(f"Interés mensual: RD${interes_mensual}")
+#             print(f"Cuota mensual: RD${venta.cuota_mensual}")
+#             print(f"Ganancia por interés: RD${venta.interes_total}")
+#             print(f"Total con interés: RD${venta.total_con_interes}")
+#             print(f"Total a pagar: RD${total_a_pagar}")
+        
+#         # Procesar detalles de venta y descontar stock
+#         productos_para_cuenta = []
+#         for item in sale_items:
+#             try:
+#                 producto = EntradaProducto.objects.get(id=item['id'])
+#                 cantidad = int(item['quantity'])
+#                 precio_unitario = safe_decimal(item['price'])
+#                 subtotal_item = safe_decimal(item['subtotal'])
+                
+#                 # Validar que los cálculos sean consistentes
+#                 calculated_subtotal = precio_unitario * cantidad
+#                 if abs(calculated_subtotal - subtotal_item) > Decimal('0.01'):
+#                     print(f"Advertencia: Subtotal inconsistente para {producto.nombre_producto}")
+#                     print(f"Calculado: {calculated_subtotal}, Recibido: {subtotal_item}")
+#                     # Usar el valor calculado para consistencia
+#                     subtotal_item = calculated_subtotal
+                
+#                 # Descontar stock
+#                 cantidad_anterior = producto.cantidad
+#                 producto.cantidad -= cantidad
+#                 producto.save(update_fields=['cantidad'])
+                
+#                 print(f"Stock actualizado: {producto.nombre_producto} -{cantidad} unidades ({cantidad_anterior} -> {producto.cantidad})")
+                
+#                 # Crear detalle de venta
+#                 detalle = DetalleVenta(
+#                     venta=venta,
+#                     producto=producto,
+#                     cantidad=cantidad,
+#                     precio_unitario=precio_unitario,
+#                     subtotal=subtotal_item
+#                 )
+#                 detalle.save()
+                
+#                 # Agregar a lista para cuenta por cobrar
+#                 productos_para_cuenta.append(f"{producto.nombre_producto} x{cantidad} - RD${precio_unitario:.2f}")
+                
+#             except EntradaProducto.DoesNotExist:
+#                 transaction.set_rollback(True)
+#                 return JsonResponse({'success': False, 'message': f'Producto no encontrado: ID {item.get("id", "Desconocido")}'})
+#             except Exception as e:
+#                 transaction.set_rollback(True)
+#                 return JsonResponse({'success': False, 'message': f'Error al procesar producto: {str(e)}'})
+        
+#         # Crear cuenta por cobrar si es venta a crédito
+#         if payment_type == 'credito' and cliente:
+#             try:
+#                 fecha_vencimiento = timezone.now().date() + timedelta(days=30)
+                
+#                 # Crear string con los productos
+#                 productos_str = "\n".join(productos_para_cuenta)
+                
+#                 # Información adicional para financiamiento
+#                 info_financiamiento = ""
+#                 if es_financiada:
+#                     info_financiamiento = f"""
+# FINANCIAMIENTO:
+# - Monto Inicial: RD${monto_inicial:.2f}
+# - Tasa de interés: {tasa_interes}% mensual
+# - Plazo: {plazo_meses} meses
+# - Monto a Financiar: RD${monto_financiado:.2f}
+# - Interés Mensual: RD${interes_mensual:.2f}
+# - Cuota mensual: RD${cuota_mensual:.2f}
+# - Ganancia por Interés: RD${ganancia_interes:.2f}
+# - Total con Interés: RD${total_con_interes:.2f}
+# - Total a Pagar: RD${total_a_pagar:.2f}
+# """
+                
+#                 cuenta_por_cobrar = CuentaPorCobrar(
+#                     venta=venta,
+#                     cliente=cliente,
+#                     monto_total=total_final,
+#                     monto_pagado=monto_inicial,  # El pago inicial ya se hizo
+#                     fecha_vencimiento=fecha_vencimiento,
+#                     productos=productos_str,
+#                     estado='pendiente',
+#                     observaciones=f"""Venta a crédito - Factura: {venta.numero_factura}
+# Cliente: {cliente.full_name}
+# Productos:
+# {productos_str}
+# {info_financiamiento}"""
+#                 )
+#                 cuenta_por_cobrar.save()
+                
+#                 print(f"Cuenta por cobrar creada exitosamente: {cuenta_por_cobrar.id}")
+#                 print(f"Monto total: RD${cuenta_por_cobrar.monto_total}")
+#                 print(f"Monto pagado: RD${cuenta_por_cobrar.monto_pagado}")
+#                 print(f"Saldo pendiente: RD${cuenta_por_cobrar.saldo_pendiente}")
+#                 print(f"Productos incluidos:\n{productos_str}")
+                
+#             except Exception as e:
+#                 transaction.set_rollback(True)
+#                 return JsonResponse({'success': False, 'message': f'Error al crear cuenta por cobrar: {str(e)}'})
+        
+#         # Validar que los totales sean consistentes
+#         venta_refreshed = Venta.objects.get(id=venta.id)
+#         detalles_total = sum(detalle.subtotal for detalle in venta_refreshed.detalles.all())
+#         calculated_total = detalles_total - venta_refreshed.descuento_monto
+
+#         if abs(venta_refreshed.total - calculated_total) > Decimal('0.01') and not es_financiada:
+#             print(f"Advertencia: Total inconsistente en venta {venta.numero_factura}")
+#             print(f"Total guardado: RD${venta_refreshed.total}")
+#             print(f"Total calculado: RD${calculated_total}")
+#             # Corregir automáticamente solo si no es financiada
+#             venta_refreshed.total = calculated_total
+#             venta_refreshed.save(update_fields=['total'])
+#             print(f"Total corregido: RD${venta_refreshed.total}")
+        
+#         return JsonResponse({
+#             'success': True, 
+#             'message': 'Venta procesada correctamente',
+#             'venta_id': venta.id,
+#             'numero_factura': venta.numero_factura,
+#             'detalles': {
+#                 'subtotal': float(venta.subtotal),
+#                 'descuento_porcentaje': float(venta.descuento_porcentaje),
+#                 'descuento_monto': float(venta.descuento_monto),
+#                 'total': float(venta.total),
+#                 'efectivo_recibido': float(venta.efectivo_recibido),
+#                 'cambio': float(venta.cambio),
+#                 'items_count': len(sale_items),
+#                 'es_financiada': venta.es_financiada,
+#                 'monto_inicial': float(venta.montoinicial),
+#                 'tasa_interes': float(venta.tasa_interes),
+#                 'plazo_meses': venta.plazo_meses,
+#                 'monto_financiado': float(venta.monto_financiado),
+#                 'interes_total': float(venta.interes_total),
+#                 'cuota_mensual': float(venta.cuota_mensual),
+#                 'total_con_interes': float(venta.total_con_interes)
+#             }
+#         })
+        
+#     except Exception as e:
+#         transaction.set_rollback(True)
+#         import traceback
+#         print(f"Error completo: {traceback.format_exc()}")
+#         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
 
 
 
@@ -2735,7 +3052,6 @@ def registrar_pago(request):
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
-# Vista para generar PDF del comprobante (completa)
 def generar_comprobante_pdf(request, comprobante_id):
     try:
         comprobante = get_object_or_404(ComprobantePago, id=comprobante_id)
@@ -2744,38 +3060,114 @@ def generar_comprobante_pdf(request, comprobante_id):
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="comprobante_{comprobante.numero_comprobante}.pdf"'
         
-        # Crear el objeto PDF
-        p = canvas.Canvas(response)
+        # Configurar el PDF para 80mm de ancho (aprox. 226 puntos)
+        width = 226  # 80mm en puntos (1mm = 2.83 puntos)
+        height = 1000  # Alto suficiente para el contenido
+        
+        # Crear el objeto PDF con tamaño personalizado
+        p = canvas.Canvas(response, pagesize=(width, height))
+        
+        # Configurar márgenes y fuentes para impresora térmica
+        margin_left = 10
+        y_position = height - 20  # Empezar desde la parte superior
+        line_height = 14
+        small_line_height = 10
         
         # Obtener información de totales
         monto_original = comprobante.cuenta.venta.total_a_pagar if comprobante.cuenta.venta and comprobante.cuenta.venta.total_a_pagar else comprobante.cuenta.monto_total
         monto_con_interes = comprobante.cuenta.venta.total_con_interes if comprobante.cuenta.venta and comprobante.cuenta.venta.total_con_interes else monto_original
         saldo_pendiente = monto_con_interes - comprobante.cuenta.monto_pagado
         
-        # Agregar contenido al PDF
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(100, 800, "COMPROBANTE DE PAGO")
+        # Función para centrar texto
+        def draw_centered_text(text, y, font_size=12, bold=False):
+            if bold:
+                p.setFont("Helvetica-Bold", font_size)
+            else:
+                p.setFont("Helvetica", font_size)
+            text_width = p.stringWidth(text, "Helvetica", font_size)
+            x = (width - text_width) / 2
+            p.drawString(x, y, text)
+            return y - line_height
         
-        p.setFont("Helvetica", 12)
-        p.drawString(100, 770, f"Número: {comprobante.numero_comprobante}")
-        p.drawString(100, 750, f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}")
-        p.drawString(100, 730, f"Cliente: {comprobante.cliente.full_name}")
-        p.drawString(100, 710, f"Factura: {comprobante.cuenta.venta.numero_factura}")
-        p.drawString(100, 690, f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}")
-        p.drawString(100, 670, f"Método: {comprobante.pago.get_metodo_pago_display()}")
+        # Función para texto normal alineado a la izquierda
+        def draw_left_text(text, y, font_size=10, bold=False):
+            if bold:
+                p.setFont("Helvetica-Bold", font_size)
+            else:
+                p.setFont("Helvetica", font_size)
+            p.drawString(margin_left, y, text)
+            return y - line_height
         
-        # Información adicional de totales
-        p.drawString(100, 640, f"Monto Original Factura: RD$ {monto_original:,.2f}")
-        if monto_con_interes > monto_original:
-            p.drawString(100, 620, f"Total con Intereses: RD$ {monto_con_interes:,.2f}")
-            p.drawString(100, 600, f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}")
-        else:
-            p.drawString(100, 620, f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}")
+        # Encabezado del comprobante
+        y_position = draw_centered_text("DDMAX - MOTO IMPORTMOTO IMPORT", y_position, 14, True)
+        y_position = draw_centered_text("COMPROBANTE DE PAGO", y_position, 12, True)
+        y_position -= line_height / 2  # Espacio adicional
+        
+        # Línea separadora
+        p.line(margin_left, y_position, width - margin_left, y_position)
+        y_position -= line_height
+        
+        # Información del comprobante
+        y_position = draw_left_text(f"Comprobante: {comprobante.numero_comprobante}", y_position, 10)
+        y_position = draw_left_text(f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}", y_position, 10)
+        y_position = draw_left_text(f"Cliente: {comprobante.cliente.full_name}", y_position, 10)
+        
+        # Información de la factura si existe
+        if comprobante.cuenta.venta:
+            y_position = draw_left_text(f"Factura: {comprobante.cuenta.venta.numero_factura}", y_position, 10)
+        
+        y_position -= line_height / 2
+        
+        # Línea separadora
+        p.line(margin_left, y_position, width - margin_left, y_position)
+        y_position -= line_height
+        
+        # Información del pago
+        y_position = draw_centered_text("DETALLE DEL PAGO", y_position, 11, True)
+        y_position -= small_line_height
+        
+        y_position = draw_left_text(f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}", y_position, 10, True)
+        y_position = draw_left_text(f"Método: {comprobante.pago.get_metodo_pago_display()}", y_position, 10)
         
         if comprobante.pago.referencia:
-            p.drawString(100, 580, f"Referencia: {comprobante.pago.referencia}")
+            y_position = draw_left_text(f"Referencia: {comprobante.pago.referencia}", y_position, 9)
         
-        p.drawString(100, 550, "¡Gracias por su pago!")
+        y_position -= line_height / 2
+        
+        # Línea separadora
+        p.line(margin_left, y_position, width - margin_left, y_position)
+        y_position -= line_height
+        
+        # Información de totales
+        y_position = draw_centered_text("RESUMEN DE CUENTA", y_position, 11, True)
+        y_position -= small_line_height
+        
+        y_position = draw_left_text(f"Monto Original: RD$ {monto_original:,.2f}", y_position, 9)
+        
+        if monto_con_interes > monto_original:
+            y_position = draw_left_text(f"Intereses: RD$ {monto_con_interes - monto_original:,.2f}", y_position, 9)
+            y_position = draw_left_text(f"Total con Int.: RD$ {monto_con_interes:,.2f}", y_position, 9, True)
+        
+        y_position = draw_left_text(f"Pagado Acumulado: RD$ {comprobante.cuenta.monto_pagado:,.2f}", y_position, 9)
+        y_position = draw_left_text(f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}", y_position, 9, True)
+        
+        y_position -= line_height
+        
+        # Línea separadora final
+        p.line(margin_left, y_position, width - margin_left, y_position)
+        y_position -= line_height
+        
+        # Mensaje de agradecimiento
+        y_position = draw_centered_text("¡Gracias por su pago!", y_position, 11, True)
+        y_position -= small_line_height
+        
+        # Información de la empresa (más pequeña)
+        y_position = draw_centered_text("DDMAX - MOTO IMPORT", y_position, 8)
+        y_position = draw_centered_text("Tel: (809) 656-3374", y_position, 8)
+        
+        # Agregar código de barras o QR si es necesario (opcional)
+        y_position -= line_height
+        draw_centered_text(f"Ref: {comprobante.numero_comprobante}", y_position, 8)
         
         # Finalizar el PDF
         p.showPage()
@@ -2788,6 +3180,7 @@ def generar_comprobante_pdf(request, comprobante_id):
             'success': False,
             'message': f'Error al generar comprobante: {str(e)}'
         })
+
 
 # ===== VISTA PARA LISTAR COMPROBANTES =====
 def lista_comprobantes(request):
