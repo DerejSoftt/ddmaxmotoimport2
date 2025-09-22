@@ -81,8 +81,8 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
         "NAME": "ddmaxmotoimport",
-        "USER": "root",
-        "PASSWORD": "",
+        "USER": "almagedon",
+        "PASSWORD": "Almagedon666#",
         "HOST": "localhost",
         "PORT": "3306",
         "OPTIONS": {
