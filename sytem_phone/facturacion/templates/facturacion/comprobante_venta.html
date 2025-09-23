@@ -311,22 +311,22 @@
                 <p><strong>Nota:</strong> Tipo Pago : {{ venta.get_metodo_pago_display }}.</p>
             </div>
             
-            {% if venta.tipo_venta == 'credito' and venta.es_financiada %}
-            <div class="credit-info">
-                <h3>PRECIO A CREDITO = ${{ venta.total_a_pagar|floatformat:2|intcomma }}</h3>
-                <div class="credit-details">
-                    <div><strong>No. Prest.:</strong> {{ venta.numero_factura }}</div>
-                    <div><strong>Paso......:</strong> 1</div>
-                    <div><strong>Cuota......:</strong> ${{ venta.cuota_mensual|floatformat:2|intcomma }}</div>
-                    <div><strong>Forma Pago:</strong> Mensual</div>
-                    <div><strong>Interes......:</strong> ${{ venta.interes_total|floatformat:2|intcomma }}</div>
-                    <div><strong>Inicial......:</strong> ${{ venta.montoinicial|floatformat:2|intcomma }}</div>
-                    <div><strong>Balance....:</strong> ${{ venta.total_con_interes|floatformat:2|intcomma }}</div>
-                    <div><strong>Adicional....:</strong> -</div>
-                </div>
-            </div>
-            {% endif %}
-            
+         {% if venta.tipo_venta == 'credito' and venta.es_financiada %}
+<div class="credit-info">
+    <h3>PRECIO A CREDITO = ${{ venta.total_a_pagar|floatformat:2|intcomma }}</h3>
+    <div class="credit-details">
+        <div><strong>No. Prest.:</strong> {{ venta.numero_factura }}</div>
+        <div><strong>Inicial:</strong> ${{ venta.montoinicial|floatformat:2|intcomma }}</div>
+        <div><strong>Monto a Financiar:</strong> ${{ venta.monto_financiado|floatformat:2|intcomma }}</div>
+        <div><strong>Plazo:</strong> {{ venta.plazo_meses|intcomma }} Meses</div>
+        <div><strong>Interés Mensual:</strong> ${{ venta.interes_mensual|floatformat:2|intcomma }}</div>
+        <div><strong>Forma Pago:</strong> Mensual</div>
+        <div><strong>Balance:</strong> ${{ venta.total_con_interes|floatformat:2|intcomma }}</div>
+        <div><strong>Adicional:</strong> -</div>
+        <div><strong>Cuota Mensual:</strong> ${{ venta.cuota_mensual|floatformat:2|intcomma }}</div>
+    </div>
+</div>
+{% endif %}
             <div class="signatures">
                 <div class="signature-box">
                     Entregado Por: {{ venta.vendedor.get_full_name|default:venta.vendedor.username }}

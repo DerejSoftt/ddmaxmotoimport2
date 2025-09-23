@@ -488,6 +488,7 @@ class Venta(models.Model):
     plazo_meses = models.PositiveIntegerField(default=1)
     monto_financiado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     interes_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    interes_mensual = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     cuota_mensual = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_con_interes = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_a_pagar = models.DecimalField(max_digits=12, decimal_places=2, default=0)

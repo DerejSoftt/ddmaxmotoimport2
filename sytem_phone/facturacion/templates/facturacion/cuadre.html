@@ -980,37 +980,54 @@
                 </div>
 
                 <!-- Ventas por método de pago -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class='bx bx-credit-card'></i> Ventas por Método de Pago</h2>
-                    </div>
-                    <div class="summary-item">
-                        <h3><i class='bx bx-dollar-circle'></i> Total General</h3>
-                        <p id="total-sales">
-                            {% if ventas %}RD${{ ventas.total|floatformat:2 }}{% else %}RD$0.00{% endif %}
-                        </p>
-                    </div>
-                    
-                    <div class="payment-method">
-                        <span class="label"><i class='bx bx-money'></i> Efectivo</span>
-                        <span class="value" id="cash-sales">
-                            {% if ventas %}RD${{ ventas.efectivo|floatformat:2 }}{% else %}RD$0.00{% endif %}
-                        </span>
-                    </div>
-                    <div class="payment-method">
-                        <span class="label"><i class='bx bx-credit-card'></i> Tarjeta</span>
-                        <span class="value" id="card-sales">
-                            {% if ventas %}RD${{ ventas.tarjeta|floatformat:2 }}{% else %}RD$0.00{% endif %}
-                        </span>
-                    </div>
-                    <div class="payment-method">
-                        <span class="label"><i class='bx bx-transfer'></i> Transferencia</span>
-                        <span class="value" id="transfer-sales">
-                            {% if ventas %}RD${{ ventas.transferencia|floatformat:2 }}{% else %}RD$0.00{% endif %}
-                        </span>
-                    </div>
-
-                </div>
+               <!-- Ventas por método de pago -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class='bx bx-credit-card'></i> Ventas por Método de Pago</h2>
+    </div>
+    <div class="summary-item">
+        <h3><i class='bx bx-dollar-circle'></i> Total General</h3>
+        <p id="total-sales">
+            {% if ventas %}RD${{ ventas.total|floatformat:2 }}{% else %}RD$0.00{% endif %}
+        </p>
+    </div>
+    
+    <!-- Desglose del Total General -->
+    <!-- <div class="payment-method">
+        <span class="label"><i class='bx bx-shopping-bag'></i> Ventas al Contado (Total)</span>
+        <span class="value">
+            {% if ventas %}RD${{ ventas.ventas_contado_total|floatformat:2 }}{% else %}RD$0.00{% endif %}
+        </span>
+    </div> -->
+    
+    <!-- <div class="payment-method">
+        <span class="label"><i class='bx bx-credit-card-front'></i> Monto Inicial Créditos (Total)</span>
+        <span class="value">
+            {% if ventas %}RD${{ ventas.montoinicial_credito_total|floatformat:2 }}{% else %}RD$0.00{% endif %}
+        </span>
+    </div> -->
+            <!-- Efectivo -->
+    <div class="payment-method">
+            <span class="label"><i class='bx bx-money'></i> Efectivo</span>
+            <span class="value">
+                {% if ventas %}RD${{ ventas.efectivo_mostrar|floatformat:2 }}{% else %}RD$0.00{% endif %}
+            </span>
+        </div>
+                <!-- Tarjeta -->
+        <div class="payment-method">
+            <span class="label"><i class='bx bx-credit-card'></i> Tarjeta</span>
+            <span class="value">
+                {% if ventas %}RD${{ ventas.tarjeta_mostrar|floatformat:2 }}{% else %}RD$0.00{% endif %}
+            </span>
+        </div>
+                <!-- Transferencia -->
+        <div class="payment-method">
+            <span class="label"><i class='bx bx-transfer'></i> Transferencia</span>
+            <span class="value">
+                {% if ventas %}RD${{ ventas.transferencia_mostrar|floatformat:2 }}{% else %}RD$0.00{% endif %}
+            </span>
+        </div>
+</div>
 
                 <!-- Observaciones -->
                 <div class="card">
@@ -1031,13 +1048,13 @@
                 </div>
 
                 <!-- Botones de acción -->
-                <div class="btn-container">
+                <!-- <div class="btn-container">
                     <button class="btn btn-primary" onclick="exportToPDF()">
                         <i class='bx bx-download'></i> Exportar a PDF
                     </button>
                     <button class="btn btn-secondary" onclick="printReport()">
                         <i class='bx bx-printer'></i> Imprimir Cuadre
-                    </button>
+                    </button> -->
                     <a href="{% url 'iniciocaja'  %}" class="btn btn-outline">
                         <i class='bx bx-arrow-back'></i> Volver al Inicio
                     </a>
