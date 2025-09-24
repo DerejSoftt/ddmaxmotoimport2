@@ -1486,6 +1486,7 @@ def procesar_venta(request):
             tasa_interes=tasa_interes,
             plazo_meses=plazo_meses,
             monto_financiado=monto_financiado,
+            interes_mensual=interes_mensual,
             interes_total=ganancia_interes,
             cuota_mensual=cuota_mensual,
             total_con_interes=total_con_interes,
@@ -1513,6 +1514,7 @@ def procesar_venta(request):
             print(f"Tasa interés: {venta.tasa_interes}%")
             print(f"Plazo meses: {venta.plazo_meses}")
             print(f"Monto financiado: RD${venta.monto_financiado}")
+            print(f"Interés mensual: RD${venta.interes_mensual}") 
             print(f"Interés mensual: RD${interes_mensual}")
             print(f"Cuota mensual: RD${venta.cuota_mensual}")
             print(f"Ganancia por interés: RD${venta.interes_total}")
@@ -1645,6 +1647,7 @@ Productos:
                 'tasa_interes': float(venta.tasa_interes),
                 'plazo_meses': venta.plazo_meses,
                 'monto_financiado': float(venta.monto_financiado),
+                'interes_mensual': float(venta.interes_mensual),
                 'interes_total': float(venta.interes_total),
                 'cuota_mensual': float(venta.cuota_mensual),
                 'total_con_interes': float(venta.total_con_interes)
@@ -3821,27 +3824,20 @@ def procesar_cierre_caja(request):
 
 
 
-
-
 @login_required
 def cuadre(request):
     # Obtener la caja abierta actual o la última cerrada
     caja_actual = Caja.objects.filter(usuario=request.user, estado='abierta').first()
     
     if not caja_actual:
-        # Si no hay caja abierta, usar la última cerrada para este usuario
         caja_actual = Caja.objects.filter(usuario=request.user, estado='cerrada').order_by('-fecha_cierre').first()
     
-    context = {
-        'caja': None,
-        'ventas': {},
-        'cierre': None
-    }
+    context = {'caja': None, 'ventas': {}, 'cierre': None}
     
     if caja_actual:
-        # Obtener ventas de esta caja (período de la caja)
+        # Obtener ventas de esta caja
         ventas = Venta.objects.filter(
-            vendedor=request.user,  # Solo ventas del usuario actual
+            vendedor=request.user,
             fecha_venta__gte=caja_actual.fecha_apertura,
             completada=True,
             anulada=False
@@ -3850,44 +3846,78 @@ def cuadre(request):
         if caja_actual.fecha_cierre:
             ventas = ventas.filter(fecha_venta__lte=caja_actual.fecha_cierre)
         
-        # Obtener cierre de caja si existe
         cierre = CierreCaja.objects.filter(caja=caja_actual).first()
         
-        # Calcular totales por método de pago
-        ventas_efectivo = ventas.filter(metodo_pago='efectivo').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
-        ventas_tarjeta = ventas.filter(metodo_pago='tarjeta').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
-        ventas_transferencia = ventas.filter(metodo_pago='transferencia').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        # CORRECCIÓN: Calcular por método de pago sumando contado + monto inicial créditos
+        # Efectivo: ventas al contado en efectivo + monto inicial créditos en efectivo
+        ventas_contado_efectivo = ventas.filter(tipo_venta='contado', metodo_pago='efectivo').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_credito_efectivo = ventas.filter(tipo_venta='credito', metodo_pago='efectivo')
+        montoinicial_credito_efectivo = ventas_credito_efectivo.aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        total_efectivo_mostrar = ventas_contado_efectivo + montoinicial_credito_efectivo
         
-        # Separar ventas por tipo (contado vs crédito)
-        ventas_contado = ventas.filter(tipo_venta='contado')
+        # Tarjeta: ventas al contado con tarjeta + monto inicial créditos con tarjeta
+        ventas_contado_tarjeta = ventas.filter(tipo_venta='contado', metodo_pago='tarjeta').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_credito_tarjeta = ventas.filter(tipo_venta='credito', metodo_pago='tarjeta')
+        montoinicial_credito_tarjeta = ventas_credito_tarjeta.aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        total_tarjeta_mostrar = ventas_contado_tarjeta + montoinicial_credito_tarjeta
+        
+        # Transferencia: ventas al contado con transferencia + monto inicial créditos con transferencia
+        ventas_contado_transferencia = ventas.filter(tipo_venta='contado', metodo_pago='transferencia').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_credito_transferencia = ventas.filter(tipo_venta='credito', metodo_pago='transferencia')
+        montoinicial_credito_transferencia = ventas_credito_transferencia.aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        total_transferencia_mostrar = ventas_contado_transferencia + montoinicial_credito_transferencia
+        
+        # Monto inicial total de todos los créditos (para el cuadre de caja)
         ventas_credito = ventas.filter(tipo_venta='credito')
+        montoinicial_credito_total = ventas_credito.aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
         
-        # Calcular totales por tipo de venta
-        total_contado = ventas_contado.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
-        montoinicial_credito = ventas_credito.aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
-        total_credito = ventas_credito.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        # Ventas totales al contado (para el Total General)
+        ventas_contado_total = ventas.filter(tipo_venta='contado').aggregate(total=Sum('total'))['total'] or Decimal('0.00')
         
-        # CALCULAR MONTO CONTADO según los requisitos:
-        # monto contado = monto inicial de caja + total a pagar (ventas contado) + monto inicial (ventas crédito)
-        monto_inicial_caja = caja_actual.monto_inicial
-        monto_contado = monto_inicial_caja + total_contado + montoinicial_credito
+        # CORRECCIÓN FINAL: TOTAL GENERAL = ventas al contado (TOTAL) + monto inicial créditos (TOTAL)
+        total_general = ventas_contado_total + montoinicial_credito_total
         
-        # Preparar datos para el template
+        # EFECTIVO para cuadre de caja = solo montos iniciales de créditos
+        total_efectivo_cuadre = montoinicial_credito_total
+        
+        # CALCULAR MONTO CONTADO REAL
+        monto_contado = caja_actual.monto_inicial + total_efectivo_cuadre
+        
+        # DEBUG: Verificar cálculos
+        print("=== CÁLCULOS FINALES CORREGIDOS ===")
+        print(f"Efectivo mostrar: {total_efectivo_mostrar} (contado: {ventas_contado_efectivo} + crédito: {montoinicial_credito_efectivo})")
+        print(f"Tarjeta mostrar: {total_tarjeta_mostrar} (contado: {ventas_contado_tarjeta} + crédito: {montoinicial_credito_tarjeta})")
+        print(f"Transferencia mostrar: {total_transferencia_mostrar} (contado: {ventas_contado_transferencia} + crédito: {montoinicial_credito_transferencia})")
+        print(f"Ventas al contado total: {ventas_contado_total}")
+        print(f"Monto inicial créditos total: {montoinicial_credito_total}")
+        print(f"Total general: {total_general}")
+        print(f"Efectivo cuadre: {total_efectivo_cuadre}")
+        
         context = {
-            'caja': caja_actual,  # Pasar el objeto completo de caja
+            'caja': caja_actual,
             'ventas': {
-                'efectivo': ventas_efectivo,
-                'tarjeta': ventas_tarjeta,
-                'transferencia': ventas_transferencia,
-                'credito': total_credito,
-                'total': ventas_efectivo + ventas_tarjeta + ventas_transferencia + total_credito,
-                'contado': total_contado,
-                'montoinicial_credito': montoinicial_credito
+                'efectivo_cuadre': total_efectivo_cuadre,  # Solo para cuadre de caja
+                'efectivo_mostrar': total_efectivo_mostrar,  # Para mostrar: contado + crédito efectivo
+                'tarjeta_mostrar': total_tarjeta_mostrar,    # Para mostrar: contado + crédito tarjeta
+                'transferencia_mostrar': total_transferencia_mostrar,  # Para mostrar: contado + crédito transferencia
+                'ventas_contado_total': ventas_contado_total,  # Total ventas al contado
+                'montoinicial_credito_total': montoinicial_credito_total,  # Total monto inicial créditos
+                'total': total_general,
+                # Detalles para desglose
+                'contado_efectivo': ventas_contado_efectivo,
+                'credito_efectivo': montoinicial_credito_efectivo,
+                'contado_tarjeta': ventas_contado_tarjeta,
+                'credito_tarjeta': montoinicial_credito_tarjeta,
+                'contado_transferencia': ventas_contado_transferencia,
+                'credito_transferencia': montoinicial_credito_transferencia,
             },
-            'cierre': cierre  # Pasar el objeto completo de cierre
+            'cierre': cierre
         }
     
     return render(request, 'facturacion/cuadre.html', context)
+
+
+
 
 
 def reavastecer(request):

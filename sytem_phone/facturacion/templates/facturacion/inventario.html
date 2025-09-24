@@ -1081,7 +1081,7 @@
 
     <!-- CSRF Token para peticiones AJAX -->
     <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
-
+ <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // Variables globales
 let products = [];
@@ -1436,7 +1436,26 @@ function loadDataFromServer() {
         `;
     });
 }
+    // Manejar el cierre de sesión con SweetAlert2
+    document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+        e.preventDefault();
 
+        Swal.fire({
+            title: '¿Cerrar Sesión?',
+            text: '¿Está seguro de que desea cerrar la sesión?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#667eea',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: 'Sí, Cerrar Sesión',
+            cancelButtonText: 'Cancelar',
+            backdrop: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "{% url 'index' %}";
+            }
+        });
+    });
 // Inicializar la página
 window.addEventListener('load', function() {
     loadDataFromServer();

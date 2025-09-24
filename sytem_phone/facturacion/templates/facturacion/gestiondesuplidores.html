@@ -870,7 +870,7 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="editCompanyName">Nombre de la Empresa *</label>
-                            <input type="text" id="editCompanyName" name="companyName" class="form-input" required>
+                            <input type="text" id="editCompanyName" name="nombre_empresa" class="form-input" required>
                         </div>
 
                         <div class="form-group">
@@ -880,7 +880,7 @@
 
                         <div class="form-group">
                             <label class="form-label" for="editContactName">Nombre del Contacto *</label>
-                            <input type="text" id="editContactName" name="contactName" class="form-input" required>
+                            <input type="text" id="editContactName" name="nombre_contacto" class="form-input" required>
                         </div>
 
                         <div class="form-group">
@@ -913,7 +913,7 @@
                             <input type="text" id="editCity" name="city" class="form-input" required>
                         </div>
 
-                        <div class="form-group">
+                        <!-- <div class="form-group">
                             <label class="form-label" for="editCategory">Categoría de Productos *</label>
                             <select id="editCategory" name="category" class="form-input form-select" required>
                                 <option value="">Seleccionar categoría</option>
@@ -921,7 +921,7 @@
                                 <option value="{{ categoria.0 }}">{{ categoria.1 }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
+                        </div> -->
 
                         <div class="form-group full-width">
                             <label class="form-label" for="editAddress">Dirección Completa</label>
@@ -1064,7 +1064,7 @@ async function editSupplier(id) {
         document.getElementById('editWhatsapp').value = supplierData.whatsapp || '';
         document.getElementById('editCountry').value = supplierData.pais;
         document.getElementById('editCity').value = supplierData.ciudad;
-        document.getElementById('editCategory').value = supplierData.categoria;
+        // document.getElementById('editCategory').value = supplierData.categoria;
         document.getElementById('editAddress').value = supplierData.direccion || '';
         document.getElementById('editPaymentTerms').value = supplierData.terminos_pago || '';
         document.getElementById('editCreditLimit').value = supplierData.limite_credito || '0';

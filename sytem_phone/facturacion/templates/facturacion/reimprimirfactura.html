@@ -955,7 +955,7 @@
                         Entregado Por: <span id="vendedor"></span>
                     </div>
                     <div class="signature-box">
-                        Recibido Por: ________________
+                        Recibido Por: <span id="cliente"></span>
                     </div>
                 </div>
                 
@@ -1128,6 +1128,7 @@
             document.getElementById('tipo-venta').textContent = data.tipo_venta_display;
             document.getElementById('metodo-pago').textContent = data.metodo_pago_display;
             document.getElementById('vendedor').textContent = data.vendedor_nombre;
+            document.getElementById('cliente').textContent = data.cliente_nombre;
             
             // Mostrar información adicional del cliente si está disponible
             if (data.cliente_apodo) {
