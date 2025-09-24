@@ -2031,7 +2031,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // Seleccionar cliente
+    // Seleccionar cliente (SIN VALIDACIÓN DE LÍMITE DE CRÉDITO)
     const selectClient = (clientElement) => {
         const clientId = clientElement.getAttribute('data-id');
         const clientName = clientElement.getAttribute('data-name');
@@ -2052,10 +2052,7 @@ document.addEventListener("DOMContentLoaded", () => {
             item.style.display = 'none';
         });
         
-        // Verificar límite de crédito
-        if (state.finalTotal > creditLimit) {
-            showAlert(`El total de la venta (${formatCurrency(state.finalTotal)}) excede el límite de crédito del cliente (${formatCurrency(creditLimit)})`, 'warning');
-        }
+        // VALIDACIÓN DE LÍMITE DE CRÉDITO ELIMINADA - NO SE VERIFICA EL LÍMITE
     };
 
     // Seleccionar producto
@@ -2165,7 +2162,7 @@ document.addEventListener("DOMContentLoaded", () => {
         DOM.totalAPagarField.value = state.paymentType === 'credito' ? state.totalToPay : state.finalTotal;
     };
 
-    // Validar y completar la venta
+    // Validar y completar la venta (SIN VALIDACIÓN DE LÍMITE DE CRÉDITO)
     const completeSale = async () => {
         if (state.saleItems.length === 0) {
             showAlert('Debe agregar al menos un producto a la venta', 'error');
@@ -2199,12 +2196,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             
-            // Verificar límite de crédito
-            const creditLimit = parseFloat(state.selectedClient.creditLimit || 0);
-            if (state.finalTotal > creditLimit) {
-                showAlert(`El total de la venta (${formatCurrency(state.finalTotal)}) excede el límite de crédito del cliente (${formatCurrency(creditLimit)})`, 'error');
-                return;
-            }
+            // VALIDACIÓN DE LÍMITE DE CRÉDITO ELIMINADA - NO SE VERIFICA EL LÍMITE
             
             // Calcular crédito para asegurar que tenemos valores actualizados
             calculateCredit();
