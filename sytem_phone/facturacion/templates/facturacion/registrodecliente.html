@@ -6,6 +6,8 @@
     <title>Registro de Clientes - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Toastr CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -742,9 +744,14 @@
             </div>
         </div>
     </div>
-
+        <!-- jQuery (requerido para Toastr) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+        <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // Referencias a elementos del DOM
+          // Referencias a elementos del DOM
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.querySelector('.sidebar-overlay');
         const form = document.getElementById('clientRegistrationForm');
@@ -805,27 +812,24 @@
         document.getElementById('primaryPhone').addEventListener('input', formatPhone);
         document.getElementById('secondaryPhone').addEventListener('input', formatPhone);
 
-        // Formatear límite de crédito
-        // document.getElementById('creditLimit').addEventListener('input', function(e) {
-        //     let value = e.target.value.replace(/[^\d.]/g, ''); // Permitir solo números y punto decimal
-        //     const decimalCount = (value.match(/\./g) || []).length;
-            
-        //     // Permitir solo un punto decimal
-        //     if (decimalCount > 1) {
-        //         value = value.substring(0, value.lastIndexOf('.'));
-        //     }
-            
-        //     // Limitar a 2 decimales
-        //     if (value.includes('.')) {
-        //         const parts = value.split('.');
-        //         if (parts[1].length > 2) {
-        //             parts[1] = parts[1].substring(0, 2);
-        //             value = parts.join('.');
-        //         }
-        //     }
-            
-        //     e.target.value = value;
-        // });
+               // Configuración de Toastr
+        toastr.options = {
+            "closeButton": false,
+            "debug": false,
+            "newestOnTop": false,
+            "progressBar": false,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+            };
 
         // Función para obtener el token CSRF
         function getCookie(name) {
@@ -852,6 +856,12 @@
                 errorElement.textContent = message;
                 errorElement.style.display = 'block';
                 inputElement.style.borderColor = '#dc3545';
+                
+                // Mostrar notificación Toastr para errores de validación
+                toastr.error(message, 'Error de validación', {
+                    timeOut: 3000,
+                    positionClass: "toast-top-right"
+                });
             }
         }
 
@@ -886,16 +896,25 @@
                 }
             });
             
-            // Validar que el límite de crédito sea un número válido si se proporciona
-            // const creditLimitField = document.getElementById('creditLimit');
-            // if (creditLimitField.value && isNaN(parseFloat(creditLimitField.value))) {
-            //     showError('creditLimit', 'Por favor ingrese un valor numérico válido');
-            //     isValid = false;
-            // }
+            if (!isValid) {
+                return;
+            }
             
-            // if (!isValid) {
-            //     return;
-            // }
+            // Mostrar confirmación con SweetAlert2 antes de enviar
+            const result = await Swal.fire({
+                title: '¿Registrar cliente?',
+                text: '¿Está seguro de que desea registrar este cliente?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, registrar',
+                cancelButtonText: 'Cancelar'
+            });
+            
+            if (!result.isConfirmed) {
+                return;
+            }
             
             // Recopilar datos del formulario
             const formData = {
@@ -904,7 +923,6 @@
                 'address': document.getElementById('address').value,
                 'primaryPhone': document.getElementById('primaryPhone').value,
                 'secondaryPhone': document.getElementById('secondaryPhone').value,
-                // 'creditLimit': document.getElementById('creditLimit').value || '0'
             };
             
             try {
@@ -924,11 +942,11 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Mostrar mensaje de éxito
-                    successMessage.style.display = 'block';
-                    setTimeout(() => {
-                        successMessage.style.display = 'none';
-                    }, 3000);
+                    // Mostrar mensaje de éxito con Toastr
+                    toastr.success('Cliente registrado exitosamente', 'Éxito', {
+                        timeOut: 3000,
+                        positionClass: "toast-top-right"
+                    });
                     
                     // Limpiar formulario
                     form.reset();
@@ -939,12 +957,26 @@
                     if (result.message.includes('número de identificación')) {
                         showError('identificationNumber', result.message);
                     } else {
-                        alert('Error: ' + result.message);
+                        // Usar SweetAlert2 para errores importantes
+                        Swal.fire({
+                            title: 'Error',
+                            text: result.message,
+                            icon: 'error',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#667eea'
+                        });
                     }
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error de conexión. Intente nuevamente.');
+                // Usar SweetAlert2 para errores de conexión
+                Swal.fire({
+                    title: 'Error de conexión',
+                    text: 'No se pudo conectar con el servidor. Intente nuevamente.',
+                    icon: 'error',
+                    confirmButtonText: 'Aceptar',
+                    confirmButtonColor: '#667eea'
+                });
             }
         });
 
