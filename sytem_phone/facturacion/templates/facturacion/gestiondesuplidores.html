@@ -305,12 +305,13 @@
             border-radius: 15px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-             overflow-x: scroll;
+            overflow-x: auto;
         }
 
         .table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 800px;
         }
 
         .table th {
@@ -322,26 +323,22 @@
             font-size: 0.95rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-           
         }
 
         .table td {
             padding: 15px;
             border-bottom: 1px solid #e1e8ed;
             vertical-align: middle;
-             
         }
 
         .table tbody tr:hover {
             background: #f8f9fa;
             transform: scale(1.01);
             transition: all 0.3s ease;
-             
         }
 
         .table tbody tr:last-child td {
             border-bottom: none;
-             
         }
 
         .status-badge {
@@ -535,6 +532,42 @@
             transform: translateY(-2px);
         }
 
+        /* Notifications */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification.error {
+            background: #F44336;
+        }
+
+        .notification .notification-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notification i {
+            font-size: 1.5rem;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -695,7 +728,7 @@
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-       <!-- Sidebar Navigation -->
+    <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>
@@ -742,7 +775,7 @@
                 <i class='bx bx-trending-up'></i>
                 <span>Suplidores</span>
             </a>
-                        <a href="{% url 'devoluciones'  %}" class="menu-item">
+            <a href="{% url 'devoluciones'  %}" class="menu-item">
                 <i class='bx bx-trending-up'></i>
                 <span>Devoluciones</span>
             </a>
@@ -754,11 +787,6 @@
                 <i class='bx bx-trending-up'></i>
                 <span>Anular Factura</span>
             </a>
-
-            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-store'></i>
-                <span>Ajuste Inventario</span>
-            </a> -->
             <a href="{% url 'dashboard'  %}" class="menu-item">
                 <i class='bx bx-cog'></i>
                 <span>Dashboard</span>
@@ -804,7 +832,6 @@
                                 <th>Teléfono</th>
                                 <th>País</th>
                                 <th>Ciudad</th>
-                                <!-- <th>Categoría</th> -->
                                 <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
@@ -819,7 +846,6 @@
                                 <td>{{ proveedor.telefono }}</td>
                                 <td>{{ proveedor.get_pais_display }}</td>
                                 <td>{{ proveedor.ciudad }}</td>
-                                <!-- <td>{{ proveedor.get_categoria_display }}</td> -->
                                 <td>
                                     <span class="status-badge {% if proveedor.activo %}status-active{% else %}status-inactive{% endif %}">
                                         {% if proveedor.activo %}Activo{% else %}Inactivo{% endif %}
@@ -838,7 +864,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="10" class="no-data">
+                                <td colspan="9" class="no-data">
                                     <i class='bx bx-package'></i>
                                     <p>No hay suplidores registrados</p>
                                 </td>
@@ -890,7 +916,7 @@
 
                         <div class="form-group">
                             <label class="form-label" for="editPhone">Teléfono *</label>
-                            <input type="tel" id="editPhone" name="phone" class="form-input" required>
+                            <input type="tel" id="editPhone" name="telefono" class="form-input" required>
                         </div>
 
                         <div class="form-group">
@@ -900,7 +926,7 @@
 
                         <div class="form-group">
                             <label class="form-label" for="editCountry">País *</label>
-                            <select id="editCountry" name="country" class="form-input form-select" required>
+                            <select id="editCountry" name="pais" class="form-input form-select" required>
                                 <option value="">Seleccionar país</option>
                                 {% for pais in paises %}
                                 <option value="{{ pais.0 }}">{{ pais.1 }}</option>
@@ -910,27 +936,17 @@
 
                         <div class="form-group">
                             <label class="form-label" for="editCity">Ciudad *</label>
-                            <input type="text" id="editCity" name="city" class="form-input" required>
+                            <input type="text" id="editCity" name="ciudad" class="form-input" required>
                         </div>
-
-                        <!-- <div class="form-group">
-                            <label class="form-label" for="editCategory">Categoría de Productos *</label>
-                            <select id="editCategory" name="category" class="form-input form-select" required>
-                                <option value="">Seleccionar categoría</option>
-                                {% for categoria in categorias %}
-                                <option value="{{ categoria.0 }}">{{ categoria.1 }}</option>
-                                {% endfor %}
-                            </select>
-                        </div> -->
 
                         <div class="form-group full-width">
                             <label class="form-label" for="editAddress">Dirección Completa</label>
-                            <input type="text" id="editAddress" name="address" class="form-input">
+                            <input type="text" id="editAddress" name="direccion" class="form-input">
                         </div>
 
                         <div class="form-group">
                             <label class="form-label" for="editPaymentTerms">Términos de Pago</label>
-                            <select id="editPaymentTerms" name="paymentTerms" class="form-input form-select">
+                            <select id="editPaymentTerms" name="terminos_pago" class="form-input form-select">
                                 <option value="">Seleccionar términos</option>
                                 {% for termino in terminos_pago %}
                                 <option value="{{ termino.0 }}">{{ termino.1 }}</option>
@@ -940,24 +956,21 @@
 
                         <div class="form-group">
                             <label class="form-label" for="editCreditLimit">Límite de Crédito (RD$)</label>
-                            <input type="number" id="editCreditLimit" name="creditLimit" class="form-input" min="0" step="0.01">
+                            <input type="number" id="editCreditLimit" name="limite_credito" class="form-input" min="0" step="0.01">
                         </div>
 
                         <div class="form-group full-width">
                             <label class="form-label" for="editNotes">Notas Adicionales</label>
-                            <textarea id="editNotes" name="notes" class="form-input form-textarea"></textarea>
+                            <textarea id="editNotes" name="notas" class="form-input form-textarea"></textarea>
                         </div>
 
                         <div class="form-group full-width">
                             <div class="checkbox-group">
-                                <input type="checkbox" id="editIsActive" name="isActive" class="checkbox-input">
+                                <input type="checkbox" id="editIsActive" name="activo" class="checkbox-input">
                                 <label for="editIsActive" class="form-label">Suplidor Activo</label>
                             </div>
                         </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
+                          <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closeEditModal()">
                     <i class='bx bx-x'></i>
                     Cancelar
@@ -969,6 +982,10 @@
             </div>
         </div>
     </div>
+                    </div>
+                </form>
+            </div>
+          
 
     <!-- Modal de confirmación para eliminar -->
     <div class="modal" id="deleteModal">
@@ -1004,282 +1021,254 @@
 
     <script>
         // Funciones para el sidebar
-        // Funciones para el sidebar
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.querySelector('.sidebar-overlay');
-    
-    sidebar.classList.toggle('active');
-    sidebarOverlay.classList.toggle('active');
-    
-    if (window.innerWidth <= 768) {
-        document.body.classList.toggle('sidebar-open');
-    }
-}
-
-function closeSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.querySelector('.sidebar-overlay');
-    
-    sidebar.classList.remove('active');
-    sidebarOverlay.classList.remove('active');
-    document.body.classList.remove('sidebar-open');
-}
-
-// Cerrar sidebar al hacer clic en un enlace (móvil)
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-        if (window.innerWidth <= 768) {
-            closeSidebar();
-        }
-    });
-});
-
-// Función para obtener datos del proveedor via AJAX
-async function fetchSupplierData(id) {
-    try {
-        const response = await fetch(`/proveedores/${id}/data/`);
-        if (!response.ok) {
-            throw new Error('Error al obtener datos del proveedor');
-        }
-        return await response.json();
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
-    }
-}
-
-// Función para abrir modal de edición con datos del proveedor
-async function editSupplier(id) {
-    try {
-        const supplierData = await fetchSupplierData(id);
-        
-        // Llenar el formulario con los datos del proveedor
-        document.getElementById('editSupplierId').value = supplierData.id;
-        document.getElementById('editCompanyName').value = supplierData.nombre_empresa;
-        document.getElementById('editRnc').value = supplierData.rnc;
-        document.getElementById('editContactName').value = supplierData.nombre_contacto;
-        document.getElementById('editEmail').value = supplierData.email;
-        document.getElementById('editPhone').value = supplierData.telefono;
-        document.getElementById('editWhatsapp').value = supplierData.whatsapp || '';
-        document.getElementById('editCountry').value = supplierData.pais;
-        document.getElementById('editCity').value = supplierData.ciudad;
-        // document.getElementById('editCategory').value = supplierData.categoria;
-        document.getElementById('editAddress').value = supplierData.direccion || '';
-        document.getElementById('editPaymentTerms').value = supplierData.terminos_pago || '';
-        document.getElementById('editCreditLimit').value = supplierData.limite_credito || '0';
-        document.getElementById('editNotes').value = supplierData.notas || '';
-        document.getElementById('editIsActive').checked = supplierData.activo;
-
-        // Mostrar modal
-        document.getElementById('editModal').classList.add('active');
-        document.body.style.overflow = 'hidden';
-        
-    } catch (error) {
-        console.error('Error al cargar datos del proveedor:', error);
-        alert('Error al cargar los datos del proveedor. Por favor intente nuevamente.');
-    }
-}
-
-// Función para cerrar modal de edición
-function closeEditModal() {
-    document.getElementById('editModal').classList.remove('active');
-    document.body.style.overflow = 'auto';
-}
-
-// Función para confirmar eliminación
-function confirmDelete(id) {
-    document.getElementById('deleteSupplierId').value = id;
-    document.getElementById('deleteModal').classList.add('active');
-    document.body.style.overflow = 'hidden';
-}
-
-// Función para cerrar modal de eliminación
-function closeDeleteModal() {
-    document.getElementById('deleteModal').classList.remove('active');
-    document.body.style.overflow = 'auto';
-}
-
-// Función para formatear RNC (XXX-XXXXX-X)
-function formatRNC(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 9) {
-        value = value.replace(/(\d{3})(\d{5})(\d{1})/, '$1-$2-$3');
-    }
-    e.target.value = value;
-}
-
-// Función para formatear teléfonos (XXX) XXX-XXXX
-function formatPhone(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 10) {
-        value = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
-    }
-    e.target.value = value;
-}
-
-// Función de búsqueda en tiempo real
-function setupSearch() {
-    const searchInput = document.getElementById('searchInput');
-    if (!searchInput) return;
-
-    searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
-        const rows = document.querySelectorAll('#suppliersTableBody tr');
-        
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            if (text.includes(searchTerm)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    });
-}
-
-// Manejar envío del formulario de edición con AJAX
-function setupEditForm() {
-    const editForm = document.getElementById('editSupplierForm');
-    if (!editForm) return;
-
-    editForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const submitButton = editForm.querySelector('button[type="submit"]');
-        const originalButtonText = submitButton.innerHTML;
-        
-        try {
-            // Mostrar estado de carga
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="bx bx-loader bx-spin"></i> Guardando...';
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.querySelector('.sidebar-overlay');
             
-            const response = await fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+            
+            if (window.innerWidth <= 768) {
+                document.body.classList.toggle('sidebar-open');
+            }
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.querySelector('.sidebar-overlay');
+            
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        }
+
+        // Cerrar sidebar al hacer clic en un enlace (móvil)
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeSidebar();
+                }
+            });
+        });
+
+        // Función para obtener datos del proveedor via AJAX
+        async function fetchSupplierData(id) {
+            try {
+                const response = await fetch(`/proveedores/${id}/data/`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener datos del proveedor');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error:', error);
+                throw error;
+            }
+        }
+
+        // Función para abrir modal de edición con datos del proveedor
+        async function editSupplier(id) {
+            try {
+                const supplierData = await fetchSupplierData(id);
+                
+                // Llenar el formulario con los datos del proveedor
+                document.getElementById('editSupplierId').value = supplierData.id;
+                document.getElementById('editCompanyName').value = supplierData.nombre_empresa;
+                document.getElementById('editRnc').value = supplierData.rnc;
+                document.getElementById('editContactName').value = supplierData.nombre_contacto;
+                document.getElementById('editEmail').value = supplierData.email;
+                document.getElementById('editPhone').value = supplierData.telefono;
+                document.getElementById('editWhatsapp').value = supplierData.whatsapp || '';
+                document.getElementById('editCountry').value = supplierData.pais;
+                document.getElementById('editCity').value = supplierData.ciudad;
+                document.getElementById('editAddress').value = supplierData.direccion || '';
+                document.getElementById('editPaymentTerms').value = supplierData.terminos_pago || '';
+                document.getElementById('editCreditLimit').value = supplierData.limite_credito || '0';
+                document.getElementById('editNotes').value = supplierData.notas || '';
+                document.getElementById('editIsActive').checked = supplierData.activo;
+
+                // Mostrar modal
+                document.getElementById('editModal').classList.add('active');
+                document.body.style.overflow = 'hidden';
+                
+            } catch (error) {
+                console.error('Error al cargar datos del proveedor:', error);
+                showNotification('Error al cargar los datos del proveedor. Por favor intente nuevamente.', 'error');
+            }
+        }
+
+        // Función para cerrar modal de edición
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Función para confirmar eliminación
+        function confirmDelete(id) {
+            document.getElementById('deleteSupplierId').value = id;
+            document.getElementById('deleteModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Función para cerrar modal de eliminación
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Función para formatear RNC (XXX-XXXXX-X)
+        function formatRNC(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 9) {
+                value = value.replace(/(\d{3})(\d{5})(\d{1})/, '$1-$2-$3');
+            }
+            e.target.value = value;
+        }
+
+        // Función para formatear teléfonos (XXX) XXX-XXXX
+        function formatPhone(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 10) {
+                value = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+            }
+            e.target.value = value;
+        }
+
+        // Función de búsqueda en tiempo real
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            if (!searchInput) return;
+
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#suppliersTableBody tr');
+                
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Manejar envío del formulario de edición con AJAX
+        function setupEditForm() {
+            const editForm = document.getElementById('editSupplierForm');
+            if (!editForm) return;
+
+            editForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const submitButton = editForm.querySelector('button[type="submit"]');
+                const originalButtonText = submitButton.innerHTML;
+                
+                try {
+                    // Mostrar estado de carga
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<i class="bx bx-loader bx-spin"></i> Guardando...';
+                    
+                    const response = await fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        }
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showNotification('Proveedor actualizado exitosamente', 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Error al guardar los cambios');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showNotification(error.message, 'error');
+                } finally {
+                    // Restaurar botón
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+            });
+        }
+
+        // Función para mostrar notificación
+        function showNotification(message, type = 'success') {
+            // Remover notificaciones existentes
+            document.querySelectorAll('.notification').forEach(notification => {
+                notification.remove();
+            });
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <i class='bx ${type === 'success' ? 'bx-check-circle' : 'bx-error'}'></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 5000);
+        }
+
+        // Inicialización de eventos
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar eventos de los modales
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        if (modal.id === 'editModal') {
+                            closeEditModal();
+                        } else if (modal.id === 'deleteModal') {
+                            closeDeleteModal();
+                        }
+                    }
+                });
+            });
+
+            // Configurar formatos de entrada
+            document.getElementById('editRnc')?.addEventListener('input', formatRNC);
+            document.getElementById('editPhone')?.addEventListener('input', formatPhone);
+            document.getElementById('editWhatsapp')?.addEventListener('input', formatPhone);
+
+            // Configurar búsqueda
+            setupSearch();
+
+            // Configurar formulario de edición
+            setupEditForm();
+
+            // Cerrar sidebar al redimensionar ventana
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    closeSidebar();
                 }
             });
 
-            const data = await response.json();
-            
-            if (data.success) {
-                // Recargar la página para ver los cambios
-                window.location.reload();
-            } else {
-                throw new Error(data.message || 'Error al guardar los cambios');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert(error.message);
-        } finally {
-            // Restaurar botón
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
-        }
-    });
-}
-
-// Inicialización de eventos
-document.addEventListener('DOMContentLoaded', function() {
-    // Configurar eventos de los modales
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                if (modal.id === 'editModal') {
-                    closeEditModal();
-                } else if (modal.id === 'deleteModal') {
-                    closeDeleteModal();
-                }
-            }
+            // Mostrar mensajes de Django
+            {% if messages %}
+                {% for message in messages %}
+                    showNotification('{{ message }}', '{{ message.tags }}');
+                {% endfor %}
+            {% endif %}
         });
-    });
-
-    // Configurar formatos de entrada
-    document.getElementById('editRnc')?.addEventListener('input', formatRNC);
-    document.getElementById('editPhone')?.addEventListener('input', formatPhone);
-    document.getElementById('editWhatsapp')?.addEventListener('input', formatPhone);
-
-    // Configurar búsqueda
-    setupSearch();
-
-    // Configurar formulario de edición
-    setupEditForm();
-
-    // Cerrar sidebar al redimensionar ventana
-    window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            closeSidebar();
-        }
-    });
-});
-
-// Función para mostrar notificación
-function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class='bx ${type === 'success' ? 'bx-check-circle' : 'bx-error'}'></i>
-            <span>${message}</span>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 100);
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 5000);
-}
-
-// Estilos para notificaciones (puedes agregarlos en tu CSS)
-const notificationStyles = document.createElement('style');
-notificationStyles.textContent = `
-.notification {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #4CAF50;
-    color: white;
-    padding: 15px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transform: translateY(100px);
-    opacity: 0;
-    transition: all 0.3s ease;
-    z-index: 9999;
-    max-width: 400px;
-}
-
-.notification.show {
-    transform: translateY(0);
-    opacity: 1;
-}
-
-.notification.error {
-    background: #F44336;
-}
-
-.notification .notification-content {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.notification i {
-    font-size: 1.5rem;
-}
-`;
-document.head.appendChild(notificationStyles);
     </script>
 </body>
 </html>

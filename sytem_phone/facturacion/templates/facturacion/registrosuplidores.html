@@ -7,6 +7,8 @@
     <title>Registro de Suplidores - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Toastr CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -497,6 +499,24 @@
                 overflow: hidden;
             }
         }
+
+        /* Estilos adicionales para Toastr */
+        .toast-success {
+            background-color: #28a745;
+        }
+
+        .toast-error {
+            background-color: #dc3545;
+        }
+
+        .toast-info {
+            background-color: #17a2b8;
+        }
+
+        .toast-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
     </style>
 </head>
 <body>
@@ -597,8 +617,8 @@
                 <p>Sistema de Gestión de Suplidores - Derejsoft</p>
             </div>
 
-            <div class="form-container">
-                {% if messages %}
+<div class="form-container">
+                <!-- {% if messages %}
                     {% for message in messages %}
                         <div class="success-message" style="display: block;">
                             <i class='bx bx-check-circle'></i>
@@ -612,7 +632,7 @@
                         <i class='bx bx-error'></i>
                         {{ error }}
                     </div>
-                {% endif %}
+                {% endif %} -->
 
                 <form method="post" id="supplierForm">
                     {% csrf_token %}
@@ -770,11 +790,59 @@
                         </button>
                     </div>
                 </form>
+
+                <!-- Eliminamos los mensajes de éxito/error estáticos ya que usaremos Toastr -->
             </div>
         </div>
     </div>
 
+    <!-- jQuery (requerido para Toastr) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
+        // Configuración de Toastr
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": true,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+
+        // Mostrar mensajes del servidor con Toastr
+        {% if messages %}
+            {% for message in messages %}
+                {% if message.tags == 'success' %}
+                    toastr.success('{{ message }}', 'Éxito');
+                {% elif message.tags == 'error' %}
+                    toastr.error('{{ message }}', 'Error');
+                {% elif message.tags == 'warning' %}
+                    toastr.warning('{{ message }}', 'Advertencia');
+                {% else %}
+                    toastr.info('{{ message }}', 'Información');
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        // Mostrar errores del servidor con Toastr
+        {% if error %}
+            toastr.error('{{ error }}', 'Error de Validación');
+        {% endif %}
+
         // Funciones para el sidebar
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -910,13 +978,6 @@
                         isValid = false;
                     }
                     break;
-
-                // case 'categoria':
-                //     if (!value) {
-                //         errorMessage = 'Debe seleccionar una categoría';
-                //         isValid = false;
-                //     }
-                //     break;
             }
 
             if (errorElement) {
@@ -924,6 +985,10 @@
                     errorElement.textContent = errorMessage;
                     errorElement.style.display = 'block';
                     field.style.borderColor = '#dc3545';
+                    // Mostrar error con Toastr para validaciones importantes
+                    if (value) { // Solo mostrar Toastr si el campo tiene contenido
+                        toastr.warning(errorMessage, 'Validación');
+                    }
                 } else {
                     errorElement.style.display = 'none';
                     field.style.borderColor = '#28a745';
@@ -949,23 +1014,147 @@
             }
         });
 
-        // Validar formulario antes de enviar
+        // Validar formulario antes de enviar con SweetAlert2
         document.getElementById('supplierForm').addEventListener('submit', function(e) {
             const requiredFields = ['nombre_empresa', 'rnc', 'nombre_contacto', 'email', 'telefono', 'pais', 'ciudad'];
             let isFormValid = true;
+            let errorFields = [];
 
             requiredFields.forEach(fieldName => {
                 const field = document.getElementById(fieldName);
                 if (!validateField({ target: field })) {
                     isFormValid = false;
+                    errorFields.push(fieldName);
                 }
             });
 
             if (!isFormValid) {
                 e.preventDefault();
-                // Mostrar mensaje de error general
-                alert('Por favor complete todos los campos requeridos correctamente');
+                
+                // Usar SweetAlert2 para mostrar errores de validación importantes
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de Validación',
+                    html: `Por favor complete los siguientes campos requeridos correctamente:<br><br>
+                           <ul style="text-align: left;">
+                           ${errorFields.map(field => {
+                               const fieldLabels = {
+                                   'nombre_empresa': 'Nombre de la Empresa',
+                                   'rnc': 'RNC',
+                                   'nombre_contacto': 'Nombre del Contacto',
+                                   'email': 'Correo Electrónico',
+                                   'telefono': 'Teléfono',
+                                   'pais': 'País',
+                                   'ciudad': 'Ciudad'
+                               };
+                               return `<li>${fieldLabels[field]}</li>`;
+                           }).join('')}
+                           </ul>`,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#667eea',
+                    backdrop: true
+                });
+                
+                // Hacer scroll al primer campo con error
+                if (errorFields.length > 0) {
+                    const firstErrorField = document.getElementById(errorFields[0]);
+                    firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstErrorField.focus();
+                }
+            } else {
+                // Confirmación con SweetAlert2 antes de enviar el formulario
+                e.preventDefault();
+                
+                Swal.fire({
+                    title: '¿Registrar Suplidor?',
+                    text: '¿Está seguro de que desea registrar este suplidor?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#667eea',
+                    cancelButtonColor: '#dc3545',
+                    confirmButtonText: 'Sí, Registrar',
+                    cancelButtonText: 'Cancelar',
+                    backdrop: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Mostrar mensaje de procesamiento
+                        Swal.fire({
+                            title: 'Procesando...',
+                            text: 'Registrando suplidor en el sistema',
+                            icon: 'info',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        
+                        // Enviar formulario después de 1 segundo para mostrar la animación
+                        setTimeout(() => {
+                            document.getElementById('supplierForm').submit();
+                        }, 1000);
+                    }
+                });
             }
+        });
+
+        // Confirmación para limpiar formulario con SweetAlert2
+        document.querySelector('button[type="reset"]').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            Swal.fire({
+                title: '¿Limpiar Formulario?',
+                text: 'Se perderán todos los datos ingresados',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#dc3545',
+                confirmButtonText: 'Sí, Limpiar',
+                cancelButtonText: 'Cancelar',
+                backdrop: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Limpiar formulario
+                    document.getElementById('supplierForm').reset();
+                    
+                    // Limpiar mensajes de error
+                    document.querySelectorAll('.error-message').forEach(error => {
+                        error.style.display = 'none';
+                    });
+                    
+                    // Restablecer bordes de los campos
+                    document.querySelectorAll('.form-input').forEach(input => {
+                        input.style.borderColor = '#e1e8ed';
+                    });
+                    
+                    toastr.info('Formulario limpiado correctamente', 'Éxito');
+                }
+            });
+        });
+
+    // Manejar el cierre de sesión con SweetAlert2
+    document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+        e.preventDefault();
+
+        Swal.fire({
+            title: '¿Cerrar Sesión?',
+            text: '¿Está seguro de que desea cerrar la sesión?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#667eea',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: 'Sí, Cerrar Sesión',
+            cancelButtonText: 'Cancelar',
+            backdrop: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "{% url 'index' %}";
+            }
+        });
+    });
+
+        // Mostrar notificación de carga cuando la página se esté recargando
+        window.addEventListener('beforeunload', function() {
+            toastr.info('Procesando solicitud...', 'Cargando');
         });
     </script>
 </body>
