@@ -57,6 +57,10 @@ urlpatterns = [
     path('ventas/buscar-facturaR/', views.buscar_facturaR, name='buscar_facturaR'),
     path('ventas/ultima-factura/', views.ultima_factura, name='ultima_factura'),
     path('eliminar-cuenta-pagada/<int:cuenta_id>/', views.eliminar_cuenta_pagada, name='eliminar_cuenta_pagada'),
+    path('anular_factura/', views.anular_factura, name='anular_factura_action'),
+    path('buscar_comprobante/', views.buscar_comprobante, name='buscar_comprobante'),
+    path('anular_comprobante/', views.anular_comprobante_action, name='anular_comprobante_action'),
+    path('ultimo-comprobante/', views.ultimo_comprobante, name='ultimo_comprobante'),
 ]
 
     

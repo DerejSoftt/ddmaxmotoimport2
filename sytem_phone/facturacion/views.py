@@ -3057,32 +3057,28 @@ def registrar_pago(request):
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
+
+
 def generar_comprobante_pdf(request, comprobante_id):
     try:
         comprobante = get_object_or_404(ComprobantePago, id=comprobante_id)
-        
         # Crear respuesta HTTP con tipo PDF
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="comprobante_{comprobante.numero_comprobante}.pdf"'
-        
         # Configurar el PDF para 80mm de ancho (aprox. 226 puntos)
         width = 226  # 80mm en puntos (1mm = 2.83 puntos)
-        height = 1000  # Alto suficiente para el contenido
-        
+        height = 1200  # Alto suficiente para el contenido y firmas
         # Crear el objeto PDF con tamaño personalizado
         p = canvas.Canvas(response, pagesize=(width, height))
-        
         # Configurar márgenes y fuentes para impresora térmica
         margin_left = 10
         y_position = height - 20  # Empezar desde la parte superior
         line_height = 14
         small_line_height = 10
-        
         # Obtener información de totales
         monto_original = comprobante.cuenta.venta.total_a_pagar if comprobante.cuenta.venta and comprobante.cuenta.venta.total_a_pagar else comprobante.cuenta.monto_total
-        monto_con_interes = comprobante.cuenta.venta.total_con_interes if comprobante.cuenta.venta and comprobante.cuenta.venta.total_con_interes else monto_original
-        saldo_pendiente = monto_con_interes - comprobante.cuenta.monto_pagado
-        
+        # Usar la misma fórmula que en el view `registrar_pago`
+        saldo_pendiente = monto_original - comprobante.cuenta.monto_pagado
         # Función para centrar texto
         def draw_centered_text(text, y, font_size=12, bold=False):
             if bold:
@@ -3093,7 +3089,6 @@ def generar_comprobante_pdf(request, comprobante_id):
             x = (width - text_width) / 2
             p.drawString(x, y, text)
             return y - line_height
-        
         # Función para texto normal alineado a la izquierda
         def draw_left_text(text, y, font_size=10, bold=False):
             if bold:
@@ -3102,84 +3097,79 @@ def generar_comprobante_pdf(request, comprobante_id):
                 p.setFont("Helvetica", font_size)
             p.drawString(margin_left, y, text)
             return y - line_height
-        
         # Encabezado del comprobante
-        y_position = draw_centered_text("DDMAX - MOTO IMPORTMOTO IMPORT", y_position, 14, True)
-        y_position = draw_centered_text("COMPROBANTE DE PAGO", y_position, 12, True)
+        y_position = draw_centered_text("DDMAX - MOTO IMPORT", y_position, 8, True)  # Tamaño reducido
+        y_position = draw_centered_text("COMPROBANTE DE PAGO", y_position, 10, True)
         y_position -= line_height / 2  # Espacio adicional
-        
         # Línea separadora
         p.line(margin_left, y_position, width - margin_left, y_position)
         y_position -= line_height
-        
         # Información del comprobante
-        y_position = draw_left_text(f"Comprobante: {comprobante.numero_comprobante}", y_position, 10)
-        y_position = draw_left_text(f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}", y_position, 10)
-        y_position = draw_left_text(f"Cliente: {comprobante.cliente.full_name}", y_position, 10)
-        
+        y_position = draw_left_text(f"Comprobante: {comprobante.numero_comprobante}", y_position, 9)
+        y_position = draw_left_text(f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}", y_position, 9)
+        y_position = draw_left_text(f"Cliente: {comprobante.cliente.full_name}", y_position, 9)
         # Información de la factura si existe
         if comprobante.cuenta.venta:
-            y_position = draw_left_text(f"Factura: {comprobante.cuenta.venta.numero_factura}", y_position, 10)
-        
+            y_position = draw_left_text(f"Factura: {comprobante.cuenta.venta.numero_factura}", y_position, 9)
         y_position -= line_height / 2
-        
         # Línea separadora
         p.line(margin_left, y_position, width - margin_left, y_position)
         y_position -= line_height
-        
         # Información del pago
-        y_position = draw_centered_text("DETALLE DEL PAGO", y_position, 11, True)
+        y_position = draw_centered_text("DETALLE DEL PAGO", y_position, 10, True)
         y_position -= small_line_height
-        
-        y_position = draw_left_text(f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}", y_position, 10, True)
-        y_position = draw_left_text(f"Método: {comprobante.pago.get_metodo_pago_display()}", y_position, 10)
-        
+        y_position = draw_left_text(f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}", y_position, 9, True)
+        y_position = draw_left_text(f"Método: {comprobante.pago.get_metodo_pago_display()}", y_position, 9)
         if comprobante.pago.referencia:
-            y_position = draw_left_text(f"Referencia: {comprobante.pago.referencia}", y_position, 9)
-        
+            y_position = draw_left_text(f"Referencia: {comprobante.pago.referencia}", y_position, 8)
         y_position -= line_height / 2
-        
         # Línea separadora
         p.line(margin_left, y_position, width - margin_left, y_position)
         y_position -= line_height
-        
         # Información de totales
-        y_position = draw_centered_text("RESUMEN DE CUENTA", y_position, 11, True)
+        y_position = draw_centered_text("RESUMEN DE CUENTA", y_position, 10, True)
         y_position -= small_line_height
-        
         y_position = draw_left_text(f"Monto Original: RD$ {monto_original:,.2f}", y_position, 9)
-        
-        if monto_con_interes > monto_original:
-            y_position = draw_left_text(f"Intereses: RD$ {monto_con_interes - monto_original:,.2f}", y_position, 9)
-            y_position = draw_left_text(f"Total con Int.: RD$ {monto_con_interes:,.2f}", y_position, 9, True)
-        
+        # Mostrar saldo pendiente (usando la misma fórmula que en `registrar_pago`)
         y_position = draw_left_text(f"Pagado Acumulado: RD$ {comprobante.cuenta.monto_pagado:,.2f}", y_position, 9)
         y_position = draw_left_text(f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}", y_position, 9, True)
-        
         y_position -= line_height
-        
         # Línea separadora final
         p.line(margin_left, y_position, width - margin_left, y_position)
-        y_position -= line_height
-        
-        # Mensaje de agradecimiento
-        y_position = draw_centered_text("¡Gracias por su pago!", y_position, 11, True)
+        y_position -= line_height * 2  # Más espacio antes de las firmas
+        # SECCIÓN DE FIRMAS
+        y_position = draw_centered_text("FIRMA DEL CLIENTE", y_position, 9, True)
         y_position -= small_line_height
-        
-        # Información de la empresa (más pequeña)
-        y_position = draw_centered_text("DDMAX - MOTO IMPORT", y_position, 8)
-        y_position = draw_centered_text("Tel: (809) 656-3374", y_position, 8)
-        
+        # Línea para firma del cliente
+        p.line(margin_left + 40, y_position, width - margin_left - 40, y_position)
+        y_position -= line_height
+        # Espacio para firma y cédula del cliente
+    #  
+        y_position -= line_height * 1.2  # Espacio adicional antes de la cédula
+        y_position = draw_left_text("Cédula: _________________________", y_position, 8)
+        y_position -= line_height * 1.5
+        # FIRMA DE LA EMPRESA
+        y_position = draw_centered_text("FIRMA DE LA EMPRESA", y_position, 9, True)
+        y_position -= small_line_height
+        # Línea para firma de la empresa
+        p.line(margin_left + 40, y_position, width - margin_left - 40, y_position)
+        y_position -= line_height
+        # Información de la empresa
+        y_position = draw_centered_text("DDMAX - MOTO IMPORT", y_position, 8, True)
+        y_position -= line_height * 1.5
+        # Mensaje de agradecimiento
+        y_position = draw_centered_text("¡Gracias por su pago!", y_position, 10, True)
+        y_position -= small_line_height
+        # Información de contacto de la empresa (más pequeña)
+        y_position = draw_centered_text("DDMAX - MOTO IMPORT", y_position, 7)
+        y_position = draw_centered_text("Tel: (809) 656-3374", y_position, 7)
         # Agregar código de barras o QR si es necesario (opcional)
         y_position -= line_height
-        draw_centered_text(f"Ref: {comprobante.numero_comprobante}", y_position, 8)
-        
+        draw_centered_text(f"Ref: {comprobante.numero_comprobante}", y_position, 7)
         # Finalizar el PDF
         p.showPage()
         p.save()
-        
         return response
-        
     except Exception as e:
         return JsonResponse({
             'success': False,
@@ -3189,8 +3179,11 @@ def generar_comprobante_pdf(request, comprobante_id):
 
 
 
-# En tu views.py, agrega esta nueva función
 
+
+#=====================================================================================================
+# En tu views.py, agrega esta nueva función
+#=====================================================================================================
 def eliminar_cuenta_pagada(request, cuenta_id):
     if request.method == 'POST':
         try:
@@ -3227,8 +3220,9 @@ def eliminar_cuenta_pagada(request, cuenta_id):
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
 
-
-# ===== VISTA PARA LISTAR COMPROBANTES =====
+#=========================================================================================
+#                          ===== VISTA PARA LISTAR COMPROBANTES =====
+#=========================================================================================
 def lista_comprobantes(request):
     comprobantes = ComprobantePago.objects.select_related(
         'pago', 'cuenta', 'cliente'
@@ -3282,6 +3276,10 @@ def anular_cuenta(request, cuenta_id):
             })
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+
+
+
 
 def detalle_cuenta(request, cuenta_id):
     cuenta = get_object_or_404(
@@ -4669,6 +4667,174 @@ def ultima_factura(request):
             'numero_factura': ultima_venta.numero_factura,
             'fecha': ultima_venta.fecha_venta.strftime('%d/%m/%Y %H:%M'),
             'tipo_venta': ultima_venta.tipo_venta
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def buscar_comprobante(request):
+    if request.method == 'POST':
+        try:
+            numero_comprobante = request.POST.get('numero_comprobante', '').strip()
+
+            if not numero_comprobante:
+                return JsonResponse({'error': 'Número de comprobante requerido'}, status=400)
+
+            # Buscar el comprobante por número
+            comprobante = get_object_or_404(ComprobantePago, numero_comprobante=numero_comprobante)
+
+            # Verificar si el comprobante ya está anulado
+            if hasattr(comprobante, 'anulado') and comprobante.anulado:
+                return JsonResponse({'error': 'Este comprobante ya ha sido anulado'}, status=400)
+
+            # Verificar si el pago asociado está anulado
+            if hasattr(comprobante.pago, 'anulado') and comprobante.pago.anulado:
+                return JsonResponse({'error': 'El pago asociado a este comprobante ha sido anulado'}, status=400)
+
+            # Verificar si la cuenta por cobrar está anulada
+            if hasattr(comprobante, 'cuenta') and comprobante.cuenta and comprobante.cuenta.anulada:
+                return JsonResponse({'error': 'La cuenta por cobrar asociada ha sido anulada'}, status=400)
+
+            # Obtener información del pago asociado
+            pago = comprobante.pago
+            cuenta = comprobante.cuenta
+
+            if not cuenta:
+                return JsonResponse({'error': 'No se encontró la cuenta asociada'}, status=400)
+
+            # Calcular el saldo antes del pago
+            saldo_antes_pago = cuenta.saldo_pendiente + pago.monto
+
+            # Calcular el saldo después del pago
+            saldo_despues_pago = cuenta.saldo_pendiente
+
+            # Preparar los datos del comprobante para la respuesta JSON
+            datos_comprobante = {
+                'numero_comprobante': comprobante.numero_comprobante,
+                'fecha_emision': comprobante.fecha_emision.strftime('%Y-%m-%d %H:%M:%S'),
+                'tipo_comprobante': comprobante.tipo_comprobante,
+                'tipo_comprobante_display': comprobante.get_tipo_comprobante_display(),
+                'cliente_nombre': comprobante.cliente.nombres if hasattr(comprobante.cliente, 'nombres') else "Cliente",
+                'cliente_documento': comprobante.cliente.cedula if hasattr(comprobante.cliente, 'cedula') else "N/A",
+                'cliente_telefono': comprobante.cliente.telefono if hasattr(comprobante.cliente, 'telefono') else None,
+                'cliente_direccion': comprobante.cliente.direccion if hasattr(comprobante.cliente, 'direccion') else None,
+                'monto_pago': float(pago.monto),
+                'fecha_pago': pago.fecha_pago.strftime('%Y-%m-%d %H:%M:%S'),
+                'metodo_pago': pago.metodo_pago,
+                'metodo_pago_display': pago.get_metodo_pago_display(),
+                'numero_factura': cuenta.venta.numero_factura if cuenta.venta else "N/A",
+                'monto_original': float(cuenta.monto_total_con_interes) if cuenta.monto_total_con_interes else 0,
+                'saldo_antes_pago': float(saldo_antes_pago),
+                'saldo_despues_pago': float(saldo_despues_pago),
+                'descripcion': pago.observaciones or f"Pago de cuota - {comprobante.numero_comprobante}",
+                'estado': 'activo'
+            }
+
+            return JsonResponse(datos_comprobante)
+
+        except ComprobantePago.DoesNotExist:
+            return JsonResponse({'error': 'Comprobante no encontrado'}, status=404)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en buscar_comprobante: {str(e)}")
+            return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+
+def anular_comprobante_action(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        numero_comprobante = request.POST.get('numero_comprobante')
+        motivo = request.POST.get('motivo')
+
+        if not numero_comprobante or not motivo:
+            return JsonResponse({'error': 'Datos incompletos'}, status=400)
+
+        # Buscar el comprobante
+        comprobante = get_object_or_404(ComprobantePago, numero_comprobante=numero_comprobante)
+
+        # Verificar si ya está anulado
+        if hasattr(comprobante, 'anulado') and comprobante.anulado:
+            return JsonResponse({'error': 'El comprobante ya está anulado'}, status=400)
+
+        # Obtener el pago asociado
+        pago = comprobante.pago
+        cuenta = comprobante.cuenta
+
+        # Verificar que el pago no esté anulado
+        if pago.anulado:
+            return JsonResponse({'error': 'El pago ya está anulado'}, status=400)
+
+        # Iniciar transacción para asegurar la consistencia de datos
+        with transaction.atomic():
+            # Revertir el pago en la cuenta por cobrar
+            cuenta.monto_pagado -= pago.monto
+
+            # Calcular el nuevo saldo pendiente
+            monto_total_cuenta = cuenta.monto_total
+            nuevo_saldo_pendiente = monto_total_cuenta - cuenta.monto_pagado
+
+            # Actualizar el estado de la cuenta según el nuevo saldo pendiente
+            if nuevo_saldo_pendiente <= 0:
+                cuenta.estado = 'pagada'
+            elif cuenta.monto_pagado > 0:
+                cuenta.estado = 'parcial'
+            else:
+                cuenta.estado = 'pendiente'
+
+            cuenta.save()
+
+            # Marcar el pago como anulado
+            pago.anulado = True
+            pago.fecha_anulacion = timezone.now()
+            pago.motivo_anulacion = motivo
+            pago.save()
+
+            # Marcar el comprobante como anulado
+            if hasattr(comprobante, 'anulado'):
+                comprobante.anulado = True
+                comprobante.fecha_anulacion = timezone.now()
+                comprobante.motivo_anulacion = motivo
+                comprobante.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Comprobante anulado exitosamente',
+            'numero_comprobante': comprobante.numero_comprobante
+        })
+
+    except ComprobantePago.DoesNotExist:
+        return JsonResponse({'error': 'Comprobante no encontrado'}, status=404)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error en anular_comprobante_action: {str(e)}")
+        return JsonResponse({'error': f'Error al anular el comprobante: {str(e)}'}, status=500)
+
+
+
+
+def ultimo_comprobante(request):
+    # Esta vista devuelve el último comprobante emitido
+    try:
+        # Buscar el último comprobante
+        ultimo_comprobante = ComprobantePago.objects.filter(
+            anulado=False  # Asumiendo que agregas este campo
+        ).order_by('-fecha_emision').first()
+        
+        if not ultimo_comprobante:
+            return JsonResponse({'error': 'No hay comprobantes registrados'}, status=404)
+        
+        return JsonResponse({
+            'numero_comprobante': ultimo_comprobante.numero_comprobante,
+            'fecha': ultimo_comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M'),
+            'tipo_comprobante': ultimo_comprobante.tipo_comprobante
         })
         
     except Exception as e:

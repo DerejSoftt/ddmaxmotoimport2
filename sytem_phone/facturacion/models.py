@@ -637,6 +637,7 @@ class PagoCuentaPorCobrar(models.Model):
     fecha_pago = models.DateTimeField(default=timezone.now, verbose_name="Fecha de Pago")
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     fecha_registro = models.DateTimeField(auto_now_add=True)
+    anulado = models.BooleanField(default=False)
     
     class Meta:
         db_table = 'pagos_cuentas_por_cobrar'
@@ -764,6 +765,10 @@ class ComprobantePago(models.Model):
     cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='comprobantes_pago')
     tipo_comprobante = models.CharField(max_length=15, choices=TIPOS_COMPROBANTE, default='recibo')
     fecha_emision = models.DateTimeField(default=timezone.now)
+    anulado = models.BooleanField(default=False)
+    fecha_anulacion = models.DateTimeField(null=True, blank=True)
+    motivo_anulacion = models.TextField(null=True, blank=True)
+    usuario_anulacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='comprobantes_anulados')
     
     class Meta:
         db_table = 'comprobantes_pago'
