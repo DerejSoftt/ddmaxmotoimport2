@@ -12,3 +12,15 @@ NO VAS A MODIFICAR NADA SOLO LO INDICADO.
 # commmit para subur los html.
 
 /c/Users/Acosta/Desktop/ddmaxmotoimport/ddmaxmotoimport2/sytem_phone/facturacion/templates/facturacion
+
+# Configuración de Django
+SECRET_KEY= 773yl30lpsdi2zccttymow5f14pqsobbpkv3
+DEBUG=True
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Configuración de la base de datos (MySQL)
+DB_NAME=phonedb
+DB_USER=root
+DB_PASSWORD=
+DB_HOST=localhost
+DB_PORT=3306
