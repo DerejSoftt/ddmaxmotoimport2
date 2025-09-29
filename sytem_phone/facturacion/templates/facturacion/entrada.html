@@ -6,6 +6,10 @@
     <title>Entrada de Productos - Sistema de Inventario</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Toastr -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <style>
         * {
             margin: 0;
@@ -658,10 +662,14 @@
     <button class="menu-toggle" onclick="toggleSidebar()">
         <i class='bx bx-menu'></i>
     </button>
-
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
-
+    <!-- Loading Overlay -->
+    <div class="loading" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <p>Cargando clientes...</p>
+    </div>
+    
    <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -1026,528 +1034,485 @@
         </div>
     </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script>
-   // Variables globales
-const sidebar = document.getElementById('sidebar');
-const sidebarOverlay = document.querySelector('.sidebar-overlay');
-const form = document.getElementById('productEntryForm');
-const successMessage = document.getElementById('successMessage');
-const submitBtn = document.getElementById('submitBtn');
+        // Variables globales
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+        const form = document.getElementById('productEntryForm');
+        const successMessage = document.getElementById('successMessage');
+        const submitBtn = document.getElementById('submitBtn');
 
-// Obtener referencias a los campos del formulario
-const productNameInput = document.getElementById('productName');
-const brandSelect = document.getElementById('brand');
-const modelInput = document.getElementById('model');
-const capacitySelect = document.getElementById('capacity');
-const conditionSelect = document.getElementById('condition');
-const colorSelect = document.getElementById('color');
-const purchaseCostInput = document.getElementById('purchaseCost');
-const saleCostInput = document.getElementById('saleCost');
-const invoiceNumberInput = document.getElementById('invoiceNumber');
-const ncfInput = document.getElementById('ncf');
-const quantityInput = document.getElementById('quantity');
-const itbisRateInput = document.getElementById('itbisRate');
-const itbisAmountInput = document.getElementById('itbisAmount');
-const totalCostInput = document.getElementById('totalCost');
-const profitMarginInput = document.getElementById('profitMargin');
-const productSearchInput = document.getElementById('productSearch');
+        // Configuración de Toastr
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": false,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
 
-// Función para limpiar el formulario
-function limpiarFormulario() {
-    form.reset();
-    
-    // Restablecer valores por defecto
-    itbisRateInput.value = '18';
-    quantityInput.value = '1';
-    
-    // Restablecer fecha actual
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('entryDate').value = today;
-    
-    // Limpiar flags de modificación
-    delete purchaseCostInput.dataset.modified;
-    delete saleCostInput.dataset.modified;
-    
-    // Limpiar búsqueda
-    if (productSearchInput) {
-        productSearchInput.value = '';
-    }
-    
-    // Ocultar sugerencias
-    const suggestionsContainer = document.getElementById('suggestionsContainer');
-    if (suggestionsContainer) {
-        suggestionsContainer.style.display = 'none';
-    }
-    
-    // Recalcular costos
-    calculateCosts();
-    
-    // Enfocar el primer campo
-    document.getElementById('invoiceNumber').focus();
-    
-    showToast('Formulario listo para nuevo producto');
-}
+        // Función para limpiar el formulario
+        function limpiarFormulario() {
+            form.reset();
 
-// Funciones para el sidebar
-function toggleSidebar() {
-    sidebar.classList.toggle('active');
-    sidebarOverlay.classList.toggle('active');
-    
-    if (window.innerWidth <= 768) {
-        document.body.classList.toggle('sidebar-open');
-    }
-}
+            // Restablecer valores por defecto
+            document.getElementById('itbisRate').value = '18';
+            document.getElementById('quantity').value = '1';
 
-function closeSidebar() {
-    sidebar.classList.remove('active');
-    sidebarOverlay.classList.remove('active');
-    document.body.classList.remove('sidebar-open');
-}
+            // Restablecer fecha actual
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('entryDate').value = today;
 
-// Cerrar sidebar al hacer clic en un enlace (móvil)
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-        if (window.innerWidth <= 768) {
-            closeSidebar();
-        }
-    });
-});
+            // Limpiar flags de modificación
+            delete document.getElementById('purchaseCost').dataset.modified;
+            delete document.getElementById('saleCost').dataset.modified;
 
-// Cálculos automáticos
-function calculateCosts() {
-    const purchaseCost = parseFloat(purchaseCostInput.value) || 0;
-    const itbisRate = parseFloat(itbisRateInput.value) || 0;
-    const saleCost = parseFloat(saleCostInput.value) || 0;
-    const quantity = parseInt(quantityInput.value) || 1;
+            // Limpiar búsqueda
+            if (document.getElementById('productSearch')) {
+                document.getElementById('productSearch').value = '';
+            }
 
-    // Calcular ITBIS
-    const itbisAmount = (purchaseCost * itbisRate) / 100;
-    itbisAmountInput.value = itbisAmount.toFixed(2);
-
-    // Calcular costo total
-    const totalCost = purchaseCost + itbisAmount;
-    totalCostInput.value = totalCost.toFixed(2);
-
-    // Calcular margen de ganancia
-    if (saleCost > 0 && totalCost > 0) {
-        const profitMargin = ((saleCost - totalCost) / totalCost) * 100;
-        profitMarginInput.value = profitMargin.toFixed(2);
-    } else {
-        profitMarginInput.value = '0.00';
-    }
-}
-
-// Event listeners para cálculos automáticos
-purchaseCostInput.addEventListener('input', calculateCosts);
-itbisRateInput.addEventListener('input', calculateCosts);
-saleCostInput.addEventListener('input', calculateCosts);
-quantityInput.addEventListener('input', calculateCosts);
-
-// Formatear NCF automáticamente
-ncfInput.addEventListener('input', function(e) {
-    let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (value.length > 11) {
-        value = value.substring(0, 11);
-    }
-    e.target.value = value;
-});
-
-// Validación de IMEI (letras + números, máximo 16 caracteres)
-document.getElementById('imei').addEventListener('input', function(e) {
-    let value = e.target.value.replace(/[^a-zA-Z0-9]/g, ''); // Solo letras y números
-    if (value.length > 18) {
-        value = value.substring(0, 18); // Limita a 16 caracteres
-    }
-    e.target.value = value;
-});
-
-
-// Validación de número de factura
-invoiceNumberInput.addEventListener('input', function(e) {
-    let value = e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
-    e.target.value = value;
-});
-
-// Función para buscar productos similares
-function buscarProductos(query) {
-    const suggestionsContainer = document.getElementById('suggestionsContainer');
-    
-    if (!query || query.length < 2) {
-        suggestionsContainer.style.display = 'none';
-        return;
-    }
-    
-    fetch(`/buscar-productos/?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.productos.length > 0) {
-                mostrarSugerencias(data.productos);
-            } else {
+            // Ocultar sugerencias
+            const suggestionsContainer = document.getElementById('suggestionsContainer');
+            if (suggestionsContainer) {
                 suggestionsContainer.style.display = 'none';
             }
-        })
-        .catch(error => {
-            console.error('Error en búsqueda:', error);
-            suggestionsContainer.style.display = 'none';
+
+            // Recalcular costos
+            calculateCosts();
+
+            // Enfocar el primer campo
+            document.getElementById('invoiceNumber').focus();
+
+            toastr.success('Formulario listo para nuevo producto');
+        }
+
+        // Funciones para el sidebar
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+
+            if (window.innerWidth <= 768) {
+                document.body.classList.toggle('sidebar-open');
+            }
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        }
+
+        // Cerrar sidebar al hacer clic en un enlace (móvil)
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeSidebar();
+                }
+            });
         });
-}
 
-// Mostrar sugerencias de productos
-function mostrarSugerencias(productos) {
-    const suggestionsContainer = document.getElementById('suggestionsContainer');
-    suggestionsContainer.innerHTML = '';
-    
-    productos.forEach(producto => {
-        const suggestion = document.createElement('div');
-        suggestion.style.padding = '10px';
-        suggestion.style.cursor = 'pointer';
-        suggestion.style.borderBottom = '1px solid #eee';
-        suggestion.onmouseover = () => suggestion.style.background = '#f5f5f5';
-        suggestion.onmouseout = () => suggestion.style.background = 'white';
-        
-        // Mostrar el nombre del producto en las sugerencias
-        suggestion.innerHTML = `
-            <strong>${producto.nombre_producto || producto.marca_display + ' ' + producto.modelo}</strong><br>
-            <small>Marca: ${producto.marca_display} | 
-            Modelo: ${producto.modelo} | 
-            Capacidad: ${producto.capacidad || 'N/A'} | 
-            Estado: ${producto.estado || 'N/A'}</small>
-        `;
-        
-        suggestion.onclick = () => {
-            autocompletarCampos(producto);
-            suggestionsContainer.style.display = 'none';
-            document.getElementById('productSearch').value = '';
-        };
-        
-        suggestionsContainer.appendChild(suggestion);
-    });
-    
-    suggestionsContainer.style.display = 'block';
-}
+        // Cálculos automáticos
+        function calculateCosts() {
+            const purchaseCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
+            const itbisRate = parseFloat(document.getElementById('itbisRate').value) || 0;
+            const saleCost = parseFloat(document.getElementById('saleCost').value) || 0;
+            const quantity = parseInt(document.getElementById('quantity').value) || 1;
 
-// Autocompletar campos con datos del producto seleccionado
-function autocompletarCampos(producto) {
-    // Usar el nombre del producto si está disponible, sino construir uno
-    document.getElementById('productName').value = producto.nombre_producto || 
-        `${producto.marca_display} ${producto.modelo} ${producto.capacidad || ''} ${producto.color || ''}`.trim();
-    
-    document.getElementById('brand').value = producto.marca;
-    document.getElementById('model').value = producto.modelo;
-    document.getElementById('capacity').value = producto.capacidad || '';
-    document.getElementById('condition').value = producto.estado || '';
-    document.getElementById('color').value = producto.color || '';
-    
-    // Solo llenar costos si no han sido modificados manualmente
-    const purchaseCostInput = document.getElementById('purchaseCost');
-    const saleCostInput = document.getElementById('saleCost');
-    
-    if (!purchaseCostInput.dataset.modified) {
-        purchaseCostInput.value = producto.costo_compra || '';
-    }
-    if (!saleCostInput.dataset.modified) {
-        saleCostInput.value = producto.costo_venta || '';
-    }
-    
-    // Recalcular costos
-    calculateCosts();
-    
-    showToast('Campos autocompletados con producto similar');
-}
+            // Calcular ITBIS
+            const itbisAmount = (purchaseCost * itbisRate) / 100;
+            document.getElementById('itbisAmount').value = itbisAmount.toFixed(2);
 
-// Ocultar sugerencias al hacer clic fuera
-document.addEventListener('click', function(e) {
-    const suggestionsContainer = document.getElementById('suggestionsContainer');
-    const searchInput = document.getElementById('productSearch');
-    
-    if (suggestionsContainer && searchInput && 
-        !suggestionsContainer.contains(e.target) && 
-        e.target !== searchInput) {
-        suggestionsContainer.style.display = 'none';
-    }
-});
+            // Calcular costo total
+            const totalCost = purchaseCost + itbisAmount;
+            document.getElementById('totalCost').value = totalCost.toFixed(2);
 
-// Marcar campos modificados manualmente
-purchaseCostInput.addEventListener('input', function() {
-    this.dataset.modified = 'true';
-});
+            // Calcular margen de ganancia
+            if (saleCost > 0 && totalCost > 0) {
+                const profitMargin = ((saleCost - totalCost) / totalCost) * 100;
+                document.getElementById('profitMargin').value = profitMargin.toFixed(2);
+            } else {
+                document.getElementById('profitMargin').value = '0.00';
+            }
+        }
 
-saleCostInput.addEventListener('input', function() {
-    this.dataset.modified = 'true';
-});
+        // Event listeners para cálculos automáticos
+        document.getElementById('purchaseCost').addEventListener('input', calculateCosts);
+        document.getElementById('itbisRate').addEventListener('input', calculateCosts);
+        document.getElementById('saleCost').addEventListener('input', calculateCosts);
+        document.getElementById('quantity').addEventListener('input', calculateCosts);
 
-// Validación del formulario
-function validateForm() {
-    let isValid = true;
-    hideAllErrorMessages(form);
-    
-    const requiredFields = [
-        {id: 'invoiceNumber', name: 'numero_factura', errorId: 'numero_facturaError'},
-        {id: 'entryDate', name: 'fecha_entrada', errorId: 'fecha_entradaError'},
-        {id: 'supplier', name: 'proveedor', errorId: 'proveedorError'},
-        {id: 'productName', name: 'nombre_producto', errorId: 'nombre_productoError'},
-        {id: 'brand', name: 'marca', errorId: 'marcaError'},
-        {id: 'model', name: 'modelo', errorId: 'modeloError'},
-        {id: 'imei', name: 'imei_serial', errorId: 'imei_serialError'},
-        {id: 'condition', name: 'estado', errorId: 'estadoError'},
-        {id: 'quantity', name: 'cantidad', errorId: 'cantidadError'},
-        {id: 'purchaseCost', name: 'costo_compra', errorId: 'costo_compraError'},
-        {id: 'saleCost', name: 'costo_venta', errorId: 'costo_ventaError'}
-    ];
+        // Formatear NCF automáticamente
+        document.getElementById('ncf').addEventListener('input', function(e) {
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (value.length > 11) {
+                value = value.substring(0, 11);
+            }
+            e.target.value = value;
+        });
 
-    requiredFields.forEach(field => {
-        const fieldElement = document.getElementById(field.id);
-        const errorElement = document.getElementById(field.errorId);
-        
-        if (!fieldElement || !fieldElement.value.trim()) {
+        // Validación de IMEI (letras + números, máximo 16 caracteres)
+        document.getElementById('imei').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+            if (value.length > 18) {
+                value = value.substring(0, 18);
+            }
+            e.target.value = value;
+        });
+
+        // Validación de número de factura
+        document.getElementById('invoiceNumber').addEventListener('input', function(e) {
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+            e.target.value = value;
+        });
+
+        // Función para buscar productos similares
+        function buscarProductos(query) {
+            const suggestionsContainer = document.getElementById('suggestionsContainer');
+
+            if (!query || query.length < 2) {
+                suggestionsContainer.style.display = 'none';
+                return;
+            }
+
+            fetch(`/buscar-productos/?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.productos.length > 0) {
+                        mostrarSugerencias(data.productos);
+                    } else {
+                        suggestionsContainer.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error en búsqueda:', error);
+                    suggestionsContainer.style.display = 'none';
+                });
+        }
+
+        // Mostrar sugerencias de productos
+        function mostrarSugerencias(productos) {
+            const suggestionsContainer = document.getElementById('suggestionsContainer');
+            suggestionsContainer.innerHTML = '';
+
+            productos.forEach(producto => {
+                const suggestion = document.createElement('div');
+                suggestion.style.padding = '10px';
+                suggestion.style.cursor = 'pointer';
+                suggestion.style.borderBottom = '1px solid #eee';
+                suggestion.onmouseover = () => suggestion.style.background = '#f5f5f5';
+                suggestion.onmouseout = () => suggestion.style.background = 'white';
+
+                suggestion.innerHTML = `
+                    <strong>${producto.nombre_producto || producto.marca_display + ' ' + producto.modelo}</strong><br>
+                    <small>Marca: ${producto.marca_display} |
+                    Modelo: ${producto.modelo} |
+                    Capacidad: ${producto.capacidad || 'N/A'} |
+                    Estado: ${producto.estado || 'N/A'}</small>
+                `;
+
+                suggestion.onclick = () => {
+                    autocompletarCampos(producto);
+                    suggestionsContainer.style.display = 'none';
+                    document.getElementById('productSearch').value = '';
+                };
+
+                suggestionsContainer.appendChild(suggestion);
+            });
+
+            suggestionsContainer.style.display = 'block';
+        }
+
+        // Autocompletar campos con datos del producto seleccionado
+        function autocompletarCampos(producto) {
+            document.getElementById('productName').value = producto.nombre_producto ||
+                `${producto.marca_display} ${producto.modelo} ${producto.capacidad || ''} ${producto.color || ''}`.trim();
+
+            document.getElementById('brand').value = producto.marca;
+            document.getElementById('model').value = producto.modelo;
+            document.getElementById('capacity').value = producto.capacidad || '';
+            document.getElementById('condition').value = producto.estado || '';
+            document.getElementById('color').value = producto.color || '';
+
+            const purchaseCostInput = document.getElementById('purchaseCost');
+            const saleCostInput = document.getElementById('saleCost');
+
+            if (!purchaseCostInput.dataset.modified) {
+                purchaseCostInput.value = producto.costo_compra || '';
+            }
+            if (!saleCostInput.dataset.modified) {
+                saleCostInput.value = producto.costo_venta || '';
+            }
+
+            calculateCosts();
+            toastr.success('Campos autocompletados con producto similar');
+        }
+
+        // Ocultar sugerencias al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            const suggestionsContainer = document.getElementById('suggestionsContainer');
+            const searchInput = document.getElementById('productSearch');
+
+            if (suggestionsContainer && searchInput &&
+                !suggestionsContainer.contains(e.target) &&
+                e.target !== searchInput) {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+
+        // Marcar campos modificados manualmente
+        document.getElementById('purchaseCost').addEventListener('input', function() {
+            this.dataset.modified = 'true';
+        });
+
+        document.getElementById('saleCost').addEventListener('input', function() {
+            this.dataset.modified = 'true';
+        });
+
+        // Validación del formulario
+        function validateForm() {
+            let isValid = true;
+
+            const requiredFields = [
+                {id: 'invoiceNumber', name: 'numero_factura', errorId: 'numero_facturaError'},
+                {id: 'entryDate', name: 'fecha_entrada', errorId: 'fecha_entradaError'},
+                {id: 'supplier', name: 'proveedor', errorId: 'proveedorError'},
+                {id: 'productName', name: 'nombre_producto', errorId: 'nombre_productoError'},
+                {id: 'brand', name: 'marca', errorId: 'marcaError'},
+                {id: 'model', name: 'modelo', errorId: 'modeloError'},
+                {id: 'imei', name: 'imei_serial', errorId: 'imei_serialError'},
+                {id: 'condition', name: 'estado', errorId: 'estadoError'},
+                {id: 'quantity', name: 'cantidad', errorId: 'cantidadError'},
+                {id: 'purchaseCost', name: 'costo_compra', errorId: 'costo_compraError'},
+                {id: 'saleCost', name: 'costo_venta', errorId: 'costo_ventaError'}
+            ];
+
+            requiredFields.forEach(field => {
+                const fieldElement = document.getElementById(field.id);
+                const errorElement = document.getElementById(field.errorId);
+
+                if (!fieldElement || !fieldElement.value.trim()) {
+                    if (errorElement) {
+                        errorElement.textContent = 'Este campo es requerido';
+                        errorElement.style.display = 'block';
+                    }
+                    if (fieldElement) {
+                        fieldElement.style.borderColor = '#dc3545';
+                    }
+                    isValid = false;
+                } else {
+                    if (fieldElement) {
+                        fieldElement.style.borderColor = '#e1e8ed';
+                    }
+                }
+            });
+
+            // Validación adicional para IMEI
+            const imeiValue = document.getElementById('imei').value.trim();
+            if (imeiValue && imeiValue.length < 10) {
+                const errorElement = document.getElementById('imei_serialError');
+                if (errorElement) {
+                    errorElement.textContent = 'El IMEI/Serial debe tener al menos 10 dígitos';
+                    errorElement.style.display = 'block';
+                }
+                isValid = false;
+            }
+
+            // Validación de costos
+            const purchaseCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
+            const saleCost = parseFloat(document.getElementById('saleCost').value) || 0;
+
+            if (purchaseCost <= 0) {
+                const errorElement = document.getElementById('costo_compraError');
+                if (errorElement) {
+                    errorElement.textContent = 'El costo de compra debe ser mayor a 0';
+                    errorElement.style.display = 'block';
+                }
+                isValid = false;
+            }
+
+            if (saleCost <= 0) {
+                const errorElement = document.getElementById('costo_ventaError');
+                if (errorElement) {
+                    errorElement.textContent = 'El costo de venta debe ser mayor a 0';
+                    errorElement.style.display = 'block';
+                }
+                isValid = false;
+            }
+
+            if (saleCost <= purchaseCost) {
+                const errorElement = document.getElementById('costo_ventaError');
+                if (errorElement) {
+                    errorElement.textContent = 'El costo de venta debe ser mayor al costo de compra';
+                    errorElement.style.display = 'block';
+                }
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Manejo del envío del formulario principal
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Validar campos
+            const isValid = validateForm();
+
+            if (isValid) {
+                // Mostrar carga
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<div class="loading-spinner"></div> Procesando...';
+
+                // Enviar formulario manualmente
+                const formData = new FormData(this);
+
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                    }
+                })
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return null;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data) {
+                        if (data.success) {
+                            // Mostrar mensaje de éxito
+                            toastr.success('Producto registrado exitosamente en el inventario');
+                            // Limpiar formulario después de éxito
+                            limpiarFormulario();
+                        } else if (data.errors) {
+                            // Mostrar errores
+                            showFormErrors(data.errors);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    toastr.error('Ocurrió un error al procesar el formulario');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bx bx-save"></i> Registrar Producto';
+                });
+            }
+        });
+
+        function showFormErrors(errors) {
+            for (const fieldName in errors) {
+                const errorElement = document.getElementById(`${fieldName}Error`);
+                const field = document.querySelector(`[name="${fieldName}"]`);
+
+                if (errorElement && field) {
+                    errorElement.textContent = errors[fieldName].join(', ');
+                    errorElement.style.display = 'block';
+                    field.style.borderColor = '#dc3545';
+                }
+            }
+        }
+
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
             if (errorElement) {
-                errorElement.textContent = 'Este campo es requerido';
+                errorElement.textContent = message;
                 errorElement.style.display = 'block';
             }
-            if (fieldElement) {
-                fieldElement.style.borderColor = '#dc3545';
-            }
-            isValid = false;
-        } else {
-            if (fieldElement) {
-                fieldElement.style.borderColor = '#e1e8ed';
-            }
         }
-    });
 
-    // Validación adicional para IMEI
-    const imeiValue = document.getElementById('imei').value.trim();
-    if (imeiValue && imeiValue.length < 10) {
-        showError('imei_serialError', 'El IMEI/Serial debe tener al menos 10 dígitos');
-        isValid = false;
-    }
-
-    // Validación de costos
-    const purchaseCost = parseFloat(purchaseCostInput.value) || 0;
-    const saleCost = parseFloat(saleCostInput.value) || 0;
-    
-    if (purchaseCost <= 0) {
-        showError('costo_compraError', 'El costo de compra debe ser mayor a 0');
-        isValid = false;
-    }
-    
-    if (saleCost <= 0) {
-        showError('costo_ventaError', 'El costo de venta debe ser mayor a 0');
-        isValid = false;
-    }
-    
-    if (saleCost <= purchaseCost) {
-        showError('costo_ventaError', 'El costo de venta debe ser mayor al costo de compra');
-        isValid = false;
-    }
-
-    return isValid;
-}
-
-// Manejo del envío del formulario principal
-form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Validar campos
-    const isValid = validateForm();
-    
-    if (isValid) {
-        // Mostrar carga
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<div class="loading-spinner"></div> Procesando...';
-        
-        // Enviar formulario manualmente
-        const formData = new FormData(this);
-        
-        fetch(this.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        // Cerrar sidebar al redimensionar ventana
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeSidebar();
             }
-        })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url;
-                return null;
+        });
+
+        // Inicializar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Establecer fecha actual por defecto
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('entryDate');
+            if (dateInput && !dateInput.value) {
+                dateInput.value = today;
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data) {
-                if (data.success) {
-                    // Mostrar mensaje de éxito
-                    successMessage.style.display = 'block';
-                    
-                    // Ocultar mensaje después de 5 segundos
-                    setTimeout(() => {
-                        successMessage.style.display = 'none';
-                    }, 5000);
-                    
-                    // Limpiar formulario después de éxito
-                    limpiarFormulario();
-                    
-                } else if (data.errors) {
-                    // Mostrar errores
-                    showFormErrors(data.errors);
+
+            // Calcular valores iniciales
+            calculateCosts();
+
+            // Event listener para la búsqueda de productos
+            const productSearchInput = document.getElementById('productSearch');
+            if (productSearchInput) {
+                productSearchInput.addEventListener('input', function(e) {
+                    buscarProductos(e.target.value);
+                });
+            }
+
+            // Event listener para tecla Escape en búsqueda
+            if (productSearchInput) {
+                productSearchInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        const suggestionsContainer = document.getElementById('suggestionsContainer');
+                        if (suggestionsContainer) {
+                            suggestionsContainer.style.display = 'none';
+                        }
+                    }
+                });
+            }
+        });
+
+        // Prevenir envío del formulario con Enter en campos individuales
+        document.querySelectorAll('.form-input').forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+
+                    // Enfocar el siguiente campo
+                    const form = this.closest('form');
+                    const inputs = Array.from(form.querySelectorAll('.form-input'));
+                    const currentIndex = inputs.indexOf(this);
+
+                    if (currentIndex < inputs.length - 1) {
+                        inputs[currentIndex + 1].focus();
+                    } else {
+                        // Si es el último campo, enfocar el botón de enviar
+                        submitBtn.focus();
+                    }
                 }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showError('generalError', 'Ocurrió un error al procesar el formulario');
-        })
-        .finally(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bx bx-save"></i> Registrar Producto';
+            });
         });
-    }
-});
 
-function showFormErrors(errors) {
-    for (const fieldName in errors) {
-        const errorElement = document.getElementById(`${fieldName}Error`);
-        const field = document.querySelector(`[name="${fieldName}"]`);
-        
-        if (errorElement && field) {
-            errorElement.textContent = errors[fieldName].join(', ');
-            errorElement.style.display = 'block';
-            field.style.borderColor = '#dc3545';
-        }
-    }
-}
-
-function showError(elementId, message) {
-    const errorElement = document.getElementById(elementId);
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.style.display = 'block';
-    }
-}
-
-function showToast(message, type = 'success') {
-    // Crear toast
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'success' ? 
-            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' : 
-            'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)'};
-        color: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        z-index: 10000;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        animation: slideInRight 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        max-width: 400px;
-    `;
-    
-    const icon = type === 'success' ? 'bx-check-circle' : 'bx-error';
-    toast.innerHTML = `
-        <i class='bx ${icon}'></i> 
-        <span>${message}</span>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    // Remover después de 5 segundos
-    setTimeout(() => {
-        toast.style.animation = 'slideOutRight 0.3s ease';
-        setTimeout(() => {
-            if (toast.parentNode) {
-                document.body.removeChild(toast);
-            }
-        }, 300);
-    }, 5000);
-}
-
-function hideAllErrorMessages(formElement) {
-    const errorMessages = formElement.querySelectorAll('.error-message');
-    errorMessages.forEach(error => {
-        error.style.display = 'none';
-        error.textContent = '';
-    });
-}
-
-// Cerrar sidebar al redimensionar ventana
-window.addEventListener('resize', function() {
-    if (window.innerWidth > 768) {
-        closeSidebar();
-    }
-});
-
-// Inicializar la página
-document.addEventListener('DOMContentLoaded', function() {
-    // Establecer fecha actual por defecto
-    const today = new Date().toISOString().split('T')[0];
-    const dateInput = document.getElementById('entryDate');
-    if (dateInput && !dateInput.value) {
-        dateInput.value = today;
-    }
-    
-    // Calcular valores iniciales
-    calculateCosts();
-    
-    // Event listener para la búsqueda de productos
-    if (productSearchInput) {
-        productSearchInput.addEventListener('input', function(e) {
-            buscarProductos(e.target.value);
-        });
-    }
-
-    // Event listener para tecla Escape en búsqueda
-    if (productSearchInput) {
-        productSearchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const suggestionsContainer = document.getElementById('suggestionsContainer');
-                if (suggestionsContainer) {
-                    suggestionsContainer.style.display = 'none';
+        // Validación en tiempo real
+        document.querySelectorAll('.form-input[required]').forEach(input => {
+            input.addEventListener('blur', function() {
+                if (!this.value.trim()) {
+                    this.style.borderColor = '#dc3545';
+                } else {
+                    this.style.borderColor = '#e1e8ed';
                 }
-            }
+            });
         });
-    }
-});
 
-// Prevenir envío del formulario con Enter en campos individuales
-document.querySelectorAll('.form-input').forEach(input => {
-    input.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            
-            // Enfocar el siguiente campo
-            const form = this.closest('form');
-            const inputs = Array.from(form.querySelectorAll('.form-input'));
-            const currentIndex = inputs.indexOf(this);
-            
-            if (currentIndex < inputs.length - 1) {
-                inputs[currentIndex + 1].focus();
-            } else {
-                // Si es el último campo, enfocar el botón de enviar
-                submitBtn.focus();
-            }
-        }
-    });
-});
-
-// Validación en tiempo real
-document.querySelectorAll('.form-input[required]').forEach(input => {
-    input.addEventListener('blur', function() {
-        if (!this.value.trim()) {
-            this.style.borderColor = '#dc3545';
-        } else {
-            this.style.borderColor = '#e1e8ed';
-        }
-    });
-});
-
-// Auto-calcular al cargar la página
-window.addEventListener('load', calculateCosts);
+        // Auto-calcular al cargar la página
+        window.addEventListener('load', calculateCosts);
     </script>
 </body>
 </html>

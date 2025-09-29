@@ -6,6 +6,10 @@
     <title>Lista de Suplidores - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Toastr -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <style>
         * {
             margin: 0;
@@ -1019,29 +1023,29 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script>
         // Funciones para el sidebar
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const sidebarOverlay = document.querySelector('.sidebar-overlay');
-            
+
             sidebar.classList.toggle('active');
             sidebarOverlay.classList.toggle('active');
-            
+
             if (window.innerWidth <= 768) {
                 document.body.classList.toggle('sidebar-open');
             }
         }
-
         function closeSidebar() {
             const sidebar = document.getElementById('sidebar');
             const sidebarOverlay = document.querySelector('.sidebar-overlay');
-            
+
             sidebar.classList.remove('active');
             sidebarOverlay.classList.remove('active');
             document.body.classList.remove('sidebar-open');
         }
-
         // Cerrar sidebar al hacer clic en un enlace (móvil)
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -1050,7 +1054,6 @@
                 }
             });
         });
-
         // Función para obtener datos del proveedor via AJAX
         async function fetchSupplierData(id) {
             try {
@@ -1064,12 +1067,11 @@
                 throw error;
             }
         }
-
         // Función para abrir modal de edición con datos del proveedor
         async function editSupplier(id) {
             try {
                 const supplierData = await fetchSupplierData(id);
-                
+
                 // Llenar el formulario con los datos del proveedor
                 document.getElementById('editSupplierId').value = supplierData.id;
                 document.getElementById('editCompanyName').value = supplierData.nombre_empresa;
@@ -1085,14 +1087,37 @@
                 document.getElementById('editCreditLimit').value = supplierData.limite_credito || '0';
                 document.getElementById('editNotes').value = supplierData.notas || '';
                 document.getElementById('editIsActive').checked = supplierData.activo;
-
                 // Mostrar modal
                 document.getElementById('editModal').classList.add('active');
                 document.body.style.overflow = 'hidden';
-                
+
             } catch (error) {
                 console.error('Error al cargar datos del proveedor:', error);
-                showNotification('Error al cargar los datos del proveedor. Por favor intente nuevamente.', 'error');
+                toastr.error('Error al cargar los datos del proveedor. Por favor intente nuevamente.');
+            }
+        }
+
+        
+        // Función para cargar clientes desde la base de datos
+        async function cargarClientes() {
+            toggleLoading(true);
+            try {
+                const response = await fetch('/obtener-suplidores/');
+                const result = await response.json();
+
+                if (result.success) {
+                    clients = result.clientes;
+                    renderClientsTable();
+                    toastr.success(`Clientes cargados: ${supplier.length}`);
+                } else {
+                    console.error('Error al cargar clientes:', result.message);
+                    toastr.error('Error al cargar clientes: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error de conexión:', error);
+                toastr.error('Error de conexión al cargar clientes');
+            } finally {
+                toggleLoading(false);
             }
         }
 
@@ -1101,20 +1126,29 @@
             document.getElementById('editModal').classList.remove('active');
             document.body.style.overflow = 'auto';
         }
-
         // Función para confirmar eliminación
         function confirmDelete(id) {
-            document.getElementById('deleteSupplierId').value = id;
-            document.getElementById('deleteModal').classList.add('active');
-            document.body.style.overflow = 'hidden';
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡No podrás revertir la eliminación del suplidor!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, eliminarlo!',
+                cancelButtonText: 'No, Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('deleteSupplierId').value = id;
+                    document.getElementById('deleteForm').submit();
+                }
+            });
         }
-
         // Función para cerrar modal de eliminación
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('active');
             document.body.style.overflow = 'auto';
         }
-
         // Función para formatear RNC (XXX-XXXXX-X)
         function formatRNC(e) {
             let value = e.target.value.replace(/\D/g, '');
@@ -1123,7 +1157,6 @@
             }
             e.target.value = value;
         }
-
         // Función para formatear teléfonos (XXX) XXX-XXXX
         function formatPhone(e) {
             let value = e.target.value.replace(/\D/g, '');
@@ -1132,16 +1165,14 @@
             }
             e.target.value = value;
         }
-
         // Función de búsqueda en tiempo real
         function setupSearch() {
             const searchInput = document.getElementById('searchInput');
             if (!searchInput) return;
-
             searchInput.addEventListener('input', function() {
                 const searchTerm = this.value.toLowerCase().trim();
                 const rows = document.querySelectorAll('#suppliersTableBody tr');
-                
+
                 rows.forEach(row => {
                     const text = row.textContent.toLowerCase();
                     if (text.includes(searchTerm)) {
@@ -1152,24 +1183,22 @@
                 });
             });
         }
-
         // Manejar envío del formulario de edición con AJAX
         function setupEditForm() {
             const editForm = document.getElementById('editSupplierForm');
             if (!editForm) return;
-
             editForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                
+
                 const formData = new FormData(this);
                 const submitButton = editForm.querySelector('button[type="submit"]');
                 const originalButtonText = submitButton.innerHTML;
-                
+
                 try {
                     // Mostrar estado de carga
                     submitButton.disabled = true;
                     submitButton.innerHTML = '<i class="bx bx-loader bx-spin"></i> Guardando...';
-                    
+
                     const response = await fetch(this.action, {
                         method: 'POST',
                         body: formData,
@@ -1177,11 +1206,10 @@
                             'X-Requested-With': 'XMLHttpRequest',
                         }
                     });
-
                     const data = await response.json();
-                    
+
                     if (data.success) {
-                        showNotification('Proveedor actualizado exitosamente', 'success');
+                        toastr.success('Proveedor actualizado exitosamente');
                         setTimeout(() => {
                             window.location.reload();
                         }, 1500);
@@ -1190,7 +1218,7 @@
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    showNotification(error.message, 'error');
+                    toastr.error(error.message);
                 } finally {
                     // Restaurar botón
                     submitButton.disabled = false;
@@ -1198,37 +1226,6 @@
                 }
             });
         }
-
-        // Función para mostrar notificación
-        function showNotification(message, type = 'success') {
-            // Remover notificaciones existentes
-            document.querySelectorAll('.notification').forEach(notification => {
-                notification.remove();
-            });
-
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.innerHTML = `
-                <div class="notification-content">
-                    <i class='bx ${type === 'success' ? 'bx-check-circle' : 'bx-error'}'></i>
-                    <span>${message}</span>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 100);
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
-            }, 5000);
-        }
-
         // Inicialización de eventos
         document.addEventListener('DOMContentLoaded', function() {
             // Configurar eventos de los modales
@@ -1244,30 +1241,65 @@
                 });
             });
 
+            // Manejar el cierre de sesión con SweetAlert2
+        document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: '¿Cerrar Sesión?',
+                text: '¿Está seguro de que desea cerrar la sesión?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#dc3545',
+                confirmButtonText: 'Sí, Cerrar Sesión',
+                cancelButtonText: 'Cancelar',
+                backdrop: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "{% url 'index' %}";
+                }
+            });
+        });
+        
             // Configurar formatos de entrada
             document.getElementById('editRnc')?.addEventListener('input', formatRNC);
             document.getElementById('editPhone')?.addEventListener('input', formatPhone);
             document.getElementById('editWhatsapp')?.addEventListener('input', formatPhone);
-
             // Configurar búsqueda
             setupSearch();
-
             // Configurar formulario de edición
             setupEditForm();
-
             // Cerrar sidebar al redimensionar ventana
             window.addEventListener('resize', function() {
                 if (window.innerWidth > 768) {
                     closeSidebar();
                 }
             });
-
             // Mostrar mensajes de Django
             {% if messages %}
                 {% for message in messages %}
-                    showNotification('{{ message }}', '{{ message.tags }}');
+                    toastr.{{ message.tags }}('{{ message }}');
                 {% endfor %}
             {% endif %}
+            // Configuración de Toastr
+            toastr.options = {
+                "closeButton": true,
+                "debug": false,
+                "newestOnTop": false,
+                "progressBar": true,
+                "positionClass": "toast-top-right",
+                "preventDuplicates": false,
+                "onclick": null,
+                "showDuration": "300",
+                "hideDuration": "1000",
+                "timeOut": "5000",
+                "extendedTimeOut": "1000",
+                "showEasing": "swing",
+                "hideEasing": "linear",
+                "showMethod": "fadeIn",
+                "hideMethod": "fadeOut"
+            };
         });
     </script>
 </body>

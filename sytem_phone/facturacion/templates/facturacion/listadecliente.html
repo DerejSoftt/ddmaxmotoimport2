@@ -6,6 +6,10 @@
     <title>Lista de Clientes - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Toastr -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <style>
         * {
             margin: 0;
@@ -997,10 +1001,11 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script>
         // Variables globales
         let clients = [];
-
         // Referencias a elementos del DOM
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.querySelector('.sidebar-overlay');
@@ -1010,8 +1015,25 @@
         const editClientModal = document.getElementById('editClientModal');
         const editClientForm = document.getElementById('editClientForm');
         const loadingOverlay = document.getElementById('loadingOverlay');
-        const notification = document.getElementById('notification');
-        const notificationMessage = document.getElementById('notificationMessage');
+
+        // Configuración de Toastr
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": false,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
 
         // Función para formatear moneda
         function formatCurrency(amount) {
@@ -1024,19 +1046,8 @@
         // Función para obtener la clase CSS según el límite de crédito
         function getCreditLimitClass(limit) {
             if (limit === 0) return 'zero';
-            if (limit > 10000) return 'overdue'; // Puedes ajustar este valor según tus necesidades
+            if (limit > 10100) return 'overdue';
             return '';
-        }
-
-        // Función para mostrar notificación
-        function showNotification(message, isSuccess = true) {
-            notificationMessage.textContent = message;
-            notification.className = isSuccess ? 'notification success' : 'notification error';
-            notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
         }
 
         // Función para mostrar/ocultar loading
@@ -1064,12 +1075,11 @@
         function toggleSidebar() {
             sidebar.classList.toggle('active');
             sidebarOverlay.classList.toggle('active');
-            
+
             if (window.innerWidth <= 768) {
                 document.body.classList.toggle('sidebar-open');
             }
         }
-
         function closeSidebar() {
             sidebar.classList.remove('active');
             sidebarOverlay.classList.remove('active');
@@ -1091,18 +1101,18 @@
             try {
                 const response = await fetch('/obtener-clientes/');
                 const result = await response.json();
-                
+
                 if (result.success) {
                     clients = result.clientes;
                     renderClientsTable();
-                    showNotification(`Clientes cargados: ${clients.length}`);
+                    toastr.success(`Clientes cargados: ${clients.length}`);
                 } else {
                     console.error('Error al cargar clientes:', result.message);
-                    showNotification('Error al cargar clientes: ' + result.message, false);
+                    toastr.error('Error al cargar clientes: ' + result.message);
                 }
             } catch (error) {
                 console.error('Error de conexión:', error);
-                showNotification('Error de conexión al cargar clientes', false);
+                toastr.error('Error de conexión al cargar clientes');
             } finally {
                 toggleLoading(false);
             }
@@ -1115,18 +1125,17 @@
                 noDataMessage.style.display = 'block';
                 return;
             }
-
             noDataMessage.style.display = 'none';
-            
+
             const tableHTML = clients.map(client => {
                 const date = new Date(client.date_registered).toLocaleDateString('es-DO', {
                     year: 'numeric', month: '2-digit', day: '2-digit',
                     hour: '2-digit', minute: '2-digit'
                 });
-                
+
                 const creditLimit = parseFloat(client.credit_limit) || 0;
                 const creditLimitClass = getCreditLimitClass(creditLimit);
-                
+
                 return `
                     <tr>
                         <td><strong>${client.full_name}</strong></td>
@@ -1134,7 +1143,6 @@
                         <td>${client.address}</td>
                         <td>${client.primary_phone}</td>
                         <td>${client.secondary_phone || 'N/A'}</td>
-                        <!-- <td class="credit-limit ${creditLimitClass}">${formatCurrency(creditLimit)}</td> -->
                         <td>${date}</td>
                         <td>
                             <div class="actions">
@@ -1149,23 +1157,21 @@
                     </tr>
                 `;
             }).join('');
-
             clientsTableBody.innerHTML = tableHTML;
         }
 
         // Función de búsqueda y filtrado
         function filterClients() {
             const searchTerm = searchInput.value.toLowerCase().trim();
-            
+
             const filteredClients = clients.filter(client => {
-                return !searchTerm || 
+                return !searchTerm ||
                     client.full_name.toLowerCase().includes(searchTerm) ||
                     client.identification_number.toLowerCase().includes(searchTerm) ||
                     client.primary_phone.toLowerCase().includes(searchTerm) ||
-                    (client.secondary_phone && client.secondary_phone.toLowerCase().includes(searchTerm)) ||
-                    client.credit_limit.toString().includes(searchTerm);
+                    (client.secondary_phone && client.secondary_phone.toLowerCase().includes(searchTerm));
             });
-            
+
             // Re-renderizar la tabla con los resultados filtrados
             if (filteredClients.length === 0) {
                 clientsTableBody.innerHTML = '';
@@ -1177,10 +1183,7 @@
                         year: 'numeric', month: '2-digit', day: '2-digit',
                         hour: '2-digit', minute: '2-digit'
                     });
-                    
-                    const creditLimit = parseFloat(client.credit_limit) || 0;
-                    const creditLimitClass = getCreditLimitClass(creditLimit);
-                    
+
                     return `
                         <tr>
                             <td><strong>${client.full_name}</strong></td>
@@ -1188,7 +1191,6 @@
                             <td>${client.address}</td>
                             <td>${client.primary_phone}</td>
                             <td>${client.secondary_phone || 'N/A'}</td>
-                           <!-- <td class="credit-limit ${creditLimitClass}">${formatCurrency(creditLimit)}</td> -->
                             <td>${date}</td>
                             <td>
                                 <div class="actions">
@@ -1215,39 +1217,49 @@
             const client = clients.find(c => c.id === id);
             if (!client) return;
 
-            if (confirm(`¿Estás seguro de que deseas eliminar al cliente "${client.full_name}"?`)) {
-                toggleLoading(true);
-                try {
-                    const csrftoken = getCookie('csrftoken');
-                    const response = await fetch(`/eliminar-cliente/${id}/`, {
-                        method: 'DELETE',
-                        headers: {
-                            'X-CSRFToken': csrftoken
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: `¡No podrás revertir la eliminación del cliente "${client.full_name}"!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, eliminarlo!',
+                cancelButtonText: 'No, Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    toggleLoading(true);
+                    try {
+                        const csrftoken = getCookie('csrftoken');
+                        const response = await fetch(`/eliminar-cliente/${id}/`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRFToken': csrftoken
+                            }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            toastr.success('Cliente eliminado exitosamente');
+                            await cargarClientes();
+                        } else {
+                            toastr.error('Error al eliminar cliente: ' + result.message);
                         }
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        showNotification('Cliente eliminado exitosamente');
-                        await cargarClientes(); // Recargar la lista de clientes
-                    } else {
-                        showNotification('Error al eliminar cliente: ' + result.message, false);
+                    } catch (error) {
+                        console.error('Error de conexión:', error);
+                        toastr.error('Error de conexión al eliminar cliente');
+                    } finally {
+                        toggleLoading(false);
                     }
-                } catch (error) {
-                    console.error('Error de conexión:', error);
-                    showNotification('Error de conexión al eliminar cliente', false);
-                } finally {
-                    toggleLoading(false);
                 }
-            }
+            });
         }
 
         // Función para abrir modal de edición
         function editClient(id) {
             const client = clients.find(c => c.id === id);
             if (!client) return;
-
             // Llenar el formulario con los datos del cliente
             document.getElementById('editClientId').value = client.id;
             document.getElementById('editFullName').value = client.full_name;
@@ -1255,8 +1267,6 @@
             document.getElementById('editAddress').value = client.address;
             document.getElementById('editPrimaryPhone').value = client.primary_phone;
             document.getElementById('editSecondaryPhone').value = client.secondary_phone || '';
-            // document.getElementById('editCreditLimit').value = client.credit_limit || 0;
-
             // Mostrar modal
             editClientModal.classList.add('active');
             document.body.style.overflow = 'hidden';
@@ -1278,7 +1288,7 @@
 
         // Formatear número de identificación (Cédula/RNC) en el modal
         document.getElementById('editIdentificationNumber').addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, ''); // Eliminar no dígitos
+            let value = e.target.value.replace(/\D/g, '');
             if (value.length > 11) {
                 value = value.substring(0, 11);
             }
@@ -1292,7 +1302,7 @@
 
         // Formatear números de teléfono en el modal
         function formatPhoneModal(e) {
-            let value = e.target.value.replace(/\D/g, ''); // Eliminar no dígitos
+            let value = e.target.value.replace(/\D/g, '');
             if (value.length > 10) {
                 value = value.substring(0, 10);
             }
@@ -1309,24 +1319,22 @@
         // Manejar envío del formulario de edición
         editClientForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-
             const formData = new FormData(editClientForm);
             const clientId = parseInt(formData.get('clientId'));
-            
+
             // Validar campos requeridos
             const requiredFields = ['fullName', 'identificationNumber', 'address', 'primaryPhone'];
             let isValid = true;
-            
+
             requiredFields.forEach(fieldName => {
                 const value = formData.get(fieldName);
                 if (!value || !value.trim()) {
-                    alert(`El campo ${fieldName} es requerido`);
+                    toastr.error(`El campo ${fieldName} es requerido`);
                     isValid = false;
                 }
             });
-            
-            if (!isValid) return;
 
+            if (!isValid) return;
             toggleLoading(true);
             try {
                 const csrftoken = getCookie('csrftoken');
@@ -1335,10 +1343,8 @@
                     'identificationNumber': formData.get('identificationNumber'),
                     'address': formData.get('address'),
                     'primaryPhone': formData.get('primaryPhone'),
-                    'secondaryPhone': formData.get('secondaryPhone'),
-                    'creditLimit': parseFloat(formData.get('creditLimit')) || 0
+                    'secondaryPhone': formData.get('secondaryPhone')
                 };
-
                 const response = await fetch(`/editar-cliente/${clientId}/`, {
                     method: 'POST',
                     headers: {
@@ -1347,24 +1353,45 @@
                     },
                     body: JSON.stringify(data)
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    showNotification('Cliente actualizado exitosamente');
-                    await cargarClientes(); // Recargar la lista de clientes
+                    toastr.success('Cliente actualizado exitosamente');
+                    await cargarClientes();
                     closeEditClientModal();
                 } else {
-                    showNotification('Error al actualizar cliente: ' + result.message, false);
+                    toastr.error('Error al actualizar cliente: ' + result.message);
                 }
             } catch (error) {
                 console.error('Error de conexión:', error);
-                showNotification('Error de conexión al actualizar cliente', false);
+                toastr.error('Error de conexión al actualizar cliente');
             } finally {
                 toggleLoading(false);
             }
         });
 
+// Manejar el cierre de sesión con SweetAlert2
+        document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: '¿Cerrar Sesión?',
+                text: '¿Está seguro de que desea cerrar la sesión?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#dc3545',
+                confirmButtonText: 'Sí, Cerrar Sesión',
+                cancelButtonText: 'Cancelar',
+                backdrop: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "{% url 'index' %}";
+                }
+            });
+        });
+        
         // Cerrar sidebar al redimensionar ventana
         window.addEventListener('resize', function() {
             if (window.innerWidth > 768) {
