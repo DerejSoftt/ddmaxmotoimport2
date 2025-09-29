@@ -908,6 +908,7 @@
                                 <th>Código</th>
                                 <th>Producto</th>
                                 <th>Marca</th>
+                                <th>Número/Máquina</th>  
                                 <th>Numero/Chasi</th>
                                 <th>Color</th>
                                 <th>Estado</th>
@@ -992,6 +993,14 @@
                                     <option value="otros">Otros</option>
                                 </select>
                             </div>
+
+                            <!-- En el formulario de edición -->
+                                <div class="form-group">
+                                    <label class="form-label" for="editMachineNumber">Número/Máquina</label>
+                                <input type="text" id="editMachineNumber" name="numero_maquina" class="form-input">
+                                </div>
+
+
                             <div class="form-group">
                                 <label class="form-label" for="editImeiSerial">Numero/Chasi *</label>
                                 <input type="text" id="editImeiSerial" name="imei_serial" class="form-input" required>
@@ -1080,340 +1089,233 @@
     <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // Variables globales
-        let products = [];
-        let suppliers = [];
-        let filteredProducts = [];
-        let isSuperuser = false;
+   // Variables globales
+let products = [];
+let suppliers = [];
+let filteredProducts = [];
+let isSuperuser = false;
 
-        // Referencias a elementos del DOM
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
-        const searchInput = document.getElementById('searchInput');
-        const brandFilter = document.getElementById('brandFilter');
-        const conditionFilter = document.getElementById('conditionFilter');
-        const inventoryTableBody = document.getElementById('inventoryTableBody');
-        const noDataMessage = document.getElementById('noDataMessage');
-        const loadingData = document.getElementById('loadingData');
-        const editModal = document.getElementById('editModal');
-        const editForm = document.getElementById('editProductForm');
-        const csrfToken = document.getElementById('csrfToken').value;
+// Referencias a elementos del DOM
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.querySelector('.sidebar-overlay');
+const searchInput = document.getElementById('searchInput');
+const brandFilter = document.getElementById('brandFilter');
+const conditionFilter = document.getElementById('conditionFilter');
+const inventoryTableBody = document.getElementById('inventoryTableBody');
+const noDataMessage = document.getElementById('noDataMessage');
+const loadingData = document.getElementById('loadingData');
+const editModal = document.getElementById('editModal');
+const editForm = document.getElementById('editProductForm');
+const csrfToken = document.getElementById('csrfToken').value;
 
-        // Funciones para el sidebar
-        function toggleSidebar() {
-            sidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            
-            if (window.innerWidth <= 768) {
-                document.body.classList.toggle('sidebar-open');
-            }
+// Funciones para el sidebar
+function toggleSidebar() {
+    sidebar.classList.toggle('active');
+    sidebarOverlay.classList.toggle('active');
+
+    if (window.innerWidth <= 768) {
+        document.body.classList.toggle('sidebar-open');
+    }
+}
+
+function closeSidebar() {
+    sidebar.classList.remove('active');
+    sidebarOverlay.classList.remove('active');
+    document.body.classList.remove('sidebar-open');
+}
+
+// Cerrar sidebar al hacer clic en un enlace (móvil)
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+            closeSidebar();
         }
+    });
+});
 
-        function closeSidebar() {
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
-        }
+// Función para obtener el nombre de la marca
+function getBrandName(brand) {
+    const brands = {
+        'honda': 'Honda',
+        'yamaha': 'Yamaha',
+        'suzuki': 'Suzuki',
+        'kawasaki': 'Kawasaki',
+        'ktm': 'KTM',
+        'ducati': 'Ducati',
+        'bmw': 'BMW',
+        'harley-davidson': 'Harley-Davidson',
+        'bajaj': 'Bajaj',
+        'tvS': 'TVS',
+        'sym': 'SYM',
+        'vespa': 'Vespa',
+        'tauroCG': 'TAURO CG',
+        'tauro': 'TAURO',
+        'haojue': 'HAOJUE',
+        'gato': 'GATO',
+        'super bestia': 'SUPER BESTIA',
+        'loncin': 'LONCIN',
+        'otros': 'Otros'
+    };
+    return brands[brand] || brand;
+}
 
-        // Cerrar sidebar al hacer clic en un enlace (móvil)
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    closeSidebar();
-                }
-            });
-        });
+// Función para obtener el nombre del estado
+function getConditionName(condition) {
+    const conditions = {
+        'nuevo': 'Nuevo',
+        'usado': 'Usado',
+        'reacondicionado': 'Reacondicionado',
+        'exhibicion': 'Exhibición'
+    };
+    return conditions[condition] || condition;
+}
 
-        // Función para obtener el nombre de la marca
-        function getBrandName(brand) {
-            const brands = {
-                'honda': 'Honda',
-                'yamaha': 'Yamaha',
-                'suzuki': 'Suzuki',
-                'kawasaki': 'Kawasaki',
-                'ktm': 'KTM',
-                'ducati': 'Ducati',
-                'bmw': 'BMW',
-                'harley-davidson': 'Harley-Davidson',
-                'bajaj': 'Bajaj',
-                'tvS': 'TVS',
-                'sym': 'SYM',
-                'vespa': 'Vespa',
-                'tauroCG': 'TAURO CG',
-                'tauro': 'TAURO',
-                'otros': 'Otros'
-            };
-            return brands[brand] || brand;
-        }
+// Función para obtener la clase CSS del estado
+function getConditionClass(condition) {
+    if (condition === 'nuevo') return 'status-nuevo';
+    if (condition === 'usado') return 'status-usado';
+    if (condition === 'reacondicionado') return 'status-reacondicionado';
+    if (condition === 'exhibicion') return 'status-defectuoso';
+    return 'status-usado';
+}
 
-        // Función para obtener el nombre del estado
-        function getConditionName(condition) {
-            const conditions = {
-                'nuevo': 'Nuevo',
-                'usado': 'Usado',
-                'reacondicionado': 'Reacondicionado',
-                'exhibicion': 'Exhibición'
-            };
-            return conditions[condition] || condition;
-        }
+// Función para cargar filtros
+function loadFilters() {
+    // Cargar marcas únicas
+    const uniqueBrands = [...new Set(products.map(p => p.marca))];
+    brandFilter.innerHTML = '<option value="">Todas las marcas</option>';
+    uniqueBrands.forEach(brand => {
+        const option = document.createElement('option');
+        option.value = brand;
+        option.textContent = getBrandName(brand);
+        brandFilter.appendChild(option);
+    });
+}
 
-        // Función para obtener la clase CSS del estado
-        function getConditionClass(condition) {
-            if (condition === 'nuevo') return 'status-nuevo';
-            if (condition === 'usado') return 'status-usado';
-            if (condition === 'reacondicionado') return 'status-reacondicionado';
-            if (condition === 'exhibicion') return 'status-defectuoso';
-            return 'status-usado';
-        }
+// Función para renderizar la tabla
+function renderTable() {
+    if (filteredProducts.length === 0) {
+        inventoryTableBody.innerHTML = '';
+        noDataMessage.style.display = 'block';
+        return;
+    }
+    noDataMessage.style.display = 'none';
 
-        // Función para cargar filtros
-        function loadFilters() {
-            // Cargar marcas únicas
-            const uniqueBrands = [...new Set(products.map(p => p.marca))];
-            brandFilter.innerHTML = '<option value="">Todas las marcas</option>';
-            uniqueBrands.forEach(brand => {
-                const option = document.createElement('option');
-                option.value = brand;
-                option.textContent = getBrandName(brand);
-                brandFilter.appendChild(option);
-            });
-        }
+    const tableHTML = filteredProducts.map(product => {
+        return `
+            <tr>
+                <td><strong>${product.codigo_producto}</strong></td>
+                <td>${product.nombre_producto}</td>
+                <td>${getBrandName(product.marca)}</td>
+                <td>${product.numero_maquina || 'N/A'}</td>
+                <td>${product.imei_serial || 'N/A'}</td>
+                <td>${product.color || 'N/A'}</td>
+                <td>
+                    <span class="status-badge ${getConditionClass(product.estado)}">
+                        ${getConditionName(product.estado)}
+                    </span>
+                </td>
+                <td><strong>${product.cantidad}</strong></td>
+                <td class="currency">RD$ ${parseFloat(product.costo_compra).toLocaleString()}</td>
+                <td class="currency">RD$ ${parseFloat(product.costo_venta).toLocaleString()}</td>
+                <td>
+                    <div class="actions">
+                        ${isSuperuser ? `
+                        <button class="btn btn-success" onclick="editProduct(${product.id})" title="Editar">
+                            <i class='bx bx-edit'></i>
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteProduct(${product.id})" title="Eliminar">
+                            <i class='bx bx-trash'></i>
+                        </button>
+                        ` : '<span class="text-muted">Solo superusuario</span>'}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    inventoryTableBody.innerHTML = tableHTML;
+}
 
-        // Función para renderizar la tabla
-        function renderTable() {
-            if (filteredProducts.length === 0) {
-                inventoryTableBody.innerHTML = '';
-                noDataMessage.style.display = 'block';
-                return;
-            }
+// Función de búsqueda y filtrado
+function filterProducts() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const brandValue = brandFilter.value;
+    const conditionValue = conditionFilter.value;
 
-            noDataMessage.style.display = 'none';
-            
-            const tableHTML = filteredProducts.map(product => {
-                return `
-                    <tr>
-                        <td><strong>${product.codigo_producto}</strong></td>
-                        <td>${product.nombre_producto}</td>
-                        <td>${getBrandName(product.marca)}</td>
-                        <td>${product.imei_serial || 'N/A'}</td>
-                        <td>${product.color || 'N/A'}</td>
-                        <td>
-                            <span class="status-badge ${getConditionClass(product.estado)}">
-                                ${getConditionName(product.estado)}
-                            </span>
-                        </td>
-                        <td><strong>${product.cantidad}</strong></td>
-                        <td class="currency">RD$ ${parseFloat(product.costo_compra).toLocaleString()}</td>
-                        <td class="currency">RD$ ${parseFloat(product.costo_venta).toLocaleString()}</td>
-                        <td>
-                            <div class="actions">
-                                ${isSuperuser ? `
-                                <button class="btn btn-success" onclick="editProduct(${product.id})" title="Editar">
-                                    <i class='bx bx-edit'></i>
-                                </button>
-                                <button class="btn btn-danger" onclick="deleteProduct(${product.id})" title="Eliminar">
-                                    <i class='bx bx-trash'></i>
-                                </button>
-                                ` : '<span class="text-muted">Solo superusuario</span>'}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+    filteredProducts = products.filter(product => {
+        const matchesSearch = !searchTerm ||
+            product.nombre_producto.toLowerCase().includes(searchTerm) ||
+            getBrandName(product.marca).toLowerCase().includes(searchTerm) ||
+            product.codigo_producto.toLowerCase().includes(searchTerm) ||
+            (product.imei_serial && product.imei_serial.toLowerCase().includes(searchTerm)) ||
+            (product.numero_maquina && product.numero_maquina.toLowerCase().includes(searchTerm));
 
-            inventoryTableBody.innerHTML = tableHTML;
-        }
+        const matchesBrand = !brandValue || product.marca === brandValue;
+        const matchesCondition = !conditionValue || product.estado === conditionValue;
 
-        // Función de búsqueda y filtrado
-        function filterProducts() {
-            const searchTerm = searchInput.value.toLowerCase().trim();
-            const brandValue = brandFilter.value;
-            const conditionValue = conditionFilter.value;
-            
-            filteredProducts = products.filter(product => {
-                const matchesSearch = !searchTerm || 
-                    product.nombre_producto.toLowerCase().includes(searchTerm) ||
-                    getBrandName(product.marca).toLowerCase().includes(searchTerm) ||
-                    product.codigo_producto.toLowerCase().includes(searchTerm) ||
-                    (product.imei_serial && product.imei_serial.toLowerCase().includes(searchTerm));
-                
-                const matchesBrand = !brandValue || product.marca === brandValue;
-                const matchesCondition = !conditionValue || product.estado === conditionValue;
-                
-                return matchesSearch && matchesBrand && matchesCondition;
-            });
-            
-            renderTable();
-        }
+        return matchesSearch && matchesBrand && matchesCondition;
+    });
 
-        // Event listeners para filtros
-        searchInput.addEventListener('input', filterProducts);
-        brandFilter.addEventListener('change', filterProducts);
-        conditionFilter.addEventListener('change', filterProducts);
+    renderTable();
+}
 
-        // Función para eliminar producto
-        function deleteProduct(id) {
-            const product = products.find(p => p.id === id);
-            if (!product) return;
+// Event listeners para filtros
+searchInput.addEventListener('input', filterProducts);
+brandFilter.addEventListener('change', filterProducts);
+conditionFilter.addEventListener('change', filterProducts);
 
-            Swal.fire({
-                title: '¿Estás seguro?',
-                text: `¿Estás seguro de que deseas eliminar el producto "${product.nombre_producto}"?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ff6b6b',
-                cancelButtonColor: '#667eea',
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Enviar solicitud DELETE al servidor
-                    fetch(`/inventario/eliminar/${id}/`, {
-                        method: 'DELETE',
-                        headers: {
-                            'X-CSRFToken': csrfToken,
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => {
-                        if (response.status === 403) {
-                            return response.json().then(data => {
-                                throw new Error(data.error || 'Permisos insuficientes. Solo superusuarios pueden eliminar productos.');
-                            });
-                        }
-                        if (response.ok) {
-                            return response.json();
-                        }
-                        throw new Error('Error al eliminar el producto');
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            // Actualizar la lista local
-                            products = products.filter(p => p.id !== id);
-                            filteredProducts = filteredProducts.filter(p => p.id !== id);
-                            renderTable();
-                            loadFilters();
-                            
-                            Swal.fire(
-                                '¡Eliminado!',
-                                'El producto ha sido eliminado exitosamente.',
-                                'success'
-                            );
-                        } else {
-                            Swal.fire(
-                                'Error',
-                                'Error al eliminar el producto: ' + data.message,
-                                'error'
-                            );
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.fire(
-                            'Error',
-                            'Error: ' + error.message,
-                            'error'
-                        );
-                    });
-                }
-            });
-        }
-
-        // Función para abrir modal de edición
-        function editProduct(id) {
-            const product = products.find(p => p.id === id);
-            if (!product) return;
-
-            // Llenar el formulario con los datos del producto
-            document.getElementById('editProductId').value = product.id;
-            document.getElementById('editProductName').value = product.nombre_producto;
-            document.getElementById('editBrand').value = product.marca;
-            document.getElementById('editImeiSerial').value = product.imei_serial || '';
-            document.getElementById('editCondition').value = product.estado;
-            document.getElementById('editColor').value = product.color || '';
-            document.getElementById('editPurchaseCost').value = product.costo_compra;
-            document.getElementById('editSaleCost').value = product.costo_venta;
-            document.getElementById('editObservations').value = product.observaciones || '';
-
-            // Mostrar modal
-            editModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-
-        // Función para cerrar modal de edición
-        function closeEditModal() {
-            editModal.classList.remove('active');
-            document.body.style.overflow = 'auto';
-            editForm.reset();
-        }
-
-        // Cerrar modal al hacer clic fuera de él
-        editModal.addEventListener('click', function(e) {
-            if (e.target === editModal) {
-                closeEditModal();
-            }
-        });
-
-        // Manejar envío del formulario de edición
-        editForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(editForm);
-            const productId = parseInt(formData.get('productId'));
-            
-            // Preparar datos para enviar
-            const data = {
-                nombre_producto: formData.get('nombre_producto'),
-                marca: formData.get('marca'),
-                imei_serial: formData.get('imei_serial'),
-                estado: formData.get('estado'),
-                color: formData.get('color'),
-                costo_compra: parseFloat(formData.get('costo_compra')),
-                costo_venta: parseFloat(formData.get('costo_venta')),
-                observaciones: formData.get('observaciones')
-            };
-
-            // Enviar solicitud PUT al servidor
-            fetch(`/inventario/editar/${productId}/`, {
-                method: 'PUT',
+// Función para eliminar producto
+function deleteProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Estás seguro de que deseas eliminar el producto "${product.nombre_producto}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ff6b6b',
+        cancelButtonColor: '#667eea',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/inventario/eliminar/${id}/`, {
+                method: 'DELETE',
                 headers: {
                     'X-CSRFToken': csrfToken,
                     'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
+                }
             })
             .then(response => {
                 if (response.status === 403) {
                     return response.json().then(data => {
-                        throw new Error(data.error || 'Permisos insuficientes. Solo superusuarios pueden editar productos.');
+                        throw new Error(data.error || 'Permisos insuficientes. Solo superusuarios pueden eliminar productos.');
                     });
                 }
                 if (response.ok) {
                     return response.json();
                 }
-                throw new Error('Error al actualizar el producto');
+                throw new Error('Error al eliminar el producto');
             })
-            .then(updatedProduct => {
-                // Actualizar el producto en la lista local
-                const index = products.findIndex(p => p.id === productId);
-                if (index !== -1) {
-                    products[index] = updatedProduct;
+            .then(data => {
+                if (data.success) {
+                    products = products.filter(p => p.id !== id);
+                    filteredProducts = filteredProducts.filter(p => p.id !== id);
+                    renderTable();
+                    loadFilters();
+
+                    Swal.fire(
+                        '¡Eliminado!',
+                        'El producto ha sido eliminado exitosamente.',
+                        'success'
+                    );
+                } else {
+                    Swal.fire(
+                        'Error',
+                        'Error al eliminar el producto: ' + data.message,
+                        'error'
+                    );
                 }
-                
-                // Actualizar tabla y filtros
-                filteredProducts = [...products];
-                filterProducts();
-                loadFilters();
-
-                // Cerrar modal
-                closeEditModal();
-
-                // Mostrar mensaje de éxito
-                Swal.fire(
-                    '¡Actualizado!',
-                    'El producto ha sido actualizado exitosamente.',
-                    'success'
-                );
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -1423,75 +1325,174 @@
                     'error'
                 );
             });
-        });
+        }
+    });
+}
 
-        // Cerrar sidebar al redimensionar ventana
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
-                closeSidebar();
-            }
-        });
+// Función para abrir modal de edición
+function editProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
 
-        // Cargar datos desde el servidor
-        function loadDataFromServer() {
-            fetch('/inventario/datos/')
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                }
-                throw new Error('Error al cargar los datos');
-            })
-            .then(data => {
-                products = data.productos || [];
-                suppliers = data.proveedores || [];
-                filteredProducts = [...products];
-                isSuperuser = data.user ? data.user.is_superuser : false;
-                
-                // Ocultar loading y renderizar tabla
-                loadingData.style.display = 'none';
-                loadFilters();
-                renderTable();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                loadingData.innerHTML = `
-                    <div class="no-data">
-                        <i class='bx bx-error'></i>
-                        <p>Error al cargar los datos del inventario</p>
-                        <button class="btn btn-primary" onclick="loadDataFromServer()" style="margin-top: 20px;">
-                            <i class='bx bx-refresh'></i>
-                            Reintentar
-                        </button>
-                    </div>
-                `;
+    document.getElementById('editProductId').value = product.id;
+    document.getElementById('editProductName').value = product.nombre_producto;
+    document.getElementById('editBrand').value = product.marca;
+    document.getElementById('editImeiSerial').value = product.imei_serial || '';
+    document.getElementById('editMachineNumber').value = product.numero_maquina || '';
+    document.getElementById('editCondition').value = product.estado;
+    document.getElementById('editColor').value = product.color || '';
+    document.getElementById('editPurchaseCost').value = product.costo_compra;
+    document.getElementById('editSaleCost').value = product.costo_venta;
+    document.getElementById('editObservations').value = product.observaciones || '';
+
+    editModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+// Función para cerrar modal de edición
+function closeEditModal() {
+    editModal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+    editForm.reset();
+}
+
+// Cerrar modal al hacer clic fuera de él
+editModal.addEventListener('click', function(e) {
+    if (e.target === editModal) {
+        closeEditModal();
+    }
+});
+
+// Manejar envío del formulario de edición
+editForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(editForm);
+    const productId = parseInt(formData.get('productId'));
+
+    const data = {
+        nombre_producto: formData.get('nombre_producto'),
+        marca: formData.get('marca'),
+        imei_serial: formData.get('imei_serial'),
+        numero_maquina: formData.get('numero_maquina'),
+        estado: formData.get('estado'),
+        color: formData.get('color'),
+        costo_compra: parseFloat(formData.get('costo_compra')),
+        costo_venta: parseFloat(formData.get('costo_venta')),
+        observaciones: formData.get('observaciones')
+    };
+
+    fetch(`/inventario/editar/${productId}/`, {
+        method: 'PUT',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (response.status === 403) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Permisos insuficientes. Solo superusuarios pueden editar productos.');
             });
         }
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Error al actualizar el producto');
+    })
+    .then(updatedProduct => {
+        const index = products.findIndex(p => p.id === productId);
+        if (index !== -1) {
+            products[index] = updatedProduct;
+        }
 
-        // Manejar el cierre de sesión con SweetAlert2
-        document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
-            e.preventDefault();
+        filteredProducts = [...products];
+        filterProducts();
+        loadFilters();
+        closeEditModal();
 
-            Swal.fire({
-                title: '¿Cerrar Sesión?',
-                text: '¿Está seguro de que desea cerrar la sesión?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#667eea',
-                cancelButtonColor: '#dc3545',
-                confirmButtonText: 'Sí, Cerrar Sesión',
-                cancelButtonText: 'Cancelar',
-                backdrop: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = "{% url 'index' %}";
-                }
-            });
-        });
+        Swal.fire(
+            '¡Actualizado!',
+            'El producto ha sido actualizado exitosamente.',
+            'success'
+        );
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire(
+            'Error',
+            'Error: ' + error.message,
+            'error'
+        );
+    });
+});
 
-        // Inicializar la página
-        window.addEventListener('load', function() {
-            loadDataFromServer();
-        });
+// Cerrar sidebar al redimensionar ventana
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        closeSidebar();
+    }
+});
+
+// Cargar datos desde el servidor
+function loadDataFromServer() {
+    fetch('/inventario/datos/')
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Error al cargar los datos');
+    })
+    .then(data => {
+        products = data.productos || [];
+        suppliers = data.proveedores || [];
+        filteredProducts = [...products];
+        isSuperuser = data.user ? data.user.is_superuser : false;
+
+        loadingData.style.display = 'none';
+        loadFilters();
+        renderTable();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        loadingData.innerHTML = `
+            <div class="no-data">
+                <i class='bx bx-error'></i>
+                <p>Error al cargar los datos del inventario</p>
+                <button class="btn btn-primary" onclick="loadDataFromServer()" style="margin-top: 20px;">
+                    <i class='bx bx-refresh'></i>
+                    Reintentar
+                </button>
+            </div>
+        `;
+    });
+}
+
+// Manejar el cierre de sesión con SweetAlert2
+document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+    e.preventDefault();
+    Swal.fire({
+        title: '¿Cerrar Sesión?',
+        text: '¿Está seguro de que desea cerrar la sesión?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#667eea',
+        cancelButtonColor: '#dc3545',
+        confirmButtonText: 'Sí, Cerrar Sesión',
+        cancelButtonText: 'Cancelar',
+        backdrop: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = "{% url 'index' %}";
+        }
+    });
+});
+
+// Inicializar la página
+window.addEventListener('load', function() {
+    loadDataFromServer();
+});
+
     </script>
 </body>
 </html>

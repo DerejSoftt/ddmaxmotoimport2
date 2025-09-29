@@ -765,20 +765,16 @@ def superuser_required(view_func):
 def inventario(request):
     return render(request, "facturacion/inventario.html")
 
-
-
-# Vista para obtener datos del inventario
-@require_http_methods(["GET"])
+# En la vista inventario_datos
 def inventario_datos(request):
     try:
-        # Incluir el campo imei_serial en los valores
         productos = list(EntradaProducto.objects.all().values(
-            'id', 'codigo_producto', 'nombre_producto', 'marca', 
-            'imei_serial', 'estado', 'color', 'cantidad',
+            'id', 'codigo_producto', 'nombre_producto', 'marca',
+            'imei_serial', 'numero_maquina', 'estado', 'color', 'cantidad',
             'costo_compra', 'costo_venta', 'observaciones'
         ))
         proveedores = list(Proveedor.objects.all().values())
-        
+
         return JsonResponse({
             'productos': productos,
             'proveedores': proveedores,
@@ -790,34 +786,36 @@ def inventario_datos(request):
     except Exception as e:
         return JsonResponse({'error': 'Error interno del servidor: ' + str(e)}, status=500)
 
+
 # Vista para editar producto
 @require_http_methods(["PUT"])
 @csrf_exempt
 @superuser_required
+# En la vista inventario_editar
 def inventario_editar(request, id):
     try:
         producto = EntradaProducto.objects.get(id=id)
         data = json.loads(request.body)
-        
-        # Actualizar campos incluyendo imei_serial
+
         producto.nombre_producto = data.get('nombre_producto', producto.nombre_producto)
         producto.marca = data.get('marca', producto.marca)
         producto.imei_serial = data.get('imei_serial', producto.imei_serial)
+        producto.numero_maquina = data.get('numero_maquina', producto.numero_maquina)  # Nuevo campo
         producto.estado = data.get('estado', producto.estado)
         producto.color = data.get('color', producto.color)
         producto.costo_compra = data.get('costo_compra', producto.costo_compra)
         producto.costo_venta = data.get('costo_venta', producto.costo_venta)
         producto.observaciones = data.get('observaciones', producto.observaciones)
-        
+
         producto.save()
-        
-        # Devolver el producto actualizado incluyendo imei_serial
+
         producto_actualizado = {
             'id': producto.id,
             'codigo_producto': producto.codigo_producto,
             'nombre_producto': producto.nombre_producto,
             'marca': producto.marca,
             'imei_serial': producto.imei_serial,
+            'numero_maquina': producto.numero_maquina,  # Nuevo campo
             'estado': producto.estado,
             'color': producto.color,
             'cantidad': producto.cantidad,
@@ -825,7 +823,7 @@ def inventario_editar(request, id):
             'costo_venta': float(producto.costo_venta),
             'observaciones': producto.observaciones,
         }
-        
+
         return JsonResponse(producto_actualizado)
     except EntradaProducto.DoesNotExist:
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
@@ -2573,7 +2571,6 @@ def obtener_datos_plantilla(request, plantilla_id):
 
 
 
-
 def entrada(request):
     """Vista principal para registro de entradas de productos"""
     if request.method == 'POST':
@@ -2583,43 +2580,44 @@ def entrada(request):
             fecha_entrada = request.POST.get('fecha_entrada', '')
             proveedor_id = request.POST.get('proveedor', '')
             ncf = request.POST.get('ncf', '').strip()
-            nombre_producto = request.POST.get('nombre_producto', '').strip()  # ✅ AQUÍ ESTÁ EL CAMPO FALTANTE
+            nombre_producto = request.POST.get('nombre_producto', '').strip()
             marca = request.POST.get('marca', '').strip()
             modelo = request.POST.get('modelo', '').strip()
             capacidad = request.POST.get('capacidad', '')
             imei_serial = request.POST.get('imei_serial', '').strip()
             estado = request.POST.get('estado', '')
             color = request.POST.get('color', '')
-            
+            numero_maquina = request.POST.get('numero_maquina', '').strip()  # Nuevo campo
+
             # Manejar valores numéricos
             try:
                 cantidad = int(request.POST.get('cantidad', 1))
             except (ValueError, TypeError):
                 cantidad = 1
-                
+
             try:
                 costo_compra = float(request.POST.get('costo_compra', 0))
             except (ValueError, TypeError):
                 costo_compra = 0.0
-                
+
             try:
                 porcentaje_itbis = float(request.POST.get('porcentaje_itbis', 18))
             except (ValueError, TypeError):
                 porcentaje_itbis = 18.0
-                
+
             try:
                 costo_venta = float(request.POST.get('costo_venta', 0))
             except (ValueError, TypeError):
                 costo_venta = 0.0
-                
+
             observaciones = request.POST.get('observaciones', '').strip()
-            
+
             # Validaciones básicas
             required_fields = [
                 ('numero_factura', numero_factura, 'Número de factura'),
                 ('fecha_entrada', fecha_entrada, 'Fecha de entrada'),
                 ('proveedor', proveedor_id, 'Proveedor'),
-                ('nombre_producto', nombre_producto, 'Nombre del producto'),  # ✅ AGREGAR ESTA VALIDACIÓN
+                ('nombre_producto', nombre_producto, 'Nombre del producto'),
                 ('marca', marca, 'Marca'),
                 ('modelo', modelo, 'Modelo'),
                 ('imei_serial', imei_serial, 'IMEI/Serial'),
@@ -2628,64 +2626,65 @@ def entrada(request):
                 ('costo_compra', costo_compra, 'Costo de compra'),
                 ('costo_venta', costo_venta, 'Costo de venta')
             ]
-            
+
             for field_name, field_value, field_display in required_fields:
                 if not field_value:
                     messages.error(request, f'{field_display} es requerido')
                     return redirect('entrada')
-            
+
             if cantidad <= 0:
                 messages.error(request, 'La cantidad debe ser mayor a 0')
                 return redirect('entrada')
-                
+
             if costo_compra <= 0:
                 messages.error(request, 'El costo de compra debe ser mayor a 0')
                 return redirect('entrada')
-                
+
             if costo_venta <= 0:
                 messages.error(request, 'El costo de venta debe ser mayor a 0')
                 return redirect('entrada')
-            
+
             # Verificar si el IMEI ya existe
             if EntradaProducto.objects.filter(
-                imei_serial=imei_serial, 
+                imei_serial=imei_serial,
                 activo=True
             ).exists():
                 messages.error(request, 'El IMEI/Serial ya existe en la base de datos')
                 return redirect('entrada')
-            
+
             # Verificar si el número de factura ya existe
             if EntradaProducto.objects.filter(
-                numero_factura=numero_factura, 
+                numero_factura=numero_factura,
                 activo=True
             ).exists():
                 messages.error(request, 'El número de factura ya existe en la base de datos')
                 return redirect('entrada')
-            
+
             # Obtener el proveedor
             try:
                 proveedor = Proveedor.objects.get(id=proveedor_id, activo=True)
             except Proveedor.DoesNotExist:
                 messages.error(request, 'Proveedor no válido')
                 return redirect('entrada')
-            
+
             # Calcular montos automáticamente
             monto_itbis = (costo_compra * porcentaje_itbis) / 100
             costo_total = costo_compra + monto_itbis
-            
+
             # Crear la entrada de producto
             entrada_producto = EntradaProducto(
                 numero_factura=numero_factura,
                 fecha_entrada=fecha_entrada,
                 proveedor=proveedor,
                 ncf=ncf,
-                nombre_producto=nombre_producto,  # ✅ AHORA SÍ ESTÁ DEFINIDO
+                nombre_producto=nombre_producto,
                 marca=marca,
                 modelo=modelo,
                 capacidad=capacidad,
                 imei_serial=imei_serial,
                 estado=estado,
                 color=color,
+                numero_maquina=numero_maquina,  # Nuevo campo
                 cantidad=cantidad,
                 cantidad_minima=2,
                 costo_compra=costo_compra,
@@ -2696,25 +2695,25 @@ def entrada(request):
                 observaciones=observaciones,
                 activo=True
             )
-            
+
             entrada_producto.save()
-            
+
             messages.success(request, '✅ Producto registrado exitosamente en el inventario')
             return redirect('entrada')
-            
+
         except ValueError as e:
             messages.error(request, f'Error en los datos numéricos: {str(e)}')
             return redirect('entrada')
         except Exception as e:
             messages.error(request, f'Error al registrar el producto: {str(e)}')
             return redirect('entrada')
-    
+
     # GET request - mostrar el formulario
     proveedores = Proveedor.objects.filter(activo=True)
-    
+
     # Establecer fecha actual por defecto
     fecha_actual = timezone.now().date().isoformat()
-    
+
     return render(request, 'facturacion/entrada.html', {
         'proveedores': proveedores,
         'fecha_actual': fecha_actual

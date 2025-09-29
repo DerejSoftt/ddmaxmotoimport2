@@ -161,6 +161,7 @@ class EntradaProducto(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     es_producto_base = models.BooleanField(default=False, verbose_name="Es producto base")
+    numero_maquina = models.CharField(max_length=50, blank=True, null=True, verbose_name="Número/Máquina")
     
     def save(self, *args, **kwargs):
         # Guardar cantidad anterior para el movimiento de stock
