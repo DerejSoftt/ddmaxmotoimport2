@@ -7,6 +7,11 @@
     <title>Devoluciones - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Toastr CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
         * {
             margin: 0;
@@ -609,83 +614,83 @@
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-       <!-- Sidebar Navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>
-                <i class='bx bx-mobile-alt'></i>
-                DEREJSOFT
-            </h2>
-            <p>Usuario: {{ user.username }}</p>
-            <p>{{ user.email }}</p>
-        </div>
-        <div class="sidebar-menu">
-            <a href="#" class="menu-item">
-                <i class='bx bx-home-alt'></i>
-                <span>Inicio</span>
-            </a>
-            <a href="{% url 'ventas' %}" class="menu-item">
-                <i class='bx bx-package'></i>
-                <span>facturacion</span>
-            </a>
-            <a href="{% url 'registrodecliente'  %}" class="menu-item">
-                <i class='bx bx-dollar-circle'></i>
-                <span>Registrar Cliente</span>
-            </a>
-            <a href="{% url 'listadecliente' %}" class="menu-item">
-                <i class='bx bx-user-plus'></i>
-                <span>Clientes</span>
-            </a>
-            <a href="{% url 'entrada'  %}" class="menu-item">
-                <i class='bx bx-shopping-bag'></i>
-                <span>Entrada mercancia</span>
-            </a>
-            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
-                <i class='bx bx-shopping-bag'></i>
-                <span>Cuenta por Cobrar</span>
-            </a>
-            <a href="{% url 'inventario'  %}" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Inventario</span>
-            </a>
-            <a href="{% url 'registrosuplidores'  %}" class="menu-item">
-                <i class='bx bx-bar-chart-alt-2'></i>
-                <span>Registrar Suplidores</span>
-            </a>
-            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Suplidores</span>
-            </a>
-            <a href="{% url 'devoluciones'  %}" class="menu-item active">
-                <i class='bx bx-trending-up'></i>
-                <span>Devoluciones</span>
-            </a>
-            <a href="{% url 'roles'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Roles</span>
-            </a>
-            <a href="{% url 'anular'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Anular Factura</span>
-            </a>
+     <!-- Sidebar Navigation -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <i class="fas fa-motorcycle"></i>
+            DEREJSOFT
+        </h2>
+        <p>Usuario: {{ user.username }}</p>
+        <p>{{ user.email }}</p>
+    </div>
+    <div class="sidebar-menu">
+        <a href="#" class="menu-item">
+            <i class='bx bx-home-alt'></i>
+            <span>Inicio</span>
+        </a>
+        <a href="{% url 'ventas' %}" class="menu-item">
+            <i class='bx bx-receipt'></i>
+            <span>Facturación</span>
+        </a>
+        <a href="{% url 'registrodecliente' %}" class="menu-item">
+            <i class='bx bx-user-plus'></i>
+            <span>Registrar Cliente</span>
+        </a>
+        <a href="{% url 'listadecliente' %}" class="menu-item">
+            <i class='bx bx-group'></i>
+            <span>Clientes</span>
+        </a>
+        <a href="{% url 'entrada' %}" class="menu-item">
+            <i class='bx bx-package'></i>
+            <span>Entrada Mercancía</span>
+        </a>
+        <a href="{% url 'cuentaporcobrar' %}" class="menu-item">
+            <i class='bx bx-money'></i>
+            <span>Cuenta por Cobrar</span>
+        </a>
+        <a href="{% url 'inventario' %}" class="menu-item">
+            <i class='bx bx-archive'></i>
+            <span>Inventario</span>
+        </a>
+        <a href="{% url 'registrosuplidores' %}" class="menu-item">
+            <i class='bx bx-building'></i>
+            <span>Registrar Suplidores</span>
+        </a>
+        <a href="{% url 'gestiondesuplidores' %}" class="menu-item">
+            <i class='bx bx-buildings'></i>
+            <span>Suplidores</span>
+        </a>
+        <a href="{% url 'devoluciones' %}" class="menu-item active">
+            <i class='bx bx-undo'></i>
+            <span>Devoluciones</span>
+        </a>
+        <a href="{% url 'roles' %}" class="menu-item">
+            <i class='bx bx-user-check'></i>
+            <span>Roles</span>
+        </a>
+        <a href="{% url 'anular' %}" class="menu-item">
+            <i class='bx bx-x-circle'></i>
+            <span>Anular Factura</span>
+        </a>
+        <a href="{% url 'reimprimirfactura' %}" class="menu-item">
+            <i class='bx bx-printer'></i>
+            <span>Reimprimir</span>
+        </a>
+        <a href="{% url 'dashboard' %}" class="menu-item">
+            <i class='bx bx-grid-alt'></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="{% url 'index' %}" class="menu-item">
+            <i class='bx bx-log-out'></i>
+            <span>Cerrar Sesión</span>
+        </a>
+    </div>
+    <div class="sidebar-footer">
+        <p>Derejsoft v 1.2.2</p>
+    </div>
+</nav>
 
-            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-store'></i>
-                <span>Ajuste Inventario</span>
-            </a> -->
-            <a href="{% url 'dashboard'  %}" class="menu-item">
-                <i class='bx bx-cog'></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="{% url 'index'  %}" class="menu-item">
-                <i class='bx bx-log-out'></i>
-                <span>Cerrar Sesión</span>
-            </a>
-        </div>
-        <div class="sidebar-footer">
-            <p>Derejsoft v 1.2.2</p>
-        </div>
-    </nav>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -856,311 +861,379 @@
             </div>
         </div>
     </div>
-
+    <!-- jQuery (requerido para Toastr) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-    // Funciones para el sidebar
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
-        
-        sidebar.classList.toggle('active');
-        sidebarOverlay.classList.toggle('active');
-        
-        if (window.innerWidth <= 768) {
-            document.body.classList.toggle('sidebar-open');
+     // Configuración global de Toastr
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+
+        // Función para mostrar mensajes de Django con Toastr
+        function showDjangoMessages() {
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == 'error' %}
+                        toastr.error("{{ message }}");
+                    {% elif message.tags == 'success' %}
+                        toastr.success("{{ message }}");
+                    {% elif message.tags == 'warning' %}
+                        toastr.warning("{{ message }}");
+                    {% else %}
+                        toastr.info("{{ message }}");
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
         }
-    }
 
-    function closeSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
-        
-        sidebar.classList.remove('active');
-        sidebarOverlay.classList.remove('active');
-        document.body.classList.remove('sidebar-open');
-    }
+        // Función para mostrar errores con Toastr
+        function mostrarErrorToastr(mensaje) {
+            toastr.error(mensaje);
+        }
 
-    // Cerrar sidebar al hacer clic en un enlace (móvil)
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('click', () => {
+        // Función para mostrar éxito con Toastr
+        function mostrarExitoToastr(mensaje) {
+            toastr.success(mensaje);
+        }
+
+        // Función para confirmar acciones con SweetAlert2
+        function confirmarAccion(titulo, texto, callback) {
+            Swal.fire({
+                title: titulo,
+                text: texto,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, continuar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    callback();
+                }
+            });
+        }
+
+        // Funciones para el sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.querySelector('.sidebar-overlay');
+
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+
             if (window.innerWidth <= 768) {
+                document.body.classList.toggle('sidebar-open');
+            }
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.querySelector('.sidebar-overlay');
+
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        }
+
+        // Cerrar sidebar al hacer clic en un enlace (móvil)
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeSidebar();
+                }
+            });
+        });
+
+        // Elementos del DOM
+        const searchButton = document.getElementById('searchButton');
+        const facturaInput = document.getElementById('facturaInput');
+        const facturaInfo = document.getElementById('facturaInfo');
+        const productInfo = document.getElementById('productInfo');
+        const productoSelect = document.getElementById('productoSelect');
+        const devolucionForm = document.getElementById('devolucionForm');
+
+        // Asignar eventos
+        searchButton.addEventListener('click', buscarFactura);
+        productoSelect.addEventListener('change', mostrarProducto);
+        devolucionForm.addEventListener('submit', procesarDevolucion);
+
+        // Variable global para almacenar la factura actual
+        let facturaActual = null;
+
+        // Función para buscar factura
+        function buscarFactura() {
+            const facturaId = facturaInput.value.trim();
+
+            if (!facturaId) {
+                mostrarErrorToastr('Por favor, ingrese un número de factura.');
+                return;
+            }
+
+            fetch('/buscar-factura-devolucion/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ numero_factura: facturaId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    mostrarErrorToastr(data.error);
+                    facturaInfo.classList.add('hidden');
+                    productInfo.classList.add('hidden');
+                } else {
+                    facturaActual = data.factura;
+                    mostrarInfoFactura(facturaActual);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarErrorToastr('Error al buscar la factura. Intente nuevamente.');
+            });
+        }
+
+        // Función para mostrar información de la factura
+        function mostrarInfoFactura(factura) {
+            document.getElementById('infoFactura').textContent = factura.id;
+            document.getElementById('infoFecha').textContent = factura.fecha;
+            document.getElementById('infoCliente').textContent = factura.cliente;
+            document.getElementById('infoTotal').textContent = `RD$ ${factura.total}`;
+            document.getElementById('infoEstadoFactura').textContent = factura.estado;
+            document.getElementById('infoVendedor').textContent = factura.vendedor;
+
+            // Llenar el selector de productos
+            productoSelect.innerHTML = '<option value="">Seleccione un producto</option>';
+            factura.productos.forEach((producto, index) => {
+                const option = document.createElement('option');
+                option.value = producto.id;
+                option.textContent = `${producto.producto} - ${producto.marca} (${producto.codigo})`;
+                option.dataset.producto = JSON.stringify(producto);
+                productoSelect.appendChild(option);
+            });
+
+            facturaInfo.classList.remove('hidden');
+            productInfo.classList.add('hidden');
+
+            // Hacer scroll suave hacia la información de la factura
+            facturaInfo.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Función para mostrar información del producto seleccionado
+        function mostrarProducto() {
+            const productoId = productoSelect.value;
+            const productoData = productoSelect.options[productoSelect.selectedIndex]?.dataset.producto;
+
+            if (!productoId || !productoData) {
+                productInfo.classList.add('hidden');
+                return;
+            }
+
+            const producto = JSON.parse(productoData);
+
+            document.getElementById('infoCodigo').textContent = producto.codigo;
+            document.getElementById('infoProducto').textContent = producto.producto;
+            document.getElementById('infoMarca').textContent = producto.marca;
+            document.getElementById('infoCapacidad').textContent = producto.capacidad;
+            document.getElementById('infoColor').textContent = producto.color;
+            document.getElementById('infoEstado').textContent = producto.estado;
+            document.getElementById('infoChasis').textContent = producto.chasis;
+            document.getElementById('infoPrecio').textContent = `RD$ ${producto.precio}`;
+            document.getElementById('infoCantidad').textContent = producto.cantidad;
+            document.getElementById('productImage').src = producto.imagen;
+            document.getElementById('cantidadDevolver').setAttribute('max', producto.cantidad);
+            document.getElementById('cantidadDevolver').value = 1;
+
+            productInfo.classList.remove('hidden');
+
+            // Hacer scroll suave hacia la información del producto
+            productInfo.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Función para procesar devolución
+        function procesarDevolucion(e) {
+            e.preventDefault();
+
+            const productoId = productoSelect.value;
+            const motivo = document.getElementById('motivoDevolucion').value;
+            const cantidad = document.getElementById('cantidadDevolver').value;
+            const observaciones = document.getElementById('observaciones').value;
+
+            // Validaciones básicas
+            if (!productoId) {
+                mostrarErrorToastr('Debe seleccionar un producto.');
+                return;
+            }
+
+            if (!motivo) {
+                mostrarErrorToastr('Debe seleccionar un motivo de devolución.');
+                return;
+            }
+
+            if (!cantidad || cantidad <= 0) {
+                mostrarErrorToastr('La cantidad a devolver debe ser mayor a 0.');
+                return;
+            }
+
+            // Obtener la cantidad máxima permitida
+            const cantidadMaxima = parseInt(document.getElementById('cantidadDevolver').getAttribute('max'));
+            if (parseInt(cantidad) > cantidadMaxima) {
+                mostrarErrorToastr('No puede devolver más unidades de las vendidas.');
+                return;
+            }
+
+            // Confirmar acción con SweetAlert2
+            confirmarAccion(
+                'Confirmar Devolución',
+                '¿Está seguro de procesar esta devolución?',
+                function() {
+                    fetch('/procesar-devolucion/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        body: JSON.stringify({
+                            factura_id: facturaActual.id,
+                            producto_id: productoId,
+                            motivo: motivo,
+                            cantidad: cantidad,
+                            observaciones: observaciones
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            mostrarErrorToastr(data.error);
+                        } else {
+                            mostrarExitoToastr(`${data.mensaje} Número de devolución: ${data.numero_devolucion}`);
+
+                            // Resetear formulario
+                            devolucionForm.reset();
+                            facturaInput.value = '';
+                            facturaInfo.classList.add('hidden');
+                            productInfo.classList.add('hidden');
+                            facturaActual = null;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        mostrarErrorToastr('Error al procesar la devolución. Intente nuevamente.');
+                    });
+                }
+            );
+        }
+
+        // Función para obtener el token CSRF
+        function getCSRFToken() {
+            const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            return csrfInput ? csrfInput.value : '';
+        }
+
+        // Cerrar sidebar al redimensionar ventana
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
                 closeSidebar();
             }
         });
-    });
 
-    // Elementos del DOM
-    const searchButton = document.getElementById('searchButton');
-    const facturaInput = document.getElementById('facturaInput');
-    const facturaInfo = document.getElementById('facturaInfo');
-    const productInfo = document.getElementById('productInfo');
-    const productoSelect = document.getElementById('productoSelect');
-    const devolucionForm = document.getElementById('devolucionForm');
+        // Validación en tiempo real
+        const inputs = document.querySelectorAll('.form-input');
+        inputs.forEach(input => {
+            input.addEventListener('blur', validateField);
+            input.addEventListener('input', clearError);
+        });
 
-    // Asignar eventos
-    searchButton.addEventListener('click', buscarFactura);
-    productoSelect.addEventListener('change', mostrarProducto);
-    devolucionForm.addEventListener('submit', procesarDevolucion);
+        function validateField(e) {
+            const field = e.target;
+            const fieldName = field.name || field.id;
+            const value = field.value.trim();
+            let isValid = true;
+            let errorMessage = '';
 
-    // Variable global para almacenar la factura actual
-    let facturaActual = null;
-
-    // Función para buscar factura
-    function buscarFactura() {
-        const facturaId = facturaInput.value.trim();
-        
-        // Reset messages
-        const errorElement = document.getElementById('facturaError');
-        if (errorElement) {
-            errorElement.style.display = 'none';
-        }
-        
-        if (!facturaId) {
-            mostrarError('facturaError', 'Por favor, ingrese un número de factura.');
-            return;
-        }
-        
-        // Hacer petición al servidor
-        fetch('/buscar-factura-devolucion/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify({ numero_factura: facturaId })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                mostrarError('facturaError', data.error);
-                facturaInfo.classList.add('hidden');
-                productInfo.classList.add('hidden');
-            } else {
-                facturaActual = data.factura;
-                mostrarInfoFactura(facturaActual);
+            switch (fieldName) {
+                case 'facturaInput':
+                    if (!value) {
+                        errorMessage = 'El número de factura es requerido';
+                        isValid = false;
+                    }
+                    break;
+                case 'motivoDevolucion':
+                    if (!value) {
+                        errorMessage = 'Debe seleccionar un motivo de devolución';
+                        isValid = false;
+                    }
+                    break;
+                case 'cantidadDevolver':
+                    if (!value) {
+                        errorMessage = 'La cantidad a devolver es requerida';
+                        isValid = false;
+                    } else if (parseInt(value) < 1) {
+                        errorMessage = 'La cantidad debe ser al menos 1';
+                        isValid = false;
+                    }
+                    break;
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            mostrarError('facturaError', 'Error al buscar la factura. Intente nuevamente.');
-        });
-    }
 
-    // Función para mostrar información de la factura
-    function mostrarInfoFactura(factura) {
-        document.getElementById('infoFactura').textContent = factura.id;
-        document.getElementById('infoFecha').textContent = factura.fecha;
-        document.getElementById('infoCliente').textContent = factura.cliente;
-        document.getElementById('infoTotal').textContent = `RD$ ${factura.total}`;
-        document.getElementById('infoEstadoFactura').textContent = factura.estado;
-        document.getElementById('infoVendedor').textContent = factura.vendedor;
-        
-        // Llenar el selector de productos
-        productoSelect.innerHTML = '<option value="">Seleccione un producto</option>';
-        factura.productos.forEach((producto, index) => {
-            const option = document.createElement('option');
-            option.value = producto.id;
-            option.textContent = `${producto.producto} - ${producto.marca} (${producto.codigo})`;
-            option.dataset.producto = JSON.stringify(producto);
-            productoSelect.appendChild(option);
-        });
-        
-        facturaInfo.classList.remove('hidden');
-        productInfo.classList.add('hidden');
-        
-        // Hacer scroll suave hacia la información de la factura
-        facturaInfo.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // Función para mostrar información del producto seleccionado
-    function mostrarProducto() {
-        const productoId = productoSelect.value;
-        const productoData = productoSelect.options[productoSelect.selectedIndex]?.dataset.producto;
-        
-        if (!productoId || !productoData) {
-            productInfo.classList.add('hidden');
-            return;
-        }
-        
-        const producto = JSON.parse(productoData);
-        
-        document.getElementById('infoCodigo').textContent = producto.codigo;
-        document.getElementById('infoProducto').textContent = producto.producto;
-        document.getElementById('infoMarca').textContent = producto.marca;
-        document.getElementById('infoCapacidad').textContent = producto.capacidad;
-        document.getElementById('infoColor').textContent = producto.color;
-        document.getElementById('infoEstado').textContent = producto.estado;
-        document.getElementById('infoChasis').textContent = producto.chasis;
-        document.getElementById('infoPrecio').textContent = `RD$ ${producto.precio}`;
-        document.getElementById('infoCantidad').textContent = producto.cantidad;
-        document.getElementById('productImage').src = producto.imagen;
-        document.getElementById('cantidadDevolver').setAttribute('max', producto.cantidad);
-        document.getElementById('cantidadDevolver').value = 1;
-        
-        productInfo.classList.remove('hidden');
-        
-        // Hacer scroll suave hacia la información del producto
-        productInfo.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // Función para procesar devolución
-    function procesarDevolucion(e) {
-        e.preventDefault();
-        
-        const productoId = productoSelect.value;
-        const motivo = document.getElementById('motivoDevolucion').value;
-        const cantidad = document.getElementById('cantidadDevolver').value;
-        const observaciones = document.getElementById('observaciones').value;
-        
-        // Validaciones básicas
-        if (!productoId) {
-            mostrarError('productoError', 'Debe seleccionar un producto.');
-            return;
-        }
-        
-        if (!motivo) {
-            mostrarError('motivoDevolucionError', 'Debe seleccionar un motivo de devolución.');
-            return;
-        }
-        
-        if (!cantidad || cantidad <= 0) {
-            mostrarError('cantidadDevolverError', 'La cantidad a devolver debe ser mayor a 0.');
-            return;
-        }
-        
-        // Obtener la cantidad máxima permitida
-        const cantidadMaxima = parseInt(document.getElementById('cantidadDevolver').getAttribute('max'));
-        if (parseInt(cantidad) > cantidadMaxima) {
-            mostrarError('cantidadDevolverError', 'No puede devolver más unidades de las vendidas.');
-            return;
-        }
-        
-        // Enviar petición al servidor
-        fetch('/procesar-devolucion/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify({
-                factura_id: facturaActual.id,
-                producto_id: productoId,
-                motivo: motivo,
-                cantidad: cantidad,
-                observaciones: observaciones
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(`Error: ${data.error}`);
-            } else {
-                alert(`${data.mensaje} Número de devolución: ${data.numero_devolucion}`);
-                
-                // Resetear formulario
-                devolucionForm.reset();
-                facturaInput.value = '';
-                facturaInfo.classList.add('hidden');
-                productInfo.classList.add('hidden');
-                facturaActual = null;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar la devolución. Intente nuevamente.');
-        });
-    }
-
-    // Función para obtener el token CSRF
-    function getCSRFToken() {
-        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-        return csrfInput ? csrfInput.value : '';
-    }
-
-    // Función para mostrar error
-    function mostrarError(elementId, mensaje) {
-        const errorElement = document.getElementById(elementId);
-        if (errorElement) {
-            errorElement.textContent = mensaje;
-            errorElement.style.display = 'block';
-            
-            // Hacer scroll al mensaje de error
-            errorElement.scrollIntoView({ behavior: 'smooth' });
-        }
-    }
-
-    // Cerrar sidebar al redimensionar ventana
-    window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            closeSidebar();
-        }
-    });
-
-    // Validación en tiempo real
-    const inputs = document.querySelectorAll('.form-input');
-    inputs.forEach(input => {
-        input.addEventListener('blur', validateField);
-        input.addEventListener('input', clearError);
-    });
-
-    function validateField(e) {
-        const field = e.target;
-        const fieldName = field.name || field.id;
-        const value = field.value.trim();
-        const errorElement = document.getElementById(fieldName + 'Error');
-
-        let isValid = true;
-        let errorMessage = '';
-
-        switch (fieldName) {
-            case 'facturaInput':
-                if (!value) {
-                    errorMessage = 'El número de factura es requerido';
-                    isValid = false;
-                }
-                break;
-
-            case 'motivoDevolucion':
-                if (!value) {
-                    errorMessage = 'Debe seleccionar un motivo de devolución';
-                    isValid = false;
-                }
-                break;
-
-            case 'cantidadDevolver':
-                if (!value) {
-                    errorMessage = 'La cantidad a devolver es requerida';
-                    isValid = false;
-                } else if (parseInt(value) < 1) {
-                    errorMessage = 'La cantidad debe ser al menos 1';
-                    isValid = false;
-                }
-                break;
-        }
-
-        if (errorElement) {
             if (!isValid) {
-                errorElement.textContent = errorMessage;
-                errorElement.style.display = 'block';
+                mostrarErrorToastr(errorMessage);
                 field.style.borderColor = '#dc3545';
             } else {
-                errorElement.style.display = 'none';
                 field.style.borderColor = '#28a745';
             }
+
+            return isValid;
         }
 
-        return isValid;
-    }
-
-    function clearError(e) {
-        const field = e.target;
-        const fieldName = field.name || field.id;
-        const errorElement = document.getElementById(fieldName + 'Error');
-        if (errorElement) {
-            errorElement.style.display = 'none';
+        function clearError(e) {
+            const field = e.target;
             field.style.borderColor = '#e1e8ed';
         }
-    }
+
+        // Mostrar mensajes de Django al cargar la página
+        $(document).ready(function() {
+            showDjangoMessages();
+        });
+          // Manejar el cierre de sesión con SweetAlert2
+    document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+        e.preventDefault();
+
+        Swal.fire({
+            title: '¿Cerrar Sesión?',
+            text: '¿Está seguro de que desea cerrar la sesión?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#667eea',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: 'Sí, Cerrar Sesión',
+            cancelButtonText: 'Cancelar',
+            backdrop: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "{% url 'index' %}";
+            }
+        });
+    });
 </script>
 </body>
 </html>

@@ -6,6 +6,12 @@
     <title>Gestión de Roles y Usuarios - D'uro Cell</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Toastr CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
     <style>
         /* Estilos generales y de diseño */
         * {
@@ -820,83 +826,83 @@
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-   <!-- Sidebar Navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>
-                <i class='bx bx-mobile-alt'></i>
-                DEREJSOFT
-            </h2>
-            <p>Usuario: {{ user.username }}</p>
-            <p>{{ user.email }}</p>
-        </div>
-        <div class="sidebar-menu">
-            <a href="#" class="menu-item">
-                <i class='bx bx-home-alt'></i>
-                <span>Inicio</span>
-            </a>
-            <a href="{% url 'ventas' %}" class="menu-item">
-                <i class='bx bx-package'></i>
-                <span>facturacion</span>
-            </a>
-            <a href="{% url 'registrodecliente'  %}" class="menu-item">
-                <i class='bx bx-dollar-circle'></i>
-                <span>Registrar Cliente</span>
-            </a>
-            <a href="{% url 'listadecliente' %}" class="menu-item">
-                <i class='bx bx-user-plus'></i>
-                <span>Clientes</span>
-            </a>
-            <a href="{% url 'entrada'  %}" class="menu-item">
-                <i class='bx bx-shopping-bag'></i>
-                <span>Entrada mercancia</span>
-            </a>
-            <a href="{% url 'cuentaporcobrar'  %}" class="menu-item">
-                <i class='bx bx-shopping-bag'></i>
-                <span>Cuenta por Cobrar</span>
-            </a>
-            <a href="{% url 'inventario'  %}" class="menu-item">
-                <i class='bx bx-credit-card'></i>
-                <span>Inventario</span>
-            </a>
-            <a href="{% url 'registrosuplidores'  %}" class="menu-item">
-                <i class='bx bx-bar-chart-alt-2'></i>
-                <span>Registrar Suplidores</span>
-            </a>
-            <a href="{% url 'gestiondesuplidores'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Suplidores</span>
-            </a>
-                        <a href="{% url 'devoluciones'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Devoluciones</span>
-            </a>
-            <a href="{% url 'roles'  %}" class="menu-item">
-                <i class='bx bx-trending-up'></i>
-                <span>Roles</span>
-            </a>
-            <a href="{% url 'anular'  %}" class="menu-item active">
-                <i class='bx bx-trending-up'></i>
-                <span>Anular Factura</span>
-            </a>
+<!-- Sidebar Navigation -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <i class="fas fa-motorcycle"></i>
+            DEREJSOFT
+        </h2>
+        <p>Usuario: {{ user.username }}</p>
+        <p>{{ user.email }}</p>
+    </div>
+    <div class="sidebar-menu">
+        <a href="#" class="menu-item">
+            <i class='bx bx-home-alt'></i>
+            <span>Inicio</span>
+        </a>
+        <a href="{% url 'ventas' %}" class="menu-item">
+            <i class='bx bx-receipt'></i>
+            <span>Facturación</span>
+        </a>
+        <a href="{% url 'registrodecliente' %}" class="menu-item">
+            <i class='bx bx-user-plus'></i>
+            <span>Registrar Cliente</span>
+        </a>
+        <a href="{% url 'listadecliente' %}" class="menu-item">
+            <i class='bx bx-group'></i>
+            <span>Clientes</span>
+        </a>
+        <a href="{% url 'entrada' %}" class="menu-item">
+            <i class='bx bx-package'></i>
+            <span>Entrada Mercancía</span>
+        </a>
+        <a href="{% url 'cuentaporcobrar' %}" class="menu-item">
+            <i class='bx bx-money'></i>
+            <span>Cuenta por Cobrar</span>
+        </a>
+        <a href="{% url 'inventario' %}" class="menu-item">
+            <i class='bx bx-archive'></i>
+            <span>Inventario</span>
+        </a>
+        <a href="{% url 'registrosuplidores' %}" class="menu-item">
+            <i class='bx bx-building'></i>
+            <span>Registrar Suplidores</span>
+        </a>
+        <a href="{% url 'gestiondesuplidores' %}" class="menu-item">
+            <i class='bx bx-buildings'></i>
+            <span>Suplidores</span>
+        </a>
+        <a href="{% url 'devoluciones' %}" class="menu-item">
+            <i class='bx bx-undo'></i>
+            <span>Devoluciones</span>
+        </a>
+        <a href="{% url 'roles' %}" class="menu-item active">
+            <i class='bx bx-user-check'></i>
+            <span>Roles</span>
+        </a>
+        <a href="{% url 'anular' %}" class="menu-item">
+            <i class='bx bx-x-circle'></i>
+            <span>Anular Factura</span>
+        </a>
+        <a href="{% url 'reimprimirfactura' %}" class="menu-item">
+            <i class='bx bx-printer'></i>
+            <span>Reimprimir</span>
+        </a>
+        <a href="{% url 'dashboard' %}" class="menu-item">
+            <i class='bx bx-grid-alt'></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="{% url 'index' %}" class="menu-item">
+            <i class='bx bx-log-out'></i>
+            <span>Cerrar Sesión</span>
+        </a>
+    </div>
+    <div class="sidebar-footer">
+        <p>Derejsoft v 1.2.2</p>
+    </div>
+</nav>
 
-            <!-- <a href="{% url 'reavastecer'  %}" class="menu-item">
-                <i class='bx bx-store'></i>
-                <span>Ajuste Inventario</span>
-            </a> -->
-            <a href="{% url 'dashboard'  %}" class="menu-item">
-                <i class='bx bx-cog'></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="{% url 'index'  %}" class="menu-item">
-                <i class='bx bx-log-out'></i>
-                <span>Cerrar Sesión</span>
-            </a>
-        </div>
-        <div class="sidebar-footer">
-            <p>Derejsoft v 1.2.2</p>
-        </div>
-    </nav>
     <!-- Main Content -->
     <div class="main-content">
         <div class="container">
@@ -1037,10 +1043,11 @@
                                                 {% csrf_token %}
                                                 <input type="hidden" name="action" value="delete_role">
                                                 <input type="hidden" name="role_id" value="{{ role.id }}">
-                                                <button type="submit" class="btn btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este rol?')">
+                                                <button type="button" class="btn btn-danger delete-role-btn" data-role-id="{{ role.id }}">
                                                     <i class='bx bx-trash'></i>
                                                 </button>
                                             </form>
+
                                         </td>
                                     </tr>
                                     {% empty %}
@@ -1174,10 +1181,11 @@
                                                 {% csrf_token %}
                                                 <input type="hidden" name="action" value="delete_user">
                                                 <input type="hidden" name="user_id" value="{{ user.id }}">
-                                                <button type="submit" class="btn btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este usuario?')">
+                                                <button type="button" class="btn btn-danger delete-user-btn" data-user-id="{{ user.id }}">
                                                     <i class='bx bx-trash'></i>
                                                 </button>
                                             </form>
+
                                         </td>
                                     </tr>
                                     {% empty %}
@@ -1453,8 +1461,92 @@
             </div>
         </div>
     </div>
+    <!-- jQuery (requerido para Toastr) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
+        // Configuración global de Toastr
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+
+        // Función para mostrar mensajes de Django con Toastr
+        function showDjangoMessages() {
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == 'error' %}
+                        toastr.error("{{ message }}");
+                    {% elif message.tags == 'success' %}
+                        toastr.success("{{ message }}");
+                    {% elif message.tags == 'warning' %}
+                        toastr.warning("{{ message }}");
+                    {% else %}
+                        toastr.info("{{ message }}");
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        }
+
+        // Función para confirmar eliminación de roles con SweetAlert2
+        document.querySelectorAll('.delete-role-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const form = this.closest('form');
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: "¡No podrás revertir esta acción!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        });
+
+        // Función para confirmar eliminación de usuarios con SweetAlert2
+        document.querySelectorAll('.delete-user-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const form = this.closest('form');
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: "¡No podrás revertir esta acción!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        });
+
         // Función para abrir el modal de crear usuario
         function openCreateUserModal() {
             document.getElementById('createUserModal').classList.add('active');
@@ -1467,55 +1559,33 @@
 
         // Función para abrir el modal de editar rol
         function openEditRoleModal(roleId) {
-            // Aquí deberías obtener los datos del rol con el ID proporcionado
-            // y llenar el formulario de edición
             document.getElementById('editRoleId').value = roleId;
-            
-            // Datos de ejemplo (deberías obtener los datos reales del servidor)
-            document.getElementById('editRoleName').value = 'Nombre del Rol ' + roleId;
-            document.getElementById('editRoleDescription').value = 'Descripción del rol ' + roleId;
-            
             document.getElementById('editRoleModal').classList.add('active');
         }
 
         // Función para abrir el modal de editar usuario
         function openEditUserModal(userId) {
-            // Aquí deberías obtener los datos del usuario con el ID proporcionado
-            // y llenar el formulario de edición
             document.getElementById('editUserId').value = userId;
-            
-            // Datos de ejemplo (deberías obtener los datos reales del servidor)
-            document.getElementById('editUsername').value = 'usuario' + userId;
-            document.getElementById('editEmail').value = 'usuario' + userId + '@ejemplo.com';
-            document.getElementById('editFirstName').value = 'Nombre ' + userId;
-            document.getElementById('editLastName').value = 'Apellido ' + userId;
-            
             document.getElementById('editUserModal').classList.add('active');
         }
 
         // Función para ver detalles del rol
         function viewRole(roleId) {
-            // Aquí deberías obtener los datos del rol con el ID proporcionado
-            // y mostrarlos en el modal de visualización
             document.getElementById('viewRoleName').textContent = 'Nombre del Rol ' + roleId;
             document.getElementById('viewRoleDescription').textContent = 'Descripción del rol ' + roleId;
             document.getElementById('viewRoleStatus').textContent = 'Activo';
             document.getElementById('viewRoleUsers').textContent = '5 usuarios';
             document.getElementById('viewRolePermissions').textContent = 'Ver, Editar, Eliminar';
-            
             document.getElementById('viewRoleModal').classList.add('active');
         }
 
         // Función para ver detalles del usuario
         function viewUser(userId) {
-            // Aquí deberías obtener los datos del usuario con el ID proporcionado
-            // y mostrarlos en el modal de visualización
             document.getElementById('viewUserName').textContent = 'Usuario ' + userId;
             document.getElementById('viewUserEmail').textContent = 'usuario' + userId + '@ejemplo.com';
             document.getElementById('viewUserRole').textContent = 'Administrador';
             document.getElementById('viewUserStatus').textContent = 'Activo';
             document.getElementById('viewUserLastAccess').textContent = '2023-10-15 14:30';
-            
             document.getElementById('viewUserModal').classList.add('active');
         }
 
@@ -1528,7 +1598,6 @@
         function togglePassword(inputId) {
             const passwordInput = document.getElementById(inputId);
             const toggleIcon = passwordInput.nextElementSibling.querySelector('i');
-            
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
                 toggleIcon.classList.replace('bx-hide', 'bx-show');
@@ -1542,7 +1611,6 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
-            
             sidebar.classList.toggle('active');
             overlay.classList.toggle('active');
             document.body.classList.toggle('sidebar-open');
@@ -1552,7 +1620,6 @@
         function closeSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
-            
             sidebar.classList.remove('active');
             overlay.classList.remove('active');
             document.body.classList.remove('sidebar-open');
@@ -1561,21 +1628,37 @@
         // Cambio de pestañas
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                // Remover clase active de todas las pestañas
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                // Añadir clase active a la pestaña clickeada
                 tab.classList.add('active');
-                
-                // Ocultar todo el contenido de pestañas
                 document.querySelectorAll('.tab-content').forEach(content => {
                     content.classList.remove('active');
                 });
-                
-                // Mostrar el contenido de la pestaña seleccionada
                 const tabId = tab.getAttribute('data-tab');
                 document.getElementById(tabId + 'Tab').classList.add('active');
             });
         });
+
+  
+// Manejar el cierre de sesión con SweetAlert2
+        document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: '¿Cerrar Sesión?',
+                text: '¿Está seguro de que desea cerrar la sesión?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#dc3545',
+                confirmButtonText: 'Sí, Cerrar Sesión',
+                cancelButtonText: 'Cancelar',
+                backdrop: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "{% url 'index' %}";
+                }
+            });
+        });      
 
         // Cerrar modales al hacer clic fuera del contenido
         document.querySelectorAll('.modal').forEach(modal => {
@@ -1586,12 +1669,10 @@
             });
         });
 
-        // Mostrar mensajes durante 5 segundos
-        setTimeout(() => {
-            document.querySelectorAll('.message-container').forEach(message => {
-                message.style.display = 'none';
-            });
-        }, 5000);
+        // Mostrar mensajes de Django al cargar la página
+        $(document).ready(function() {
+            showDjangoMessages();
+        });
     </script>
 </body>
 </html>
