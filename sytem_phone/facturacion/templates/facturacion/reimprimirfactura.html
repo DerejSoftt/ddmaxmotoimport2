@@ -6,9 +6,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reimpresión de Facturas - D'uro Cell</title>
+    <!--favicon-->
+    <link rel="shortcut icon" href="{% static 'image/favicon2.ico' %}" type="image/x-icon">
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Toastr CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
         /* Estilos generales */
         body {
@@ -31,9 +37,35 @@
             display: flex;
             flex-direction: column;
         }
-        
-        /* Encabezado */
         .header {
+            display: flex;
+            flex-direction: column; /* Cambiar a columna para que los elementos se apilen verticalmente */
+            align-items: center; /* Centrar horizontalmente los elementos */
+            justify-content: center;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            text-align: center; /* Centrar el texto */
+}
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 5px; /* Margen inferior para separar del párrafo */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin: 0; /* Eliminar márgenes predeterminados */
+            text-align: center;
+        }
+
+        /* Encabezado */
+        .header28 {
             display: flex;
             justify-content: space-between;
             margin-bottom: 10px;
@@ -142,11 +174,12 @@
             text-align: center;
             font-size: 14px;
         }
-        .header p {
+        .header28 p {
             font-size: 1.1rem;
             opacity: 0.9;
             position: relative;
             z-index: 1;
+            
         }
         
         .credit-details {
@@ -249,7 +282,7 @@
             }
         }
 
-        .header img{
+        .header28 img{
             width: 120px;
             height: auto;
             transform: translateY(-20px);
@@ -746,7 +779,6 @@
         }
     </style>
 </head>
-<body>
     <!-- Menu Toggle Button -->
     <button class="menu-toggle" onclick="toggleSidebar()">
         <i class='bx bx-menu'></i>
@@ -877,7 +909,7 @@
         
         <div id="factura-container" class="invoice-container" style="display: none;">
             <div class="content-wrapper">
-                <div class="header">
+                <div class="header28">
                     <img src="{% static 'image/logom.png' %}" alt="Logo">
                     <div class="company-info">
                         <div><strong>DDMAX MOTO IMPORT, SRL</strong></div>
@@ -938,7 +970,8 @@
                 </div>
                 
                 <div class="note">
-                    <p><strong>Nota:</strong> Tipo Pago : <span id="metodo-pago"></span>.</p>
+                    <strong>Nota:</strong>
+                    </p><strong> Tipo Pago :</strong> <span id="metodo-pago"></span>.</p>
                 </div>
                 
                 <div id="credito-info" class="credit-info" style="display: none;">
@@ -975,259 +1008,279 @@
             </div>
         </div>
     </div>
- <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+ <!-- jQuery (requerido para Toastr) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
-        // Funciones para el sidebar
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.querySelector('.sidebar-overlay');
-            
-            sidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            
+    // Configuración de Toastr
+    toastr.options = {
+        "closeButton": true,
+        "debug": false,
+        "newestOnTop": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "preventDuplicates": true,
+        "onclick": null,
+        "showDuration": "300",
+        "hideDuration": "1000",
+        "timeOut": "5000",
+        "extendedTimeOut": "1000",
+        "showEasing": "swing",
+        "hideEasing": "linear",
+        "showMethod": "fadeIn",
+        "hideMethod": "fadeOut"
+    };
+
+    // Función para formatear números con comas para los miles y dos decimales
+    const formatNumber = (number) => {
+        return parseFloat(number).toLocaleString('es-ES', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    };
+
+    // Funciones para el sidebar
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+        sidebar.classList.toggle('active');
+        sidebarOverlay.classList.toggle('active');
+        if (window.innerWidth <= 768) {
+            document.body.classList.toggle('sidebar-open');
+        }
+    }
+
+    function closeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+        sidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+        document.body.classList.remove('sidebar-open');
+    }
+
+    // Cerrar sidebar al hacer clic en un enlace (móvil)
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
-                document.body.classList.toggle('sidebar-open');
+                closeSidebar();
             }
-        }
+        });
+    });
 
-        function closeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.querySelector('.sidebar-overlay');
-            
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
-        }
+    // Variables globales
+    let filtroTipoVenta = null;
+    let ultimaFactura = null;
 
-        // Cerrar sidebar al hacer clic en un enlace (móvil)
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    closeSidebar();
-                }
-            });
+    // Inicializar checkboxes
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configurar eventos para los checkboxes
+        document.getElementById('chk-contado').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('chk-credito').checked = false;
+                filtroTipoVenta = 'contado';
+                document.getElementById('filter-contado').classList.add('active');
+                document.getElementById('filter-credito').classList.remove('active');
+            } else {
+                filtroTipoVenta = null;
+                document.getElementById('filter-contado').classList.remove('active');
+            }
         });
 
-        // Variables globales
-        let filtroTipoVenta = null;
-        let ultimaFactura = null;
-
-        // Inicializar checkboxes
-        document.addEventListener('DOMContentLoaded', function() {
-            // Configurar eventos para los checkboxes
-            document.getElementById('chk-contado').addEventListener('change', function() {
-                if (this.checked) {
-                    document.getElementById('chk-credito').checked = false;
-                    filtroTipoVenta = 'contado';
-                    document.getElementById('filter-contado').classList.add('active');
-                    document.getElementById('filter-credito').classList.remove('active');
-                } else {
-                    filtroTipoVenta = null;
-                    document.getElementById('filter-contado').classList.remove('active');
-                }
-            });
-
-            document.getElementById('chk-credito').addEventListener('change', function() {
-                if (this.checked) {
-                    document.getElementById('chk-contado').checked = false;
-                    filtroTipoVenta = 'credito';
-                    document.getElementById('filter-credito').classList.add('active');
-                    document.getElementById('filter-contado').classList.remove('active');
-                } else {
-                    filtroTipoVenta = null;
-                    document.getElementById('filter-credito').classList.remove('active');
-                }
-            });
-
-            // Evento para el botón de última factura
-            document.getElementById('btn-ultima-factura').addEventListener('click', function() {
-                if (!filtroTipoVenta) {
-                    alert('Por favor, seleccione un tipo de venta (Contado o Crédito)');
-                    return;
-                }
-                
-                buscarUltimaFactura();
-            });
+        document.getElementById('chk-credito').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('chk-contado').checked = false;
+                filtroTipoVenta = 'credito';
+                document.getElementById('filter-credito').classList.add('active');
+                document.getElementById('filter-contado').classList.remove('active');
+            } else {
+                filtroTipoVenta = null;
+                document.getElementById('filter-credito').classList.remove('active');
+            }
         });
 
-        // Función para buscar la última factura según el tipo seleccionado
-        function buscarUltimaFactura() {
-            fetch(`/ventas/ultima-factura/?tipo_venta=${filtroTipoVenta}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('No se pudo obtener la última factura');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                        return;
-                    }
-                    
-                    // Ocultar mensaje de error si está visible
-                    document.getElementById('error-message').style.display = 'none';
-                    
-                    // Llenar el campo de búsqueda con el número de factura
-                    document.getElementById('numero-factura').value = data.numero_factura;
-                    
-                    // Buscar automáticamente la factura
-                    buscarFacturaPorNumero(data.numero_factura);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al buscar la última factura: ' + error.message);
-                });
-        }
-
-        // Función para buscar una factura por número
-        function buscarFacturaPorNumero(numeroFactura) {
-            fetch(`/ventas/buscar-facturaR/?numero_factura=${numeroFactura}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Factura no encontrada');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Ocultar mensaje de error si está visible
-                    document.getElementById('error-message').style.display = 'none';
-                    
-                    // Llenar los datos de la factura
-                    llenarDatosFactura(data);
-                    
-                    // Mostrar la factura y ocultar elementos de búsqueda
-                    document.getElementById('factura-container').style.display = 'block';
-                    document.getElementById('search-container').style.display = 'none';
-                    
-                    // Desplazarse a la factura
-                    document.getElementById('factura-container').scrollIntoView({ behavior: 'smooth' });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById('error-message').textContent = error.message;
-                    document.getElementById('error-message').style.display = 'block';
-                });
-        }
-
-        // Evento para el botón de búsqueda
-        document.getElementById('buscar-facturaR').addEventListener('click', function() {
-            const numeroFactura = document.getElementById('numero-factura').value.trim();
-            
-            if (!numeroFactura) {
-                alert('Por favor, ingrese un número de factura');
+        // Evento para el botón de última factura
+        document.getElementById('btn-ultima-factura').addEventListener('click', function() {
+            if (!filtroTipoVenta) {
+                toastr.warning('Por favor, seleccione un tipo de venta (Contado o Crédito)');
                 return;
             }
-            
-            buscarFacturaPorNumero(numeroFactura);
+            buscarUltimaFactura();
         });
+    });
 
-        // Función para llenar los datos de la factura
-        function llenarDatosFactura(data) {
-            // Llenar información básica
-            document.getElementById('fecha-factura').textContent = data.fecha;
-            document.getElementById('numero-factura-display').textContent = data.numero_factura;
-            document.getElementById('ncf-factura').textContent = data.ncf || 'B0140000000';
-            document.getElementById('nombre-cliente').textContent = data.cliente_nombre;
-            document.getElementById('documento-cliente').textContent = data.cliente_documento;
-            document.getElementById('tipo-venta').textContent = data.tipo_venta_display;
-            document.getElementById('metodo-pago').textContent = data.metodo_pago_display;
-            document.getElementById('vendedor').textContent = data.vendedor_nombre;
-            document.getElementById('cliente').textContent = data.cliente_nombre;
-            
-            // Mostrar información adicional del cliente si está disponible
-            if (data.cliente_apodo) {
-                document.getElementById('apodo-cliente').textContent = data.cliente_apodo;
-                document.getElementById('apodo-container').style.display = 'flex';
-            } else {
-                document.getElementById('apodo-container').style.display = 'none';
-            }
-            
-            if (data.cliente_telefono) {
-                document.getElementById('telefono-cliente').textContent = data.cliente_telefono;
-                document.getElementById('telefono-container').style.display = 'flex';
-            } else {
-                document.getElementById('telefono-container').style.display = 'none';
-            }
-            
-            if (data.cliente_direccion) {
-                document.getElementById('direccion-cliente').textContent = data.cliente_direccion;
-                document.getElementById('direccion-container').style.display = 'flex';
-            } else {
-                document.getElementById('direccion-container').style.display = 'none';
-            }
-            
-            // Llenar productos
-            const productosContainer = document.getElementById('productos');
-            productosContainer.innerHTML = '';
-            
-            let totalArticulos = 0;
-            
-            data.detalles.forEach(detalle => {
-                const fila = document.createElement('tr');
-                fila.innerHTML = `
-                    <td>${detalle.producto_codigo}</td>
-                    <td>${detalle.cantidad}</td>
-                    <td>${detalle.producto_nombre} ${detalle.producto_descripcion ? '- ' + detalle.producto_descripcion : ''}</td>
-                    <td>$${parseFloat(detalle.precio_unitario).toFixed(2)}</td>
-                    <td>$${parseFloat(detalle.subtotal).toFixed(2)}</td>
-                `;
-                productosContainer.appendChild(fila);
-                totalArticulos += parseInt(detalle.cantidad);
+    // Función para buscar la última factura según el tipo seleccionado
+    function buscarUltimaFactura() {
+        fetch(`/ventas/ultima-factura/?tipo_venta=${filtroTipoVenta}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('No se pudo obtener la última factura');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    toastr.error(data.error);
+                    return;
+                }
+                // Ocultar mensaje de error si está visible
+                document.getElementById('error-message').style.display = 'none';
+                // Llenar el campo de búsqueda con el número de factura
+                document.getElementById('numero-factura').value = data.numero_factura;
+                // Buscar automáticamente la factura
+                buscarFacturaPorNumero(data.numero_factura);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                toastr.error('Error al buscar la última factura: ' + error.message);
             });
-            
-            document.getElementById('total-articulos').textContent = totalArticulos;
-            
-            // Llenar totales
-            document.getElementById('subtotal').textContent = `$${parseFloat(data.subtotal).toFixed(2)}`;
-            document.getElementById('descuento').textContent = `$${parseFloat(data.descuento_monto).toFixed(2)}`;
-            document.getElementById('total-pagar').textContent = `$${parseFloat(data.total_a_pagar).toFixed(2)}`;
-            
-            // Manejar información de crédito si es una venta a crédito
-            if (data.tipo_venta === 'credito' && data.es_financiada) {
-                document.getElementById('credito-info').style.display = 'block';
-                document.getElementById('valido-hasta-container').style.display = 'flex';
-                document.getElementById('valido-hasta').textContent = data.fecha_vencimiento;
-                
-                document.getElementById('total-credito').textContent = parseFloat(data.total_con_interes || data.total_a_pagar).toFixed(2);
-                document.getElementById('numero-prestamo').textContent = data.numero_factura;
-                document.getElementById('cuota-mensual').textContent = parseFloat(data.cuota_mensual).toFixed(2);
-                document.getElementById('interes-total').textContent = parseFloat(data.interes_total).toFixed(2);
-                document.getElementById('monto-inicial').textContent = parseFloat(data.montoinicial).toFixed(2);
-                document.getElementById('total-interes').textContent = parseFloat(data.total_con_interes || data.total_a_pagar).toFixed(2);
-            } else {
-                document.getElementById('credito-info').style.display = 'none';
-                document.getElementById('valido-hasta-container').style.display = 'none';
-            }
+    }
+
+    // Función para buscar una factura por número
+    function buscarFacturaPorNumero(numeroFactura) {
+        fetch(`/ventas/buscar-facturaR/?numero_factura=${numeroFactura}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Factura no encontrada');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Ocultar mensaje de error si está visible
+                document.getElementById('error-message').style.display = 'none';
+                // Llenar los datos de la factura
+                llenarDatosFactura(data);
+                // Mostrar la factura y ocultar elementos de búsqueda
+                document.getElementById('factura-container').style.display = 'block';
+                document.getElementById('search-container').style.display = 'none';
+                // Desplazarse a la factura
+                document.getElementById('factura-container').scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('error-message').textContent = error.message;
+                document.getElementById('error-message').style.display = 'block';
+                toastr.error(error.message);
+            });
+    }
+
+    // Evento para el botón de búsqueda
+    document.getElementById('buscar-facturaR').addEventListener('click', function() {
+        const numeroFactura = document.getElementById('numero-factura').value.trim();
+        if (!numeroFactura) {
+            toastr.warning('Por favor, ingrese un número de factura');
+            return;
+        }
+        buscarFacturaPorNumero(numeroFactura);
+    });
+
+    // Función para llenar los datos de la factura
+    function llenarDatosFactura(data) {
+        // Llenar información básica
+        document.getElementById('fecha-factura').textContent = data.fecha;
+        document.getElementById('numero-factura-display').textContent = data.numero_factura;
+        document.getElementById('ncf-factura').textContent = data.ncf || 'B0140000000';
+        document.getElementById('nombre-cliente').textContent = data.cliente_nombre;
+        document.getElementById('documento-cliente').textContent = data.cliente_documento;
+        document.getElementById('tipo-venta').textContent = data.tipo_venta_display;
+        document.getElementById('metodo-pago').textContent = data.metodo_pago_display;
+        document.getElementById('vendedor').textContent = data.vendedor_nombre;
+        document.getElementById('cliente').textContent = data.cliente_nombre;
+
+        // Mostrar información adicional del cliente si está disponible
+        if (data.cliente_apodo) {
+            document.getElementById('apodo-cliente').textContent = data.cliente_apodo;
+            document.getElementById('apodo-container').style.display = 'flex';
+        } else {
+            document.getElementById('apodo-container').style.display = 'none';
         }
 
-        // Función para imprimir solo la factura
-        function imprimirFactura() {
-            window.print();
+        if (data.cliente_telefono) {
+            document.getElementById('telefono-cliente').textContent = data.cliente_telefono;
+            document.getElementById('telefono-container').style.display = 'flex';
+        } else {
+            document.getElementById('telefono-container').style.display = 'none';
         }
 
-        // Función para volver a la búsqueda
-        function volverABusqueda() {
-            document.getElementById('factura-container').style.display = 'none';
-            document.getElementById('search-container').style.display = 'block';
-            document.getElementById('numero-factura').value = '';
-            document.getElementById('numero-factura').focus();
-            
-            // Desplazarse al inicio de la página
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (data.cliente_direccion) {
+            document.getElementById('direccion-cliente').textContent = data.cliente_direccion;
+            document.getElementById('direccion-container').style.display = 'flex';
+        } else {
+            document.getElementById('direccion-container').style.display = 'none';
         }
 
-        // Permitir buscar con la tecla Enter
-        document.getElementById('numero-factura').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('buscar-facturaR').click();
-            }
+        // Llenar productos
+        const productosContainer = document.getElementById('productos');
+        productosContainer.innerHTML = '';
+
+        let totalArticulos = 0;
+
+        data.detalles.forEach(detalle => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>${detalle.producto_codigo}</td>
+                <td>${detalle.cantidad}</td>
+                <td>${detalle.producto_nombre} ${detalle.producto_descripcion ? '- ' + detalle.producto_descripcion : ''}</td>
+                <td>$${formatNumber(detalle.precio_unitario)}</td>
+                <td>$${formatNumber(detalle.subtotal)}</td>
+            `;
+            productosContainer.appendChild(fila);
+            totalArticulos += parseInt(detalle.cantidad);
         });
 
-          // Manejar el cierre de sesión con SweetAlert2
+        document.getElementById('total-articulos').textContent = totalArticulos;
+
+        // Llenar totales
+        document.getElementById('subtotal').textContent = `$${formatNumber(data.subtotal)}`;
+        document.getElementById('descuento').textContent = `$${formatNumber(data.descuento_monto)}`;
+        document.getElementById('total-pagar').textContent = `$${formatNumber(data.total_a_pagar)}`;
+
+        // Manejar información de crédito si es una venta a crédito
+        if (data.tipo_venta === 'credito' && data.es_financiada) {
+            document.getElementById('credito-info').style.display = 'block';
+            document.getElementById('valido-hasta-container').style.display = 'flex';
+            document.getElementById('valido-hasta').textContent = data.fecha_vencimiento;
+
+            document.getElementById('total-credito').textContent = formatNumber(data.total_con_interes || data.total_a_pagar);
+            document.getElementById('numero-prestamo').textContent = data.numero_factura;
+            document.getElementById('cuota-mensual').textContent = formatNumber(data.cuota_mensual);
+            document.getElementById('interes-total').textContent = formatNumber(data.interes_total);
+            document.getElementById('monto-inicial').textContent = formatNumber(data.montoinicial);
+            document.getElementById('total-interes').textContent = formatNumber(data.total_con_interes || data.total_a_pagar);
+        } else {
+            document.getElementById('credito-info').style.display = 'none';
+            document.getElementById('valido-hasta-container').style.display = 'none';
+        }
+    }
+
+    // Función para imprimir solo la factura
+    function imprimirFactura() {
+        window.print();
+    }
+
+    // Función para volver a la búsqueda
+    function volverABusqueda() {
+        document.getElementById('factura-container').style.display = 'none';
+        document.getElementById('search-container').style.display = 'block';
+        document.getElementById('numero-factura').value = '';
+        document.getElementById('numero-factura').focus();
+        // Desplazarse al inicio de la página
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Permitir buscar con la tecla Enter
+    document.getElementById('numero-factura').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('buscar-facturaR').click();
+        }
+    });
+
+    // Manejar el cierre de sesión con SweetAlert2
     document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
         e.preventDefault();
-
         Swal.fire({
             title: '¿Cerrar Sesión?',
             text: '¿Está seguro de que desea cerrar la sesión?',
@@ -1244,6 +1297,7 @@
             }
         });
     });
+
 
     </script>
 </body>

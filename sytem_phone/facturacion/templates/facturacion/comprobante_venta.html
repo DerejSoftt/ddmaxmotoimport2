@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Factura de Consumidores Finales</title>
+    <link rel="shortcut icon" href="{% static 'image/favicon2.ico' %}" type="image/x-icon">
     <style>
         /* Estilos generales */
         body {
@@ -224,7 +225,7 @@
         }
     </style>
 </head>
-<body>
+<body onload="window.print()">
     <div class="invoice-container">
         <div class="content-wrapper">
             <div class="header">

@@ -3521,7 +3521,7 @@ def cierredecaja(request):
     ventas_contado_efectivo = ventas_periodo.filter(
         tipo_venta='contado',
         metodo_pago='efectivo'
-    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    ).aggregate(total=Sum('tota'))['total'] or Decimal('0.00')
     
     ventas_contado_tarjeta = ventas_periodo.filter(
         tipo_venta='contado',
