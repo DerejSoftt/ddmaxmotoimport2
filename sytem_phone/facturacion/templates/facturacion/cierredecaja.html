@@ -787,7 +787,7 @@
                                 <label for="close-date" class="form-label">
                                     <i class='bx bx-calendar'></i> Fecha de Cierre
                                 </label>
-                                <input type="text" id="close-date" class="form-control" readonly value="{{ hoy|date:'d/m/Y' }}">
+                                 <input type="text" id="close-date" class="form-control" readonly value="{% now 'd/m/Y' %}">
                             </div>
                     
                     </div>
