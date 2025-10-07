@@ -865,11 +865,12 @@
                                 </td>
                                 <td>
                                     <div class="actions">
-                                        <button class="btn btn-success" onclick="editSupplier({{ proveedor.id }})" title="Editar">
-                                            <i class='bx bx-edit'></i>
+                                    <div class="actions">
+                                        <button class="btn btn-success" onclick="editSupplier('{{ proveedor_id }}')" title="Editor">
+                                            <i class="bx bx-edit"></i>
                                         </button>
-                                        <button class="btn btn-danger" onclick="confirmDelete({{ proveedor.id }})" title="Eliminar">
-                                            <i class='bx bx-trash'></i>
+                                        <button class="btn btn-danger" onclick="confirmDelete('{{ proveedor_id }}')" title="Eliminar">
+                                            <i class="bx bx-trash"></i>
                                         </button>
                                     </div>
                                 </td>

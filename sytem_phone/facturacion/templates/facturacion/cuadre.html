@@ -1,3 +1,5 @@
+
+{% load humanize %}
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
@@ -972,13 +974,13 @@
                         <div class="summary-item">
                             <h3><i class='bx bx-wallet'></i> Monto Inicial de caja</h3>
                             <p id="initial-amount">
-                                {% if caja %}RD${{ caja.monto_inicial|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                                {% if caja %}RD${{ caja.monto_inicial|floatformat:2|intcomma }}{% else %}RD$0.00{% endif %}
                             </p>
                         </div>
                         <div class="summary-item">
                             <h3><i class='bx bx-money'></i> Monto Contado</h3>
                             <p id="counted-amount">
-                                {% if cierre %}RD${{ cierre.monto_efectivo_real|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                                {% if cierre %}RD${{ cierre.monto_efectivo_real|floatformat:2|intcomma }}{% else %}RD$0.00{% endif %}
                             </p>
                         </div>
                        
@@ -987,9 +989,9 @@
                             <div id="difference-display" class="status">
                                 {% if cierre %}
                                     {% if cierre.diferencia > 0 %}
-                                        <i class='bx bx-check-circle'></i> Sobrante de RD${{ cierre.diferencia|floatformat:2 }}
+                                        <i class='bx bx-check-circle'></i> Sobrante de RD${{ cierre.diferencia|floatformat:2|intcomma  }}
                                     {% elif cierre.diferencia < 0 %}
-                                        <i class='bx bx-error-circle'></i> Faltante de RD${{ cierre.diferencia_absoluta|floatformat:2 }}
+                                        <i class='bx bx-error-circle'></i> Faltante de RD${{ cierre.diferencia_absoluta|floatformat:2|intcomma  }}
                                     {% else %}
                                         <i class='bx bx-check-circle'></i> Perfecto, no hay diferencia
                                     {% endif %}
@@ -1010,7 +1012,7 @@
     <div class="summary-item">
         <h3><i class='bx bx-dollar-circle'></i> Total General</h3>
         <p id="total-sales">
-            {% if ventas %}RD${{ ventas.total|floatformat:2 }}{% else %}RD$0.00{% endif %}
+            {% if ventas %}RD${{ ventas.total|floatformat:2|intcomma  }}{% else %}RD$0.00{% endif %}
         </p>
     </div>
     
@@ -1032,21 +1034,21 @@
     <div class="payment-method">
             <span class="label"><i class='bx bx-money'></i> Efectivo</span>
             <span class="value">
-                {% if ventas %}RD${{ ventas.efectivo_mostrar|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                {% if ventas %}RD${{ ventas.efectivo_mostrar|floatformat:2|intcomma  }}{% else %}RD$0.00{% endif %}
             </span>
         </div>
                 <!-- Tarjeta -->
         <div class="payment-method">
             <span class="label"><i class='bx bx-credit-card'></i> Tarjeta</span>
             <span class="value">
-                {% if ventas %}RD${{ ventas.tarjeta_mostrar|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                {% if ventas %}RD${{ ventas.tarjeta_mostrar|floatformat:2|intcomma  }}{% else %}RD$0.00{% endif %}
             </span>
         </div>
                 <!-- Transferencia -->
         <div class="payment-method">
             <span class="label"><i class='bx bx-transfer'></i> Transferencia</span>
             <span class="value">
-                {% if ventas %}RD${{ ventas.transferencia_mostrar|floatformat:2 }}{% else %}RD$0.00{% endif %}
+                {% if ventas %}RD${{ ventas.transferencia_mostrar|floatformat:2|intcomma  }}{% else %}RD$0.00{% endif %}
             </span>
         </div>
 </div>

@@ -210,7 +210,7 @@
             background: white;
             border-radius: 15px 15px 0 0;
             overflow: hidden;
-            margin-bottom: 0;
+            margin-bottom: 30px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
         }
         .tab {
@@ -247,6 +247,7 @@
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
+
         }
         .stat-card {
             background: white;
@@ -431,6 +432,26 @@
             margin-bottom: 20px;
             opacity: 0.5;
         }
+
+        .btn-info28{
+            background: linear-gradient(135deg, #0376f2 0%, #11ce56 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            align-items: center;
+        }
+        .btn-info28:hover {
+            transform: translateY(-2px);
+        }
+        .btn-info29{
+            background: linear-gradient(135deg, #0376f2 0%, #11ce56 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            align-items: center;
+        }
+        .btn-info29:hover {
+            transform: translateY(-2px);
+        }
+
         /* Buttons */
         .btn {
             padding: 12px 20px;
@@ -439,7 +460,7 @@
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.1s ease;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             display: flex;
@@ -479,14 +500,14 @@
             box-shadow: 0 8px 20px rgba(220, 53, 69, 0.4);
         }
         .btn-info {
-            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            background: linear-gradient(135deg, #b81742 0%, #138496 100%);
             color: white;
             box-shadow: 0 5px 15px rgba(23, 162, 184, 0.3);
             padding: 8px 12px;
             font-size: 0.85rem;
         }
         .btn-info:hover {
-            transform: translateY(-2px);
+            transform: translateX(0px);
             box-shadow: 0 8px 20px rgba(23, 162, 184, 0.4);
         }
         .btn-warning {
@@ -995,16 +1016,11 @@
                                         Nuevo Rol
                                     </button>
                                 </div>
+                                
                                 <div class="filter-group">
-                                    <button type="submit" class="btn btn-info" name="action" value="filter">
+                                    <button type="submit" class="btn btn-info29" name="action" value="filter">
                                         <i class='bx bx-search'></i>
                                         Buscar
-                                    </button>
-                                </div>
-                                <div class="filter-group">
-                                    <button type="submit" class="btn btn-info" name="action" value="export_roles_csv">
-                                        <i class='bx bx-download'></i>
-                                        Exportar CSV
                                     </button>
                                 </div>
                             </div>
@@ -1132,15 +1148,9 @@
                                     </button>
                                 </div>
                                 <div class="filter-group">
-                                    <button type="submit" class="btn btn-info" name="action" value="filter">
+                                    <button type="submit" class="btn28 btn-info28" name="action" value="filter">
                                         <i class='bx bx-search'></i>
                                         Buscar
-                                    </button>
-                                </div>
-                                <div class="filter-group">
-                                    <button type="submit" class="btn btn-info" name="action" value="export_users_csv">
-                                        <i class='bx bx-download'></i>
-                                        Exportar CSV
                                     </button>
                                 </div>
                             </div>
