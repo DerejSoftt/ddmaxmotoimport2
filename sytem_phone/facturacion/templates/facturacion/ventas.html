@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja Registradora - DerejSoft</title>
+    <title>Caja Registradora</title>
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1181,7 +1181,7 @@
     <div class="sidebar-header">
         <h2>
             <i class="fas fa-motorcycle"></i>
-            DEREJSOFT
+            DDMAX
         </h2>
         <p>Usuario: {{ user.username }}</p>
         <p>{{ user.email }}</p>
@@ -1249,7 +1249,7 @@
         </a>
     </div>
     <div class="sidebar-footer">
-        <p>Derejsoft v 1.2.2</p>
+        <p>Derejsoft V1.0.0</p>
     </div>
 </nav>
 
@@ -1544,6 +1544,8 @@
         <input type="hidden" name="total_a_pagar" id="total-a-pagar-field">
     </form>
 
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Funciones para el sidebar
 function toggleSidebar() {
@@ -2311,7 +2313,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+ // Manejar el cierre de sesión con SweetAlert2
+    document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+        e.preventDefault();
 
+        Swal.fire({
+            title: '¿Cerrar Sesión?',
+            text: '¿Está seguro de que desea cerrar la sesión?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#667eea',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: 'Sí, Cerrar Sesión',
+            cancelButtonText: 'Cancelar',
+            backdrop: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "{% url 'index' %}";
+            }
+        });
+    });
 
 </script>
 </body>

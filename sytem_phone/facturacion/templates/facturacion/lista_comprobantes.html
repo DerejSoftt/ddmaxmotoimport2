@@ -126,7 +126,7 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">Monto Total:</span>
-                    <span class="info-value">RD$ {{ cuenta.monto_total|floatformat:2 }}</span>
+                    <span class="info-value"> {{ cuenta.monto_total|currency_format }}</span>
                 </div>
             </div>
         </div>
@@ -135,7 +135,7 @@
             <h3>Detalle del Pago</h3>
             <div class="info-row">
                 <span class="info-label">Monto del Pago:</span>
-                <span class="info-value amount">RD$ {{ pago.monto|floatformat:2 }}</span>
+                <span class="info-value amount"> {{ pago.monto|currency_format}}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Método de Pago:</span>
@@ -157,11 +157,11 @@
             <h3>Estado de la Cuenta</h3>
             <div class="info-row">
                 <span class="info-label">Monto Total Pagado:</span>
-                <span class="info-value">RD$ {{ cuenta.monto_pagado|floatformat:2 }}</span>
+                <span class="info-value"></span> {{ cuenta.monto_pagado|currency_format}}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Saldo Pendiente:</span>
-                <span class="info-value">RD$ {{ cuenta.saldo_pendiente|floatformat:2 }}</span>
+                <span class="info-value"> {{ cuenta.saldo_pendiente|currency_format }}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Estado:</span>
@@ -177,5 +177,5 @@
         {% endif %}
 
         <div class="footer">
-            <p><strong>DEREJSOFT</strong> - Sistema de Gestión</p>
+            <p><strong>DDMAX</strong> - Sistema de Gestión</p>
             <p>Este comprobante es válido como constancia de

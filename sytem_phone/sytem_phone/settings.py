@@ -149,7 +149,12 @@ TIME_ZONE = 'America/Santo_Domingo'  # Zona horaria de República Dominicana
 USE_TZ = True  # Usar zonas horarias
 USE_I18N = True
 USE_L10N = True
+USE_THOUSAND_SEPARATOR = True
 
+# Agrega estas líneas:
+NUMBER_GROUPING = 3
+DECIMAL_SEPARATOR = '.'
+THOUSAND_SEPARATOR = ','
 
 
 # Static files (CSS, JavaScript, Images)

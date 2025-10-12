@@ -1,4 +1,4 @@
-
+{% load custom_filters %}
 {% load humanize %}
 {% load static %}
 <!DOCTYPE html>
@@ -648,7 +648,7 @@
     <div class="sidebar-header">
         <h2>
             <i class="fas fa-motorcycle"></i>
-            DEREJSOFT
+            DDMAX
         </h2>
         <p>Usuario: {{ user.username }}</p>
         <p>{{ user.email }}</p>
@@ -716,7 +716,7 @@
         </a>
     </div>
     <div class="sidebar-footer">
-        <p>Derejsoft v 1.2.2</p>
+        <p>Derejsoft V1.0.0</p>
     </div>
 </nav>
 
@@ -749,15 +749,15 @@
                     </div>
                     <div class="summary-item">
                         <h3><i class='bx bx-credit-card'></i> Total Ventas</h3>
-                        <p id="total-sales">RD${{ total_ventas|floatformat:2|intcomma }}</p>
+                        <p id="total-sales">{{ total_ventas|currency_format }}</p>
                     </div>
                     <div class="summary-item">
                         <h3><i class='bx bx-money'></i> Efectivo</h3>
-                        <p id="cash-sales">RD${{ ventas_efectivo|floatformat:2|intcomma }}</p>
+                        <p id="cash-sales">{{ ventas_efectivo|currency_format }}</p>
                     </div>
                     <div class="summary-item">
                         <h3><i class='bx bx-credit-card-front'></i> Tarjeta</h3>
-                        <p id="card-sales">RD${{ ventas_tarjeta|floatformat:2|intcomma  }}</p>
+                        <p id="card-sales">{{ ventas_tarjeta|currency_format }}</p>
                     </div>
                 </div>
 
@@ -803,7 +803,7 @@
                             <label for="expected-total" class="form-label">
                                 <i class='bx bx-calculator'></i> Total Esperado
                             </label>
-                            <input type="text" id="expected-total" class="form-control" readonly value="RD${{ total_ventas|floatformat:2|intcomma }}">
+                            <input type="text" id="expected-total" class="form-control" readonly value="{{ total_ventas|currency_format}}">
                         </div>
 
                         <div class="form-group">
@@ -889,7 +889,6 @@
                 customAlertConfirmBtn: document.getElementById("customAlertConfirmBtn"),
                 customAlertCancelBtn: document.getElementById("customAlertCancelBtn")
             };
-
             // Funciones para el sidebar
             function toggleSidebar() {
                 const sidebar = document.getElementById('sidebar');
@@ -900,7 +899,6 @@
                     document.body.classList.toggle('sidebar-open');
                 }
             }
-
             function closeSidebar() {
                 const sidebar = document.getElementById('sidebar');
                 const sidebarOverlay = document.querySelector('.sidebar-overlay');
@@ -908,7 +906,6 @@
                 sidebarOverlay.classList.remove('active');
                 document.body.classList.remove('sidebar-open');
             }
-
             // Función para mostrar alerta personalizada
             function showAlert(title, message, type = 'info', confirmCallback = null, cancelCallback = null) {
                 // Configurar el estilo según el tipo
@@ -952,13 +949,11 @@
                 DOM.customAlertOverlay.classList.add('active');
                 DOM.customAlert.classList.add('active');
             }
-
             // Función para ocultar alerta
             function hideAlert() {
                 DOM.customAlertOverlay.classList.remove('active');
                 DOM.customAlert.classList.remove('active');
             }
-
             // Función para formatear moneda
             function formatCurrency(amount) {
                 return new Intl.NumberFormat('es-DO', {
@@ -966,7 +961,6 @@
                     currency: 'DOP'
                 }).format(amount).replace('DOP', 'RD$');
             }
-
             // Función para formatear fecha
             function formatDate(date) {
                 return date.toLocaleDateString('es-DO', {
@@ -975,7 +969,6 @@
                     year: 'numeric'
                 });
             }
-
             // Función para formatear hora (ahora actualizable)
             function formatTime(date) {
                 return date.toLocaleTimeString('es-DO', {
@@ -984,13 +977,11 @@
                     second: '2-digit'
                 });
             }
-
             // Función para actualizar la hora cada segundo
             function updateCurrentTime() {
                 const now = new Date();
                 DOM.closeTime.value = formatTime(now);
             }
-
             // Función para calcular diferencia
             function calculateDifference() {
                 // Obtener el total esperado del valor del campo (eliminando "RD$")
@@ -998,9 +989,7 @@
                 const cash = parseFloat(DOM.cashAmount.value) || 0;
                 const card = parseFloat(DOM.cardAmount.value) || 0;
                 const difference = (cash + card) - expected;
-
                 DOM.difference.value = formatCurrency(Math.abs(difference));
-
                 // Mostrar estado
                 if (difference === 0) {
                     DOM.differenceStatus.className = "status status-success";
@@ -1016,11 +1005,9 @@
                     DOM.differenceStatus.style.display = "flex";
                 }
             }
-
             // Función para procesar el cierre de caja
             function closeRegister(event) {
                 event.preventDefault();
-
                 // Validar campos obligatorios
                 if (!DOM.cashAmount.value) {
                     showAlert(
@@ -1031,10 +1018,8 @@
                     DOM.cashAmount.focus();
                     return;
                 }
-
                 // Calcular diferencia
                 calculateDifference();
-
                 // Mostrar confirmación
                 showAlert(
                     'Confirmar cierre', 
@@ -1046,20 +1031,17 @@
                     }
                 );
             }
-
             // Event Listeners
             DOM.cashAmount.addEventListener("input", calculateDifference);
             DOM.cardAmount.addEventListener("input", calculateDifference);
             // DOM.closeRegisterBtn.addEventListener("click", closeRegister);
             DOM.customAlertOverlay.addEventListener("click", hideAlert);
-
             // Inicialización
             function init() {
                 // Iniciar y actualizar la hora cada segundo
                 updateCurrentTime();
                 setInterval(updateCurrentTime, 1000);
             }
-
             init();
         });
     </script>
