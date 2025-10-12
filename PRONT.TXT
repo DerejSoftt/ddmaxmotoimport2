@@ -9,7 +9,6 @@ esta la usaras para casos donde tengas ". SweetAlert2" (Confirmar acciones impor
 NO VAS A MODIFICAR NADA SOLO LO INDICADO. 
 
 
-# commmit para subur los html.
 
 /c/Users/Acosta/Desktop/ddmaxmotoimport/ddmaxmotoimport2/sytem_phone/facturacion/templates/facturacion
 

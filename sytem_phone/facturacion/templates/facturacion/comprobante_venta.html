@@ -36,11 +36,12 @@
             justify-content: space-between;
             margin-bottom: 10px;
             border-bottom: 2px solid #000;
-            padding-bottom: 8px;
+            padding-bottom: 2px;
+            align-items: flex-end;
         }
         
         .logo {
-            width: 130px;
+            width: 120px;
             height: 70px;
             background-color: #ddd;
             display: flex;
@@ -108,8 +109,9 @@
         /* Totales */
         .totals {
             width: 100%;
-            margin-bottom: 12px;
+            margin-bottom: 0;
             font-size: 13px;
+            margin: 0;
         }
         
         .totals div {
@@ -120,13 +122,14 @@
         
         /* Nota */
         .note {
-            margin: 12px 0;
-            padding: 8px;
+            margin: 0;
+            padding: 4px 8px;
             border-top: 1px solid #000;
             border-bottom: 1px solid #000;
             font-size: 13px;
+            margin-bottom: 0;
         }
-        
+
         /* Información de crédito */
         .credit-info {
             margin: 12px 0;
@@ -225,7 +228,7 @@
         }
     </style>
 </head>
-<body onload="window.print()">
+<body>
     <div class="invoice-container">
         <div class="content-wrapper">
             <div class="header">
@@ -249,7 +252,7 @@
                 {% endif %}
                 <div><strong>NCF:</strong> {{ venta.ncf|default:"B0140000000" }}</div>
                 <div><strong>Cliente:</strong> {{ venta.cliente_nombre }}</div>
-                <div><strong>RNC/Céd:</strong> {{ venta.cliente_documento }}</div>
+                <div><strong>RNC/Céd:</strong> {{ venta.cliente_documento|default:"000-0000000-0" }}</div>
                 <div><strong>Tipo:</strong> {{ venta.get_tipo_venta_display }}</div>
                 {% if venta.cliente.telefono %}
                 <div><strong>TEL:</strong> {{ venta.cliente.telefono }}</div>
@@ -309,7 +312,8 @@
             </div>
             
             <div class="note">
-                <p><strong>Nota:</strong> Tipo Pago : {{ venta.get_metodo_pago_display }}.</p>
+                <p><strong>Nota:</strong>{{venta.nota|default:"Yo Soy El Mejor En Esta Vaina" }}. </p>
+                 <p><strong>Tipo Pago:</strong>{{ venta.get_metodo_pago_display }}.</p>
             </div>
             
          {% if venta.tipo_venta == 'credito' and venta.es_financiada %}

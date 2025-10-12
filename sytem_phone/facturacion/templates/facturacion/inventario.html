@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario - D'uro Cell</title>
+    <title>Inventario </title>
     <link rel="shortcut icon" href="{% static 'image/favicon2.ico' %}" type="image/x-icon">
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -319,9 +319,7 @@
             border-radius: 15px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
+            overflow-x: scroll;
         }
 
         .table {
@@ -800,7 +798,7 @@
     <div class="sidebar-header">
         <h2>
             <i class="fas fa-motorcycle"></i>
-            DEREJSOFT
+            DDMAX
         </h2>
         <p>Usuario: {{ user.username }}</p>
         <p>{{ user.email }}</p>
@@ -868,7 +866,7 @@
         </a>
     </div>
     <div class="sidebar-footer">
-        <p>Derejsoft v 1.2.2</p>
+        <p>Derejsoft V1.0.0</p>
     </div>
 </nav>
 
@@ -881,7 +879,7 @@
                     <i class='bx bx-package'></i>
                     Inventario de Productos
                 </h1>
-                <p>Gestión y Control de Inventario - Derejsoft</p>
+                <p>Gestión y Control de Inventario DDMAX Moto Import</p>
             </div>
 
             <div class="content-container">
@@ -906,6 +904,7 @@
 
                 <!-- Tabla de inventario responsive -->
                 <div class="table-responsive-container">
+                    
                     <table class="table" id="inventoryTable">
                         <thead>
                             <tr>
