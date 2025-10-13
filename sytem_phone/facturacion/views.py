@@ -882,7 +882,9 @@ def superuser_required(view_func):
 
 
 
-
+# ======================================================
+#                    INVENTARIO FUNCION
+# ======================================================
 def inventario(request):
     return render(request, "facturacion/inventario.html")
 
@@ -2399,7 +2401,10 @@ def comprobante_venta(request, venta_id):
 #         'caja_abierta': caja_abierta
 #     })
 
-# Vista para ver los detalles de una venta
+
+#===============================================================
+#           Vista para ver los detalles de una venta
+#================================================================
 @login_required
 def detalle_venta(request, venta_id):
     venta = get_object_or_404(Venta, id=venta_id)
@@ -2979,7 +2984,7 @@ def cuentaporcobrar(request):
         # Usar siempre monto_total de CuentaPorCobrar
         saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
         # Obtener la cuota mensual desde la tabla Ventas
-        cuota_mensual = float(cuenta.venta.cuota_mensual) if cuenta.venta and cuenta.venta.cuota_mensual else 0.00
+        #cuota_mensual = float(cuenta.venta.cuota_mensual) if cuenta.venta and cuenta.venta.cuota_mensual else 0.00
         
         if cuenta.estado in ['pendiente', 'parcial']:
             total_pendiente += saldo_pendiente
@@ -3116,8 +3121,7 @@ def cuentaporcobrar(request):
         cuentas_data.append({
             'id': cuenta.id,
             'invoiceNumber': invoice_number,
-            'clientName': client_name,
-            'monthlyInstallment': cuota_mensual, 
+            'clientName': client_name, 
             'clientPhone': client_phone,
             'products': productos,
             'saleDate': sale_date,
