@@ -1,3 +1,4 @@
+{% load custom_filters %}
 {% load static %}
 {% load humanize %}
 <!DOCTYPE html>
@@ -285,8 +286,8 @@
                             <br><small>{{ detalle.producto.descripcion }}</small>
                             {% endif %}
                         </td>
-                        <td>${{ detalle.precio_unitario|floatformat:2|intcomma }}</td>
-                        <td>${{ detalle.subtotal|floatformat:2|intcomma }}</td>
+                        <td>{{ detalle.precio_unitario|currency_format }}</td>
+                        <td>{{ detalle.subtotal|currency_format}}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -299,15 +300,15 @@
                 </div>
                 <div>
                     <strong>Sub-Total $:</strong>
-                    <span>${{ venta.subtotal|floatformat:2|intcomma }}</span>
+                    <span>{{ venta.subtotal|currency_format }}</span>
                 </div>
                 <div>
                     <strong>Descuento $:</strong>
-                    <span>${{ venta.descuento_monto|floatformat:2|intcomma }}</span>
+                    <span>{{ venta.descuento_monto|currency_format }}</span>
                 </div>
                 <div>
                     <strong>Total $:</strong>
-                    <span>${{ venta.total_a_pagar|floatformat:2|intcomma }}</span>
+                    <span>{{ venta.total_a_pagar|currency_format }}</span>
                 </div>
             </div>
             
@@ -318,17 +319,17 @@
             
          {% if venta.tipo_venta == 'credito' and venta.es_financiada %}
 <div class="credit-info">
-    <h3>PRECIO A CREDITO = ${{ venta.total_a_pagar|floatformat:2|intcomma }}</h3>
+    <h3>PRECIO A CREDITO = {{ venta.total_a_pagar|currency_format}}</h3>
     <div class="credit-details">
         <div><strong>No. Prest.:</strong> {{ venta.numero_factura }}</div>
-        <div><strong>Inicial:</strong> ${{ venta.montoinicial|floatformat:2|intcomma }}</div>
-        <div><strong>Monto a Financiar:</strong> ${{ venta.monto_financiado|floatformat:2|intcomma }}</div>
+        <div><strong>Inicial:</strong> ${{ venta.montoinicial|currency_format}}</div>
+        <div><strong>Monto a Financiar:</strong> ${{ venta.monto_financiado|currency_format }}</div>
         <div><strong>Plazo:</strong> {{ venta.plazo_meses|intcomma }} Meses</div>
-        <div><strong>Interés Mensual:</strong> ${{ venta.interes_mensual|floatformat:2|intcomma }}</div>
+        <div><strong>Interés Mensual:</strong> ${{ venta.interes_mensual|currency_format}}</div>
         <div><strong>Forma Pago:</strong> Mensual</div>
-        <div><strong>Balance:</strong> ${{ venta.total_con_interes|floatformat:2|intcomma }}</div>
+        <div><strong>Balance:</strong> ${{ venta.total_con_interes|currency_format }}</div>
         <div><strong>Adicional:</strong> -</div>
-        <div><strong>Cuota Mensual:</strong> ${{ venta.cuota_mensual|floatformat:2|intcomma }}</div>
+        <div><strong>Cuota Mensual:</strong> ${{ venta.cuota_mensual|currency_format}}</div>
     </div>
 </div>
 {% endif %}
