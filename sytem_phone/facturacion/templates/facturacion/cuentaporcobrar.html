@@ -500,6 +500,19 @@
             box-shadow: 0 8px 20px rgba(23, 162, 184, 0.4);
         }
 
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #212529;
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 193, 7, 0.4);
+        }
+
         .btn-danger {
             background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
             color: white;
@@ -974,6 +987,10 @@
             <i class='bx bx-printer'></i>
             <span>Reimprimir</span>
         </a>
+        <a href="{% url 'cuentasAtrasada' %}" class="menu-item ">
+           <i class='bx bx-time-five'></i>
+            <span>Cuenta Atrasadas</span>
+        </a>
         <a href="{% url 'dashboard' %}" class="menu-item">
             <i class='bx bx-grid-alt'></i>
             <span>Dashboard</span>
@@ -1235,6 +1252,66 @@
             <button type="button" class="btn btn-primary" onclick="submitPayment()">
                 <i class='bx bx-save'></i>
                 Registrar Pago
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Rebajar Deuda -->
+<div class="modal" id="rebajaModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>
+                <i class='bx bx-trending-down'></i>
+                Rebajar Deuda
+            </h2>
+            <button class="close-btn" onclick="closeRebajaModal()">
+                <i class='bx bx-x'></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="payment-info" style="background: #fff3cd; border-color: #ffeaa7; color: #856404;">
+                <i class='bx bx-info-circle'></i>
+                Información Actual de la Deuda
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <strong>Deuda Actual:</strong><br>
+                        <span id="rebajaModalCurrentDebt" class="currency">RD$ 0</span>
+                    </div>
+                    <div>
+                        <strong>Saldo Pendiente:</strong><br>
+                        <span id="rebajaModalPendingAmount" class="currency">RD$ 0</span>
+                    </div>
+                </div>
+            </div>
+            <form id="rebajaForm">
+                <input type="hidden" id="rebajaAccountId">
+                <div class="payment-form-group">
+                    <label for="rebajaAmountInput">Monto a Rebajar *</label>
+                    <input type="number" id="rebajaAmountInput" class="filter-input" step="0.01" min="0" required>
+                    <div class="error-message" id="rebajaAmountError"></div>
+                    <small style="color: #666; font-size: 0.8rem;">Monto que desea descontar de la deuda total</small>
+                </div>
+                <div class="payment-form-group">
+                    <label for="rebajaObservations">Motivo de la Rebaja *</label>
+                    <textarea id="rebajaObservations" class="filter-input" rows="3" placeholder="Explique el motivo de la rebaja..." required></textarea>
+                </div>
+                <div class="payment-info" style="background: #d4edda; border-color: #c3e6cb; color: #155724;">
+                    <i class='bx bx-calendar-check'></i>
+                    Nueva Deuda después de la Rebaja: <span id="rebajaModalNewDebt" class="currency">RD$ 0</span>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeRebajaModal()">
+                <i class='bx bx-x'></i>
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-warning" onclick="submitRebaja()">
+                <i class='bx bx-trending-down'></i>
+                Aplicar Rebaja
             </button>
         </div>
     </div>
@@ -1544,6 +1621,11 @@ function renderTable(data = accounts) {
                                 ${invoice.pendingBalance > 0 ? `
                                 <button class="btn btn-success" onclick="openPaymentModal(${invoice.id})" title="Registrar Pago">
                                     <i class='bx bx-dollar'></i>
+                                </button>
+                                ` : ''}
+                                ${invoice.pendingBalance > 0 ? `
+                                <button class="btn btn-warning" onclick="openRebajaModal(${invoice.id})" title="Rebajar Deuda">
+                                    <i class='bx bx-trending-down'></i>
                                 </button>
                                 ` : ''}
                                 <!-- BOTÓN DE ELIMINAR - SOLO PARA CUENTAS PAGADAS -->
@@ -2156,6 +2238,241 @@ function updateLocalAccountData(accountId, paymentAmount, serverResponse) {
     updateStats();
 }
 
+// ===== FUNCIONES PARA REBAJAR DEUDA =====
+function openRebajaModal(id) {
+    console.log('Abriendo modal de rebaja para cuenta:', id);
+    const account = accounts.find(acc => acc.id === id);
+    if (!account) return;
+
+    // Verificar que la cuenta no esté anulada
+    if (account.status === 'anulada') {
+        Swal.fire({
+            title: 'Cuenta Anulada',
+            text: 'No se puede rebajar una cuenta anulada',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
+        return;
+    }
+
+    // Calcular el saldo pendiente
+    const currentPendingBalance = account.totalAmount - account.paidAmount;
+
+    // Verificar que haya saldo pendiente
+    if (currentPendingBalance <= 0) {
+        Swal.fire({
+            title: 'Cuenta Pagada',
+            text: 'Esta cuenta ya está completamente pagada',
+            icon: 'info',
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
+
+    // Mostrar información actualizada en el modal
+    document.getElementById('rebajaModalCurrentDebt').textContent = `RD$ ${account.totalAmount.toLocaleString('es-DO')}`;
+    document.getElementById('rebajaModalPendingAmount').textContent = `RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
+    document.getElementById('rebajaAccountId').value = id;
+
+    // Prellenar con 0 y establecer el máximo
+    document.getElementById('rebajaAmountInput').value = '0';
+    document.getElementById('rebajaAmountInput').max = currentPendingBalance.toFixed(2);
+
+    document.getElementById('rebajaAmountError').style.display = 'none';
+
+    // Actualizar la deuda proyectada
+    updateProjectedDebt();
+
+    document.getElementById('rebajaModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeRebajaModal() {
+    document.getElementById('rebajaModal').classList.remove('active');
+    document.body.style.overflow = 'auto';
+    document.getElementById('rebajaForm').reset();
+}
+
+function updateProjectedDebt() {
+    const rebajaAmount = parseFloat(document.getElementById('rebajaAmountInput').value) || 0;
+    const currentDebtElement = document.getElementById('rebajaModalCurrentDebt');
+    const currentDebt = parseFloat(currentDebtElement.textContent.replace(/[RD$,]/g, '')) || 0;
+    
+    const newDebt = currentDebt - rebajaAmount;
+    document.getElementById('rebajaModalNewDebt').textContent = `RD$ ${newDebt.toLocaleString('es-DO')}`;
+}
+
+function submitRebaja() {
+    const accountId = document.getElementById('rebajaAccountId').value;
+    const amount = parseFloat(document.getElementById('rebajaAmountInput').value);
+    const observations = document.getElementById('rebajaObservations').value;
+
+    // Validaciones básicas
+    if (!amount || amount <= 0) {
+        document.getElementById('rebajaAmountError').textContent = 'Ingrese un monto válido mayor a 0.';
+        document.getElementById('rebajaAmountError').style.display = 'block';
+        return;
+    }
+
+    if (!observations.trim()) {
+        Swal.fire({
+            title: 'Campo requerido',
+            text: 'El motivo de la rebaja es obligatorio',
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
+        return;
+    }
+
+    // Encontrar la cuenta actual para validaciones
+    const currentAccount = accounts.find(acc => acc.id == accountId);
+    if (!currentAccount) {
+        Swal.fire({
+            title: 'Error',
+            text: 'Cuenta no encontrada',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
+        return;
+    }
+
+    // Calcular saldo pendiente actual
+    const currentPendingBalance = currentAccount.totalAmount - currentAccount.paidAmount;
+
+    if (amount > currentPendingBalance) {
+        document.getElementById('rebajaAmountError').textContent = `El monto excede el saldo pendiente de RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
+        document.getElementById('rebajaAmountError').style.display = 'block';
+        return;
+    }
+
+    // Mostrar confirmación con SweetAlert2
+    Swal.fire({
+        title: 'Confirmar Rebaja de Deuda',
+        html: `
+            <div style="text-align: left; margin: 10px 0;">
+                <p><strong>Cliente:</strong> ${currentAccount.clientName}</p>
+                <p><strong>Factura:</strong> ${currentAccount.invoiceNumber}</p>
+                <p><strong>Deuda Actual:</strong> RD$ ${currentAccount.totalAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Monto a Rebajar:</strong> RD$ ${amount.toLocaleString('es-DO')}</p>
+                <p><strong>Nueva Deuda:</strong> RD$ ${(currentAccount.totalAmount - amount).toLocaleString('es-DO')}</p>
+                <p><strong>Motivo:</strong> ${observations}</p>
+            </div>
+            <p style="color: #856404; font-weight: bold;">¿Está seguro de que desea aplicar esta rebaja?</p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, aplicar rebaja',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Aplicando rebaja...',
+                text: 'Por favor espere',
+                icon: 'info',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Enviar rebaja al servidor
+            fetch('/rebajar-deuda/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                body: JSON.stringify({
+                    cuenta_id: accountId,
+                    monto_rebaja: amount,
+                    observaciones: observations
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Rebaja Aplicada!',
+                        html: `
+                            <div style="text-align: left; margin: 15px 0;">
+                                <p>${data.message}</p>
+                                <p><strong>Nueva deuda total:</strong> RD$ ${data.nuevo_monto_total.toLocaleString('es-DO')}</p>
+                                <p><strong>Nuevo saldo pendiente:</strong> RD$ ${data.nuevo_saldo_pendiente.toLocaleString('es-DO')}</p>
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonColor: '#28a745'
+                    }).then(() => {
+                        // Actualizar los datos localmente
+                        updateLocalAccountAfterRebaja(accountId, amount, data);
+                        
+                        closeRebajaModal();
+                        
+                        // Recargar la página para ver los cambios actualizados
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error al aplicar rebaja',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error de conexión',
+                    text: 'Error al aplicar la rebaja. Verifique su conexión e intente nuevamente.',
+                    icon: 'error',
+                    confirmButtonColor: '#dc3545'
+                });
+            });
+        }
+    });
+}
+
+function updateLocalAccountAfterRebaja(accountId, rebajaAmount, serverResponse) {
+    // Encontrar y actualizar la cuenta en el array local
+    const accountIndex = accounts.findIndex(acc => acc.id == accountId);
+    if (accountIndex !== -1) {
+        // Actualizar monto total (reducir la deuda)
+        accounts[accountIndex].totalAmount = serverResponse.nuevo_monto_total;
+        
+        // Actualizar estado si viene en la respuesta
+        if (serverResponse.estado_actual) {
+            accounts[accountIndex].status = serverResponse.estado_actual;
+        }
+        
+        // Recalcular saldo pendiente
+        const nuevoSaldoPendiente = accounts[accountIndex].totalAmount - accounts[accountIndex].paidAmount;
+        
+        // Si después de la rebaja el monto pagado es mayor o igual al nuevo total,
+        // la cuenta queda como pagada
+        if (nuevoSaldoPendiente <= 0) {
+            accounts[accountIndex].status = 'pagada';
+            accounts[accountIndex].paidAmount = accounts[accountIndex].totalAmount;
+        }
+    }
+    
+    // Actualizar también filteredAccounts si existe
+    const filteredIndex = filteredAccounts.findIndex(acc => acc.id == accountId);
+    if (filteredIndex !== -1) {
+        filteredAccounts[filteredIndex] = {...accounts[accountIndex]};
+    }
+    
+    // Actualizar estadísticas
+    updateStats();
+}
+
 function anularCuenta(id) {
     const account = accounts.find(acc => acc.id === id);
     if (!account) return;
@@ -2324,6 +2641,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Event listener para el campo de rebaja
+    const rebajaAmountInput = document.getElementById('rebajaAmountInput');
+    if (rebajaAmountInput) {
+        rebajaAmountInput.addEventListener('input', updateProjectedDebt);
+    }
+    
     // Manejar el cierre de sesión con SweetAlert2
     document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
             e.preventDefault();
@@ -2352,6 +2676,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('paymentModal').addEventListener('click', function(e) {
         if (e.target === this) closePaymentModal();
+    });
+    
+    document.getElementById('rebajaModal').addEventListener('click', function(e) {
+        if (e.target === this) closeRebajaModal();
     });
     
     // Renderizar datos iniciales

@@ -61,6 +61,11 @@ urlpatterns = [
     path('buscar_comprobante/', views.buscar_comprobante, name='buscar_comprobante'),
     path('anular_comprobante/', views.anular_comprobante_action, name='anular_comprobante_action'),
     path('ultimo-comprobante/', views.ultimo_comprobante, name='ultimo_comprobante'),
+    path('cuentasAtrasada', views.cuentasAtrasada, name='cuentasAtrasada'),
+
+    # En urls.py, agrega esta ruta:
+
+path('rebajar-deuda/', views.rebajar_deuda, name='rebajar_deuda'),
 ]
 
     
