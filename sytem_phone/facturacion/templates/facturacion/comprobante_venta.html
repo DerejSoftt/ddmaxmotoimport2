@@ -236,7 +236,7 @@
                 <img src="{% static 'image/logom.png' %}" alt="Logo">
                 <div class="company-info">
                     <div><strong>DDMAX MOTO IMPORT, SRL</strong></div>
-                    <div>RNC: 0-00-00000-0</div>
+                    <div>RNC: 1-33-56904-3</div>
                     <div>Tel: 809 656-3374</div>
                     <div>Direccion: C/Principal, #35 Castañuelas</div>
                     <div>Te monta con menos </div>
@@ -315,7 +315,7 @@
             </div>
             
             <div class="note">
-                <p><strong>Nota:</strong>{{venta.nota|default:"Yo Soy El Mejor En Esta Vaina" }}. </p>
+                <p><strong>Nota:</strong>{{venta.nota|default:"" }}. </p>
                  <p><strong>Tipo Pago:</strong>{{ venta.get_metodo_pago_display }}.</p>
             </div>
             
