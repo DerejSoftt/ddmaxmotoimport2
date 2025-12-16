@@ -1432,8 +1432,21 @@ function groupAccountsByClient(accountsData) {
             };
         }
         
-        const montoTotalCuenta = account.totalAmount;
-        const pendingBalance = account.totalAmount - account.paidAmount;
+        // CORRECCIÓN: Usar valores absolutos y asegurar positivos
+        const montoTotalCuenta = Math.abs(parseFloat(account.totalAmount) || 0);
+        const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
+        
+        // Calcular saldo pendiente (siempre positivo)
+        let pendingBalance = montoTotalCuenta - montoPagado;
+        if (pendingBalance < 0) {
+            console.warn('Saldo pendiente negativo detectado y corregido:', {
+                cuentaId: account.id,
+                total: montoTotalCuenta,
+                pagado: montoPagado,
+                pendiente: pendingBalance
+            });
+            pendingBalance = 0;
+        }
         
         // Buscar si ya existe esta factura para preservar el estado de expansión
         const existingInvoice = clientsMap[clientKey].invoices.find(inv => inv.id === account.id);
@@ -1445,8 +1458,8 @@ function groupAccountsByClient(accountsData) {
             products: account.products,
             saleDate: account.saleDate,
             dueDate: account.dueDate,
-            totalAmount: account.totalAmount,
-            paidAmount: account.paidAmount,
+            totalAmount: montoTotalCuenta,
+            paidAmount: montoPagado,
             pendingBalance: pendingBalance,
             status: account.status,
             observations: account.observations,
@@ -1455,7 +1468,7 @@ function groupAccountsByClient(accountsData) {
             puede_eliminar: account.puede_eliminar || false
         });
         
-        // Sumar el saldo pendiente real
+        // Sumar el saldo pendiente real (siempre positivo)
         clientsMap[clientKey].totalPending += pendingBalance;
         
         // Actualizar estado general
@@ -1486,7 +1499,13 @@ function updateStats(accountsData = accounts) {
             return;
         }
         
-        const pendingBalance = account.totalAmount - account.paidAmount;
+        // CORRECCIÓN: Usar valores absolutos y asegurar positivos
+        const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
+        const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
+        
+        // Calcular saldo pendiente (siempre positivo)
+        let pendingBalance = montoTotal - montoPagado;
+        if (pendingBalance < 0) pendingBalance = 0;
         
         totalReceivableAmount += pendingBalance;
 
@@ -1496,21 +1515,21 @@ function updateStats(accountsData = accounts) {
             overdueAmount += pendingBalance;
         }
         
-        // Simulación de pagos este mes (excluir anuladas y eliminadas)
+        // Pagos del mes actual
         if (account.status === 'pagada') {
             const saleDate = new Date(account.saleDate);
             const now = new Date();
             if (saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear()) {
-                paidThisMonthAmount += account.totalAmount;
+                paidThisMonthAmount += montoTotal;
             }
         }
     });
 
-    // Actualizar UI
-    document.getElementById('pendingAmount').textContent = `RD$ ${pendingAmount.toLocaleString('es-DO')}`;
-    document.getElementById('overdueAmount').textContent = `RD$ ${overdueAmount.toLocaleString('es-DO')}`;
-    document.getElementById('paidThisMonthAmount').textContent = `RD$ ${paidThisMonthAmount.toLocaleString('es-DO')}`;
-    document.getElementById('totalReceivableAmount').textContent = `RD$ ${totalReceivableAmount.toLocaleString('es-DO')}`;
+    // Actualizar UI - asegurar que los montos sean positivos
+    document.getElementById('pendingAmount').textContent = `RD$ ${Math.abs(pendingAmount).toLocaleString('es-DO')}`;
+    document.getElementById('overdueAmount').textContent = `RD$ ${Math.abs(overdueAmount).toLocaleString('es-DO')}`;
+    document.getElementById('paidThisMonthAmount').textContent = `RD$ ${Math.abs(paidThisMonthAmount).toLocaleString('es-DO')}`;
+    document.getElementById('totalReceivableAmount').textContent = `RD$ ${Math.abs(totalReceivableAmount).toLocaleString('es-DO')}`;
     
     console.log('Estadísticas actualizadas');
 }
@@ -1569,7 +1588,7 @@ function renderTable(data = accounts) {
                 <td><strong>${client.clientName}</strong></td>
                 <td>${client.clientPhone}</td>
                 <td>${client.invoices.length} factura(s)</td>
-                <td class="currency"><strong>RD$ ${client.totalPending.toLocaleString('es-DO')}</strong></td>
+                <td class="currency"><strong>RD$ ${Math.abs(client.totalPending).toLocaleString('es-DO')}</strong></td>
                 <td>
                     <span class="status-badge ${getStatusClass(client.status)}">
                         ${getStatusName(client.status)}
@@ -1607,7 +1626,7 @@ function renderTable(data = accounts) {
                                 </button>
                             ` : ''}
                         </td>
-                        <td class="currency">RD$ ${invoice.totalAmount.toLocaleString('es-DO')}</td>
+                        <td class="currency">RD$ ${Math.abs(invoice.totalAmount).toLocaleString('es-DO')}</td>
                         <td>
                             <span class="status-badge ${getStatusClass(invoice.status)}">
                                 ${getStatusName(invoice.status)}
@@ -1651,7 +1670,7 @@ function renderTable(data = accounts) {
                                 <strong>Productos de la Factura ${invoice.invoiceNumber}:</strong>
                                 <ul>
                                     ${invoice.products.map(p => `
-                                        <li>${p.nombre} (x${p.cantidad}) - RD$ ${p.precio.toLocaleString('es-DO')}</li>
+                                        <li>${p.nombre} (x${p.cantidad}) - RD$ ${Math.abs(p.precio || 0).toLocaleString('es-DO')}</li>
                                     `).join('')}
                                 </ul>
                             </td>
@@ -1707,7 +1726,7 @@ function payAllInvoices(clientKey) {
     if (client) {
         Swal.fire({
             title: '¿Pagar todas las facturas?',
-            text: `¿Está seguro de que desea pagar todas las facturas pendientes de ${client.clientName} por un total de RD$ ${client.totalPending.toLocaleString('es-DO')}?`,
+            text: `¿Está seguro de que desea pagar todas las facturas pendientes de ${client.clientName} por un total de RD$ ${Math.abs(client.totalPending).toLocaleString('es-DO')}?`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#28a745',
@@ -1738,7 +1757,7 @@ function eliminarCuentaPagada(id) {
             <div style="text-align: left; margin: 15px 0;">
                 <p><strong>Cliente:</strong> ${account.clientName}</p>
                 <p><strong>Factura:</strong> ${account.invoiceNumber}</p>
-                <p><strong>Monto Total:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Monto Total:</strong> RD$ ${Math.abs(account.totalAmount).toLocaleString('es-DO')}</p>
                 <p><strong>Estado:</strong> <span class="status-badge status-paid">Pagada</span></p>
             </div>
             <p style="color: #dc3545; font-weight: bold;">
@@ -1869,6 +1888,14 @@ function viewDetails(id) {
         return;
     }
 
+    // CORRECCIÓN: Usar valores absolutos
+    const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
+    const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
+    
+    // Calcular saldo pendiente (siempre positivo)
+    let pendingBalance = montoTotal - montoPagado;
+    if (pendingBalance < 0) pendingBalance = 0;
+
     // Llenar modal de detalles
     document.getElementById('detailId').textContent = account.id;
     document.getElementById('detailInvoiceNumber').textContent = account.invoiceNumber;
@@ -1877,15 +1904,13 @@ function viewDetails(id) {
     
     const productListUl = document.getElementById('detailProductList');
     productListUl.innerHTML = account.products.map(p => `
-        <li>${p.nombre} (x${p.cantidad}) - RD$ ${p.precio.toLocaleString('es-DO')}</li>
+        <li>${p.nombre} (x${p.cantidad}) - RD$ ${Math.abs(p.precio || 0).toLocaleString('es-DO')}</li>
     `).join('');
 
     document.getElementById('detailSaleDate').textContent = formatDate(account.saleDate);
     document.getElementById('detailDueDate').textContent = formatDate(account.dueDate);
-    document.getElementById('detailTotalAmount').textContent = `RD$ ${account.totalAmount.toLocaleString('es-DO')}`;
-    document.getElementById('detailPaidAmount').textContent = `RD$ ${account.paidAmount.toLocaleString('es-DO')}`;
-    
-    const pendingBalance = account.totalAmount - account.paidAmount;
+    document.getElementById('detailTotalAmount').textContent = `RD$ ${montoTotal.toLocaleString('es-DO')}`;
+    document.getElementById('detailPaidAmount').textContent = `RD$ ${montoPagado.toLocaleString('es-DO')}`;
     document.getElementById('detailPendingAmount').textContent = `RD$ ${pendingBalance.toLocaleString('es-DO')}`;
     
     document.getElementById('detailStatus').textContent = getStatusName(account.status);
@@ -1907,7 +1932,7 @@ function viewDetails(id) {
     }
     
     // Crear barra de progreso
-    const progressPercentage = (account.paidAmount / account.totalAmount) * 100;
+    const progressPercentage = montoTotal > 0 ? (montoPagado / montoTotal) * 100 : 0;
     const progressBar = document.createElement('div');
     progressBar.className = 'payment-progress';
     progressBar.style.cssText = 'margin: 20px 0; padding: 0;';
@@ -1951,8 +1976,12 @@ function openPaymentModal(id) {
         return;
     }
 
-    // Calcular el saldo pendiente
-    const currentPendingBalance = account.totalAmount - account.paidAmount;
+    // CORRECCIÓN: Usar valores absolutos
+    const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
+    const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
+    
+    // Calcular el saldo pendiente (siempre positivo)
+    const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
     
     // Verificar que haya saldo pendiente
     if (currentPendingBalance <= 0) {
@@ -1992,8 +2021,8 @@ function openPaymentModal(id) {
         <h5 style="margin: 0 0 10px 0; color: #333;">Información de la Cuenta</h5>
         <p style="margin: 5px 0;"><strong>Cliente:</strong> ${account.clientName}</p>
         <p style="margin: 5px 0;"><strong>Factura:</strong> ${account.invoiceNumber}</p>
-        <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
-        <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${account.paidAmount.toLocaleString('es-DO')}</p>
+        <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${montoTotal.toLocaleString('es-DO')}</p>
+        <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${montoPagado.toLocaleString('es-DO')}</p>
         <p style="margin: 0;"><strong>Saldo Pendiente:</strong> RD$ ${currentPendingBalance.toLocaleString('es-DO')}</p>
     `;
     
@@ -2053,8 +2082,12 @@ function submitPayment() {
         return;
     }
     
+    // CORRECCIÓN: Usar valores absolutos
+    const montoTotal = Math.abs(parseFloat(currentAccount.totalAmount) || 0);
+    const montoPagado = Math.abs(parseFloat(currentAccount.paidAmount) || 0);
+    
     // Calcular saldo pendiente actual
-    const currentPendingBalance = currentAccount.totalAmount - currentAccount.paidAmount;
+    const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
     
     if (amount > currentPendingBalance) {
         document.getElementById('paymentAmountError').textContent = `El monto excede el saldo pendiente de RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
@@ -2203,14 +2236,16 @@ function updateLocalAccountData(accountId, paymentAmount, serverResponse) {
     const accountIndex = accounts.findIndex(acc => acc.id == accountId);
     if (accountIndex !== -1) {
         // Actualizar monto pagado
-        accounts[accountIndex].paidAmount += paymentAmount;
+        accounts[accountIndex].paidAmount = Math.abs(parseFloat(accounts[accountIndex].paidAmount) || 0) + paymentAmount;
         
         // Actualizar estado si viene en la respuesta
         if (serverResponse.estado_actual) {
             accounts[accountIndex].status = serverResponse.estado_actual;
         } else {
             // Actualizar estado basado en el nuevo saldo
-            const newPendingBalance = accounts[accountIndex].totalAmount - accounts[accountIndex].paidAmount;
+            const montoTotal = Math.abs(parseFloat(accounts[accountIndex].totalAmount) || 0);
+            const montoPagado = Math.abs(parseFloat(accounts[accountIndex].paidAmount) || 0);
+            const newPendingBalance = montoTotal - montoPagado;
             
             if (newPendingBalance <= 0) {
                 accounts[accountIndex].status = 'pagada';
@@ -2221,7 +2256,8 @@ function updateLocalAccountData(accountId, paymentAmount, serverResponse) {
         
         // Si el servidor envió información actualizada, usarla
         if (serverResponse.nuevo_saldo_pendiente !== undefined) {
-            accounts[accountIndex].paidAmount = accounts[accountIndex].totalAmount - serverResponse.nuevo_saldo_pendiente;
+            const montoTotal = Math.abs(parseFloat(accounts[accountIndex].totalAmount) || 0);
+            accounts[accountIndex].paidAmount = montoTotal - serverResponse.nuevo_saldo_pendiente;
         }
         if (serverResponse.monto_pagado_total !== undefined) {
             accounts[accountIndex].paidAmount = serverResponse.monto_pagado_total;
@@ -2255,8 +2291,12 @@ function openRebajaModal(id) {
         return;
     }
 
-    // Calcular el saldo pendiente
-    const currentPendingBalance = account.totalAmount - account.paidAmount;
+    // CORRECCIÓN: Usar valores absolutos
+    const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
+    const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
+    
+    // Calcular el saldo pendiente (siempre positivo)
+    const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
 
     // Verificar que haya saldo pendiente
     if (currentPendingBalance <= 0) {
@@ -2270,7 +2310,7 @@ function openRebajaModal(id) {
     }
 
     // Mostrar información actualizada en el modal
-    document.getElementById('rebajaModalCurrentDebt').textContent = `RD$ ${account.totalAmount.toLocaleString('es-DO')}`;
+    document.getElementById('rebajaModalCurrentDebt').textContent = `RD$ ${montoTotal.toLocaleString('es-DO')}`;
     document.getElementById('rebajaModalPendingAmount').textContent = `RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
     document.getElementById('rebajaAccountId').value = id;
 
@@ -2298,7 +2338,7 @@ function updateProjectedDebt() {
     const currentDebtElement = document.getElementById('rebajaModalCurrentDebt');
     const currentDebt = parseFloat(currentDebtElement.textContent.replace(/[RD$,]/g, '')) || 0;
     
-    const newDebt = currentDebt - rebajaAmount;
+    const newDebt = Math.max(0, currentDebt - rebajaAmount);
     document.getElementById('rebajaModalNewDebt').textContent = `RD$ ${newDebt.toLocaleString('es-DO')}`;
 }
 
@@ -2336,8 +2376,12 @@ function submitRebaja() {
         return;
     }
 
+    // CORRECCIÓN: Usar valores absolutos
+    const montoTotal = Math.abs(parseFloat(currentAccount.totalAmount) || 0);
+    const montoPagado = Math.abs(parseFloat(currentAccount.paidAmount) || 0);
+    
     // Calcular saldo pendiente actual
-    const currentPendingBalance = currentAccount.totalAmount - currentAccount.paidAmount;
+    const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
 
     if (amount > currentPendingBalance) {
         document.getElementById('rebajaAmountError').textContent = `El monto excede el saldo pendiente de RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
@@ -2352,9 +2396,9 @@ function submitRebaja() {
             <div style="text-align: left; margin: 10px 0;">
                 <p><strong>Cliente:</strong> ${currentAccount.clientName}</p>
                 <p><strong>Factura:</strong> ${currentAccount.invoiceNumber}</p>
-                <p><strong>Deuda Actual:</strong> RD$ ${currentAccount.totalAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Deuda Actual:</strong> RD$ ${montoTotal.toLocaleString('es-DO')}</p>
                 <p><strong>Monto a Rebajar:</strong> RD$ ${amount.toLocaleString('es-DO')}</p>
-                <p><strong>Nueva Deuda:</strong> RD$ ${(currentAccount.totalAmount - amount).toLocaleString('es-DO')}</p>
+                <p><strong>Nueva Deuda:</strong> RD$ ${(montoTotal - amount).toLocaleString('es-DO')}</p>
                 <p><strong>Motivo:</strong> ${observations}</p>
             </div>
             <p style="color: #856404; font-weight: bold;">¿Está seguro de que desea aplicar esta rebaja?</p>
@@ -2445,7 +2489,7 @@ function updateLocalAccountAfterRebaja(accountId, rebajaAmount, serverResponse) 
     const accountIndex = accounts.findIndex(acc => acc.id == accountId);
     if (accountIndex !== -1) {
         // Actualizar monto total (reducir la deuda)
-        accounts[accountIndex].totalAmount = serverResponse.nuevo_monto_total;
+        accounts[accountIndex].totalAmount = Math.abs(parseFloat(serverResponse.nuevo_monto_total) || 0);
         
         // Actualizar estado si viene en la respuesta
         if (serverResponse.estado_actual) {
@@ -2453,7 +2497,7 @@ function updateLocalAccountAfterRebaja(accountId, rebajaAmount, serverResponse) 
         }
         
         // Recalcular saldo pendiente
-        const nuevoSaldoPendiente = accounts[accountIndex].totalAmount - accounts[accountIndex].paidAmount;
+        const nuevoSaldoPendiente = Math.max(0, accounts[accountIndex].totalAmount - accounts[accountIndex].paidAmount);
         
         // Si después de la rebaja el monto pagado es mayor o igual al nuevo total,
         // la cuenta queda como pagada
@@ -2483,7 +2527,7 @@ function anularCuenta(id) {
             <div style="text-align: left; margin: 15px 0;">
                 <p><strong>Cliente:</strong> ${account.clientName}</p>
                 <p><strong>Factura:</strong> ${account.invoiceNumber}</p>
-                <p><strong>Monto:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Monto:</strong> RD$ ${Math.abs(account.totalAmount).toLocaleString('es-DO')}</p>
             </div>
             <p style="color: #dc3545; font-weight: bold;">¡Esta acción no se puede deshacer!</p>
         `,
@@ -2571,7 +2615,11 @@ function exportData() {
     csvContent += headers.join(";") + "\n";
 
     validAccounts.forEach(account => {
-        const pendingBalance = account.totalAmount - account.paidAmount;
+        // CORRECCIÓN: Usar valores absolutos
+        const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
+        const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
+        let pendingBalance = Math.max(0, montoTotal - montoPagado);
+        
         const productos = account.products.map(p => `${p.nombre} (x${p.cantidad})`).join(" | ");
         
         let row = [
@@ -2581,8 +2629,8 @@ function exportData() {
             productos,
             formatDate(account.saleDate),
             formatDate(account.dueDate),
-            account.totalAmount.toLocaleString('es-DO'),
-            account.paidAmount.toLocaleString('es-DO'),
+            montoTotal.toLocaleString('es-DO'),
+            montoPagado.toLocaleString('es-DO'),
             pendingBalance.toLocaleString('es-DO'),
             getStatusName(account.status),
             (account.observations || '').replace(/(\r\n|\n|\r)/gm, " ").replace(/;/g, ",")
@@ -2626,7 +2674,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const account = accounts.find(acc => acc.id == accountId);
             
             if (account) {
-                const maxAmount = account.totalAmount - account.paidAmount;
+                // CORRECCIÓN: Usar valores absolutos
+                const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
+                const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
+                const maxAmount = Math.max(0, montoTotal - montoPagado);
+                
                 const errorElement = document.getElementById('paymentAmountError');
                 
                 if (amount > maxAmount) {
@@ -2649,7 +2701,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Manejar el cierre de sesión con SweetAlert2
-    document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
+    const logoutLink = document.querySelector("a[href='{% url 'index' %}']");
+    if (logoutLink) {
+        logoutLink.addEventListener("click", function(e) {
             e.preventDefault();
 
             Swal.fire({
@@ -2668,6 +2722,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+    }
 
     // Cerrar modales al hacer clic fuera
     document.getElementById('detailsModal').addEventListener('click', function(e) {
