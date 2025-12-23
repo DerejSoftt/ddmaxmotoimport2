@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404 
-from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja, ComprobantePago
+from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja, ComprobantePago, RebajaDeuda
 from django.contrib import messages
 
 from django.http import JsonResponse
@@ -47,9 +47,15 @@ from functools import wraps
 from django.db import connection
 from django.db.models.functions import TruncDate
 import calendar
+<<<<<<< HEAD
 from reportlab.lib.pagesizes import letter
 
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+=======
+
+
+
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
 
 
 
@@ -2956,7 +2962,7 @@ def cuentaporcobrar(request):
     # Filtrar cuentas por cobrar (excluir anuladas Y eliminadas)
     cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(
         anulada=False, 
-        eliminada=False  # NUEVO FILTRO para excluir cuentas eliminadas
+        eliminada=False
     )
     
     if search:
@@ -2983,8 +2989,6 @@ def cuentaporcobrar(request):
     for cuenta in cuentas:
         # Usar siempre monto_total de CuentaPorCobrar
         saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
-        # Obtener la cuota mensual desde la tabla Ventas
-        #cuota_mensual = float(cuenta.venta.cuota_mensual) if cuenta.venta and cuenta.venta.cuota_mensual else 0.00
         
         if cuenta.estado in ['pendiente', 'parcial']:
             total_pendiente += saldo_pendiente
@@ -3001,10 +3005,10 @@ def cuentaporcobrar(request):
         fecha_pago__month=mes_actual,
         fecha_pago__year=año_actual,
         cuenta__anulada=False,
-        cuenta__eliminada=False  # NUEVO FILTRO
+        cuenta__eliminada=False
     ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
     
-    # Preparar datos para el template
+    # Preparar datos para el template - CORREGIDO
     cuentas_data = []
     for cuenta in cuentas:
         # Obtener productos de la venta
@@ -3092,30 +3096,18 @@ def cuentaporcobrar(request):
         if cuenta.fecha_vencimiento:
             due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
         
-        # Usar total_a_pagar para "Monto Original" y monto_total de CuentaPorCobrar para cálculos
-        monto_total_original = 0  # total_a_pagar de Venta (solo para mostrar)
-        monto_cuenta_cobrar = float(cuenta.monto_total)  # monto_total de CuentaPorCobrar (para cálculos)
+        # CORRECCIÓN IMPORTANTE: Usar monto_total actualizado después de rebajas
+        monto_total_actual = float(cuenta.monto_total)  # Este ya incluye las rebajas aplicadas
+        monto_pagado_actual = float(cuenta.monto_pagado)
         
-        if cuenta.venta:
-            # Usar total_a_pagar como "Monto Total Original" solo para mostrar
-            if cuenta.venta.total_a_pagar:
-                monto_total_original = float(cuenta.venta.total_a_pagar)
-            else:
-                monto_total_original = float(cuenta.venta.total or 0)
-        else:
-            # Fallback a los valores de la cuenta si no hay venta
-            monto_total_original = monto_cuenta_cobrar
-        
-        monto_pagado = float(cuenta.monto_pagado)
-        
-        # Calcular saldo pendiente basado en monto_total de CuentaPorCobrar
-        saldo_pendiente = monto_cuenta_cobrar - monto_pagado
+        # Calcular saldo pendiente basado en monto_total ACTUAL (después de rebajas)
+        saldo_pendiente_actual = monto_total_actual - monto_pagado_actual
         
         # Asegurarse de que el saldo pendiente no sea negativo
-        if saldo_pendiente < 0:
-            saldo_pendiente = 0
+        if saldo_pendiente_actual < 0:
+            saldo_pendiente_actual = 0
         
-        # NUEVO: Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
+        # Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
         puede_eliminar = cuenta.estado == 'pagada'
         
         cuentas_data.append({
@@ -3126,13 +3118,12 @@ def cuentaporcobrar(request):
             'products': productos,
             'saleDate': sale_date,
             'dueDate': due_date,
-            'totalAmount': monto_total_original,  # total_a_pagar (solo para mostrar "Monto Original")
-            'totalWithInterest': monto_cuenta_cobrar,  # monto_total de CuentaPorCobrar (para cálculos y "Monto Total Pendiente")
-            'paidAmount': monto_pagado,
-            'pendingBalance': saldo_pendiente,  # basado en monto_total de CuentaPorCobrar
+            'totalAmount': monto_total_actual,  # Monto total ACTUAL (incluye rebajas)
+            'paidAmount': monto_pagado_actual,
+            'pendingBalance': saldo_pendiente_actual,  # Saldo pendiente ACTUAL
             'status': cuenta.estado,
             'observations': cuenta.observaciones or '',
-            'puede_eliminar': puede_eliminar  # NUEVO CAMPO para frontend
+            'puede_eliminar': puede_eliminar
         })
     
     # Convertir a JSON para pasarlo al template
@@ -5330,14 +5321,21 @@ def ultimo_comprobante(request):
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
 def cuentasAtrasada(request):
     # Obtener la fecha actual
     hoy = date.today()
     
     try:
+<<<<<<< HEAD
         # Filtrar cuentas por cobrar que están pendientes/parciales/vencidas y no anuladas/eliminadas
+=======
+        # Filtrar cuentas por cobrar que están pendientes/parciales y no anuladas/eliminadas
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
         cuentas = CuentaPorCobrar.objects.filter(
             Q(estado='pendiente') | Q(estado='vencida') | Q(estado='parcial'),
             anulada=False,
@@ -5352,6 +5350,7 @@ def cuentasAtrasada(request):
             if not venta or not venta.fecha_venta:
                 continue
                 
+<<<<<<< HEAD
             # Obtener la fecha de la venta (factura)
             fecha_factura = venta.fecha_venta.date()
             
@@ -5406,11 +5405,30 @@ def cuentasAtrasada(request):
             
             # Calcular días de atraso desde la fecha de vencimiento
             dias_atraso = (hoy - fecha_vencimiento_proxima).days
+=======
+            # Calcular fecha de vencimiento basada en la fecha de factura
+            fecha_factura = venta.fecha_venta.date()
+            plazo_meses = getattr(venta, 'plazo_meses', 1)
+            
+            # Calcular fecha de vencimiento (mismo día del mes siguiente)
+            fecha_vencimiento = calcular_proximo_vencimiento(fecha_factura, plazo_meses)
+            
+            # Si la fecha de vencimiento es en el futuro, no está atrasada
+            if fecha_vencimiento >= hoy:
+                continue
+                
+            # Calcular días de atraso desde la fecha de vencimiento calculada
+            dias_atraso = (hoy - fecha_vencimiento).days
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
             
             # Solo incluir si tiene días de atraso positivo
             if dias_atraso <= 0:
                 continue
+<<<<<<< HEAD
             
+=======
+                
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
             # Determinar el estado según los días de atraso
             if dias_atraso > 14:
                 status = 'overdue'
@@ -5418,10 +5436,25 @@ def cuentasAtrasada(request):
                 status = 'alert'
             else:
                 status = 'alert'
+<<<<<<< HEAD
             
             # Obtener información del cliente
             cliente = cuenta.cliente
             
+=======
+                
+            # Obtener información del cliente
+            cliente = cuenta.cliente
+            
+            # Usar monto_total como respaldo si monto_total_con_interes no existe
+            try:
+                monto_total = cuenta.monto_total_con_interes
+            except:
+                monto_total = cuenta.monto_total
+                
+            saldo_pendiente = monto_total - cuenta.monto_pagado
+            
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
             # Obtener teléfono del cliente de manera segura
             telefono_cliente = 'No disponible'
             if hasattr(cliente, 'telefono'):
@@ -5440,6 +5473,7 @@ def cuentasAtrasada(request):
             elif hasattr(cliente, 'name'):
                 nombre_cliente = cliente.name
             
+<<<<<<< HEAD
             # Obtener número de factura
             numero_factura = getattr(venta, 'numero_factura', 'N/A')
             
@@ -5453,11 +5487,14 @@ def cuentasAtrasada(request):
             elif hasattr(cuenta, 'contacted'):
                 contact_status = 'contacted' if cuenta.contacted else 'no_contacted'
             
+=======
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
             # Preparar el objeto de datos
             cuenta_data = {
                 'id': cuenta.id,
                 'clientName': nombre_cliente,
                 'clientPhone': telefono_cliente,
+<<<<<<< HEAD
                 'invoiceNumber': numero_factura,
                 'dueDate': fecha_vencimiento_proxima.strftime('%Y-%m-%d'),
                 'originalAmount': float(monto_total),
@@ -5471,6 +5508,17 @@ def cuentasAtrasada(request):
                 'totalCuotas': plazo_meses,
                 'montoPorCuota': monto_por_cuota,
                 'cuotasPagadas': cuotas_pagadas
+=======
+                'invoiceNumber': venta.numero_factura,
+                'dueDate': fecha_vencimiento.strftime('%Y-%m-%d'),  # Fecha calculada
+                'originalAmount': float(monto_total),
+                'overdueAmount': float(saldo_pendiente),
+                'daysOverdue': dias_atraso,
+                'status': status,
+                'contactStatus': 'no_contacted',
+                'saleDate': fecha_factura.strftime('%Y-%m-%d'),  # Fecha original de factura
+                'plazoMeses': plazo_meses
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
             }
             
             overdue_data.append(cuenta_data)
@@ -5488,18 +5536,30 @@ def cuentasAtrasada(request):
     
     return render(request, 'facturacion/cuentasAtrasada.html', context)
 
+<<<<<<< HEAD
 
 def calcular_fecha_cuota(fecha_factura, numero_cuota):
     """
     Calcula la fecha de vencimiento de una cuota específica.
     Ejemplo: Factura del 25 de diciembre, cuota 1 vence 25 de enero, cuota 2 vence 25 de febrero, etc.
+=======
+def calcular_proximo_vencimiento(fecha_factura, plazo_meses):
+    """
+    Calcula la próxima fecha de vencimiento basada en la fecha de factura y el plazo.
+    Ejemplo: Factura del 25 de octubre con plazo 1 mes -> Vence 25 de noviembre
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
     """
     año = fecha_factura.year
     mes = fecha_factura.month
     dia = fecha_factura.day
     
+<<<<<<< HEAD
     # Sumar los meses según el número de cuota
     mes += numero_cuota
+=======
+    # Sumar los meses del plazo
+    mes += plazo_meses
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
     
     # Ajustar año si es necesario
     while mes > 12:
@@ -5515,6 +5575,7 @@ def calcular_fecha_cuota(fecha_factura, numero_cuota):
         return date(año, mes, ultimo_dia)
 
 
+<<<<<<< HEAD
 # Si necesitas también actualizar el estado de las cuentas automáticamente, puedes agregar esta función
 def actualizar_estados_cuentas_atrasadas():
     """
@@ -5538,3 +5599,58 @@ def actualizar_estados_cuentas_atrasadas():
                 cuenta.save()
     
     return True
+=======
+
+
+        # En views.py, agrega esta vista:
+
+@login_required
+def rebajar_deuda(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            cuenta_id = data.get('cuenta_id')
+            monto_rebaja = Decimal(data.get('monto_rebaja'))
+            observaciones = data.get('observaciones', '')
+            
+            cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
+            
+            # Verificar que la cuenta no esté anulada o eliminada
+            if cuenta.anulada or cuenta.eliminada:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No se puede rebajar una cuenta anulada o eliminada'
+                })
+            
+            # Aplicar la rebaja usando el método del modelo
+            rebaja = cuenta.rebajar_deuda(
+                monto_rebaja=monto_rebaja,
+                observaciones=observaciones
+            )
+            
+            # Calcular el nuevo saldo pendiente
+            nuevo_saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Rebaja aplicada exitosamente. Nueva deuda total: RD$ {cuenta.monto_total:,.2f}',
+                'nuevo_monto_total': float(cuenta.monto_total),
+                'monto_rebajado': float(monto_rebaja),
+                'nuevo_saldo_pendiente': float(nuevo_saldo_pendiente),
+                'estado_actual': cuenta.estado,
+                'rebaja_id': rebaja.id
+            })
+            
+        except ValueError as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al aplicar rebaja: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f

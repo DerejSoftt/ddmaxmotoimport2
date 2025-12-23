@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+
 from pathlib import Path
 import os
 # from dotenv import load_dotenv
@@ -87,6 +88,7 @@ WSGI_APPLICATION = 'sytem_phone.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+<<<<<<< HEAD
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
@@ -100,12 +102,27 @@ DATABASES = {
         }
     }
 }
+=======
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": "ddmaxmotoimport",
+#         "USER": "root",
+#         "PASSWORD": "",
+#         "HOST": "localhost",
+#         "PORT": "3306",
+#         "OPTIONS": {
+#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+#         }
+#     }
+# }
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
 
 
 
 
 
-        #  BASE DE DATS DE PRODUCCION
+#  BASE DE DATS DE PRODUCCION
 
 # DATABASES = {
 #     'default': {

@@ -558,7 +558,6 @@ class DetalleVenta(models.Model):
         verbose_name_plural = "Detalles de Venta"
 
 # En tu models.py, modifica la clase CuentaPorCobrar
-
 class CuentaPorCobrar(models.Model):
     ESTADOS = (
         ('pendiente', 'Pendiente'),
@@ -581,8 +580,8 @@ class CuentaPorCobrar(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     anulada = models.BooleanField(default=False)
     fecha_anulacion = models.DateTimeField(null=True, blank=True)
-    eliminada = models.BooleanField(default=False)  # NUEVO CAMPO
-    fecha_eliminacion = models.DateTimeField(null=True, blank=True)  # NUEVO CAMPO
+    eliminada = models.BooleanField(default=False)
+    fecha_eliminacion = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'cuentas_por_cobrar'
@@ -602,13 +601,14 @@ class CuentaPorCobrar(models.Model):
     
     @property
     def saldo_pendiente(self):
-        if self.anulada or self.eliminada:  # MODIFICADO
+        """Calcula el monto total pendiente de pago"""
+        if self.anulada or self.eliminada:
             return Decimal('0.00')
-        return self.monto_total_con_interes - self.monto_pagado
+        return self.monto_total - self.monto_pagado
     
     @property
     def esta_vencida(self):
-        if self.anulada or self.eliminada:  # MODIFICADO
+        if self.anulada or self.eliminada:
             return False
         return timezone.now().date() > self.fecha_vencimiento and self.estado != 'pagada'
     
@@ -619,12 +619,93 @@ class CuentaPorCobrar(models.Model):
         self.fecha_anulacion = timezone.now()
         self.save()
     
-    def eliminar_cuenta(self):  # NUEVO MÉTODO
+    def eliminar_cuenta(self):
         """Método para eliminar (soft delete) la cuenta"""
         self.eliminada = True
         self.fecha_eliminacion = timezone.now()
         self.save()
 
+    def rebajar_deuda(self, monto_rebaja, observaciones=""):
+        """
+        Método para rebajar (reducir) el MONTO TOTAL PENDIENTE de una cuenta
+        
+        La rebaja se aplica reduciendo el monto_total, lo que automáticamente
+        reduce el saldo pendiente (monto_total - monto_pagado)
+        """
+        if self.anulada or self.eliminada:
+            raise ValueError("No se puede rebajar una cuenta anulada o eliminada")
+        
+        if monto_rebaja <= 0:
+            raise ValueError("El monto de rebaja debe ser mayor a 0")
+        
+        # Calcular el monto total pendiente actual
+        monto_pendiente_actual = self.monto_total - self.monto_pagado
+        
+        # Verificar que no se rebaje más de lo pendiente
+        if monto_rebaja > monto_pendiente_actual:
+            raise ValueError(f"No se puede rebajar más del saldo pendiente: RD$ {monto_pendiente_actual}")
+        
+        # Guardar el monto total original antes de la rebaja
+        monto_total_anterior = self.monto_total
+        
+        # Calcular el nuevo monto total después de la rebaja
+        # La rebaja reduce el monto total, manteniendo el monto_pagado igual
+        nuevo_monto_total = self.monto_total - monto_rebaja
+        
+        # Asegurarse de que el nuevo monto total no sea menor que el monto pagado
+        if nuevo_monto_total < self.monto_pagado:
+            # Si ocurre esto, ajustamos el monto_pagado al nuevo monto_total
+            self.monto_pagado = nuevo_monto_total
+        
+        # Actualizar el monto total
+        self.monto_total = nuevo_monto_total
+        
+        # Recalcular el estado basado en el nuevo saldo pendiente
+        nuevo_saldo_pendiente = self.monto_total - self.monto_pagado
+        
+        if nuevo_saldo_pendiente <= 0:
+            self.estado = 'pagada'
+            # Ajustar para que no haya saldo pendiente negativo
+            self.monto_pagado = self.monto_total
+        elif self.monto_pagado > 0:
+            self.estado = 'parcial'
+        else:
+            self.estado = 'pendiente'
+        
+        # Guardar los cambios en la cuenta
+        self.save()
+        
+        # Crear un registro de la rebaja
+        rebaja = RebajaDeuda(
+            cuenta=self,
+            monto_rebaja=monto_rebaja,
+            monto_anterior=monto_total_anterior,
+            monto_nuevo=nuevo_monto_total,
+            observaciones=observaciones,
+            usuario=User.objects.first()  # En producción usarías request.user
+        )
+        rebaja.save()
+        
+        return rebaja
+
+
+class RebajaDeuda(models.Model):
+    cuenta = models.ForeignKey('CuentaPorCobrar', on_delete=models.CASCADE, related_name='rebajas')
+    monto_rebaja = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto Rebajado")
+    monto_anterior = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto Total Anterior")
+    monto_nuevo = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto Total Nuevo")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones de la Rebaja")
+    fecha_rebaja = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        db_table = 'rebajas_deuda'
+        verbose_name = 'Rebaja de Deuda'
+        verbose_name_plural = 'Rebajas de Deuda'
+        ordering = ['-fecha_rebaja']
+    
+    def __str__(self):
+        return f"Rebaja #{self.id} - Cuenta #{self.cuenta.id} - RD${self.monto_rebaja}"
 class PagoCuentaPorCobrar(models.Model):
     METODOS_PAGO = (
         ('efectivo', 'Efectivo'),
@@ -651,7 +732,37 @@ class PagoCuentaPorCobrar(models.Model):
         return f"Pago #{self.id} - {self.cuenta} - RD${self.monto}"
 
 
-
+class ComprobantePago(models.Model):
+    TIPOS_COMPROBANTE = (
+        ('recibo', 'Recibo'),
+        ('factura', 'Factura'),
+        ('comprobante', 'Comprobante'),
+    )
+    
+    pago = models.OneToOneField('PagoCuentaPorCobrar', on_delete=models.CASCADE, related_name='comprobante')
+    cuenta = models.ForeignKey('CuentaPorCobrar', on_delete=models.CASCADE, related_name='comprobantes')
+    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='comprobantes_pago')
+    numero_comprobante = models.CharField(max_length=20, unique=True, verbose_name="Número de Comprobante")
+    tipo_comprobante = models.CharField(max_length=15, choices=TIPOS_COMPROBANTE, default='recibo')
+    fecha_emision = models.DateTimeField(default=timezone.now)
+    contenido = models.TextField(blank=True, verbose_name="Contenido del Comprobante")
+    
+    class Meta:
+        db_table = 'comprobantes_pago'
+        verbose_name = 'Comprobante de Pago'
+        verbose_name_plural = 'Comprobantes de Pago'
+        ordering = ['-fecha_emision']
+    
+    def save(self, *args, **kwargs):
+        if not self.numero_comprobante:
+            # Generar número de comprobante automáticamente
+            last_comprobante = ComprobantePago.objects.order_by('-id').first()
+            last_number = int(last_comprobante.numero_comprobante.split('-')[-1]) if last_comprobante else 0
+            self.numero_comprobante = f"COMP-{last_number + 1:06d}"
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Comprobante {self.numero_comprobante} - {self.cliente.full_name}"
 
 
 
@@ -798,3 +909,8 @@ class ComprobantePago(models.Model):
     
     def __str__(self):
         return f"Comprobante {self.numero_comprobante} - {self.cliente.full_name} - RD${self.pago.monto}"
+    
+
+
+
+
