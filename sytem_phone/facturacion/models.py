@@ -493,6 +493,7 @@ class Venta(models.Model):
     cuota_mensual = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_con_interes = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_a_pagar = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    plazo_meses = models.IntegerField(default=1, verbose_name="Plazo en meses")
     
     # Para pagos en efectivo
     efectivo_recibido = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -758,6 +759,7 @@ class ComprobantePago(models.Model):
     TIPOS_COMPROBANTE = (
         ('recibo', 'Recibo de Pago'),
         ('comprobante', 'Comprobante de Pago'),
+        ('descuento', 'Comprobante de Descuento'),  # NUEVA OPCIÓN
     )
     
     numero_comprobante = models.CharField(max_length=20, unique=True, verbose_name="Número de Comprobante")

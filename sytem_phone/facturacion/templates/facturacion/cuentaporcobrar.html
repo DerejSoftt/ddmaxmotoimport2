@@ -364,6 +364,11 @@
             font-weight: 700;
         }
 
+        .table-actions {
+            display: flex;
+            gap: 10px;
+        }
+
         .table {
             width: 100%;
             border-collapse: collapse;
@@ -518,6 +523,20 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        /* Botón de Descuento (NUEVO) */
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: #000;
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 193, 7, 0.4);
         }
 
         /* Modal Styles */
@@ -843,6 +862,11 @@
                 gap: 15px;
             }
 
+            .table-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+
             .btn {
                 width: 100%;
                 justify-content: center;
@@ -974,6 +998,12 @@
             <i class='bx bx-printer'></i>
             <span>Reimprimir</span>
         </a>
+
+          <a href="{% url 'cuentasAtrasada' %}" class="menu-item ">
+           <i class='bx bx-time-five'></i>
+            <span>Cuenta Atrasadas</span>
+        </a>
+
         <a href="{% url 'dashboard' %}" class="menu-item">
             <i class='bx bx-grid-alt'></i>
             <span>Dashboard</span>
@@ -1078,10 +1108,16 @@
             <div class="table-container">
                 <div class="table-header">
                     <h2 class="table-title">Lista de Cuentas por Cobrar</h2>
-                    <button class="btn btn-primary" onclick="exportData()">
-                        <i class='bx bx-download'></i>
-                        Exportar
-                    </button>
+                    <div class="table-actions">
+                        <button class="btn btn-primary" onclick="exportData()">
+                            <i class='bx bx-download'></i>
+                            Exportar
+                        </button>
+                        <button class="btn btn-primary" onclick="generateDebtPDF()">
+                            <i class='bx bxs-file-pdf'></i>
+                            Imprimir PDF Deudas
+                        </button>
+                    </div>
                 </div>
                 <div style="overflow-x: auto;">
                     <table class="table" id="accountsTable">
@@ -1235,6 +1271,61 @@
             <button type="button" class="btn btn-primary" onclick="submitPayment()">
                 <i class='bx bx-save'></i>
                 Registrar Pago
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Aplicar Descuento/Reducción (NUEVO) -->
+<div class="modal" id="discountModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>
+                <i class='bx bx-money'></i>
+                Aplicar Descuento/Reducción
+            </h2>
+            <button class="close-btn" onclick="closeDiscountModal()">
+                <i class='bx bx-x'></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="payment-info">
+                <i class='bx bx-info-circle'></i>
+                Saldo Pendiente: <span id="discountModalPendingAmount" class="currency">RD$ 0</span>
+            </div>
+            <form id="discountForm">
+                <input type="hidden" id="discountAccountId">
+                <div class="payment-form-group">
+                    <label for="discountType">Tipo de Descuento *</label>
+                    <select id="discountType" class="filter-input select" required>
+                        <option value="">Seleccione tipo</option>
+                        <option value="porcentaje">Porcentaje (%)</option>
+                        <option value="monto_fijo">Monto Fijo (RD$)</option>
+                    </select>
+                </div>
+                <div class="payment-form-group">
+                    <label for="discountValue">Valor del Descuento *</label>
+                    <input type="number" id="discountValue" class="filter-input" step="0.01" min="0" required>
+                    <div class="error-message" id="discountValueError"></div>
+                </div>
+                <div class="payment-form-group">
+                    <label for="discountReason">Motivo/Justificación *</label>
+                    <textarea id="discountReason" class="filter-input" rows="3" placeholder="Ej: Ajuste por defecto, promoción, acuerdo, etc." required></textarea>
+                </div>
+                <div class="payment-form-group">
+                    <label for="authorizedBy">Autorizado por *</label>
+                    <input type="text" id="authorizedBy" class="filter-input" placeholder="Nombre de quien autoriza" required>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeDiscountModal()">
+                <i class='bx bx-x'></i>
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-warning" onclick="submitDiscount()">
+                <i class='bx bx-check'></i>
+                Aplicar Descuento
             </button>
         </div>
     </div>
@@ -1544,6 +1635,11 @@ function renderTable(data = accounts) {
                                 ${invoice.pendingBalance > 0 ? `
                                 <button class="btn btn-success" onclick="openPaymentModal(${invoice.id})" title="Registrar Pago">
                                     <i class='bx bx-dollar'></i>
+                                </button>
+                                ` : ''}
+                                ${invoice.pendingBalance > 0 && invoice.status !== 'anulada' ? `
+                                <button class="btn btn-warning" onclick="openDiscountModal(${invoice.id})" title="Aplicar Descuento">
+                                    <i class='bx bx-money'></i>
                                 </button>
                                 ` : ''}
                                 <!-- BOTÓN DE ELIMINAR - SOLO PARA CUENTAS PAGADAS -->
@@ -2233,6 +2329,312 @@ function anularCuenta(id) {
     });
 }
 
+// ===== FUNCIONES PARA DESCUENTOS (CORREGIDAS) =====
+function openDiscountModal(id) {
+    console.log('Abriendo modal de descuento para cuenta:', id);
+    const account = accounts.find(acc => acc.id === id);
+    if (!account) return;
+
+    // Verificar que la cuenta no esté anulada
+    if (account.status === 'anulada') {
+        Swal.fire({
+            title: 'Cuenta Anulada',
+            text: 'No se puede aplicar descuento en una cuenta anulada',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
+        return;
+    }
+
+    // **CORRECCIÓN IMPORTANTE**: Calcular el saldo pendiente de la misma manera que en el backend
+    const currentPendingBalance = account.totalAmount - account.paidAmount;
+    
+    // **Asegurar que el saldo no sea negativo**
+    const saldoFinal = currentPendingBalance < 0 ? 0 : currentPendingBalance;
+    
+    console.log('Saldo pendiente calculado:', {
+        totalAmount: account.totalAmount,
+        paidAmount: account.paidAmount,
+        pending: currentPendingBalance,
+        saldoFinal: saldoFinal
+    });
+    
+    // Verificar que haya saldo pendiente REAL
+    if (saldoFinal <= 0) {
+        Swal.fire({
+            title: 'Sin saldo pendiente',
+            html: `
+                <div style="text-align: left; margin: 10px 0;">
+                    <p><strong>Cliente:</strong> ${account.clientName}</p>
+                    <p><strong>Factura:</strong> ${account.invoiceNumber}</p>
+                    <p><strong>Monto Total:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
+                    <p><strong>Monto Pagado:</strong> RD$ ${account.paidAmount.toLocaleString('es-DO')}</p>
+                    <p><strong>Saldo Pendiente:</strong> RD$ ${saldoFinal.toLocaleString('es-DO')}</p>
+                </div>
+                <p style="color: #ffc107; font-weight: bold;">
+                    No se puede aplicar descuento porque no hay saldo pendiente.
+                </p>
+            `,
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
+        return;
+    }
+    
+    // Mostrar información actualizada en el modal
+    document.getElementById('discountModalPendingAmount').textContent = `RD$ ${saldoFinal.toLocaleString('es-DO')}`;
+    document.getElementById('discountAccountId').value = id;
+    
+    // Resetear el formulario
+    document.getElementById('discountValue').value = '';
+    document.getElementById('discountType').value = '';
+    document.getElementById('discountReason').value = '';
+    document.getElementById('authorizedBy').value = '';
+    
+    document.getElementById('discountValueError').style.display = 'none';
+
+    // Agregar información adicional al modal
+    const modalBody = document.querySelector('#discountModal .modal-body');
+    
+    // Remover información previa si existe
+    const existingInfo = modalBody.querySelector('.account-info');
+    if (existingInfo) {
+        existingInfo.remove();
+    }
+    
+    // Agregar nueva información de la cuenta CON DETALLES
+    const accountInfo = document.createElement('div');
+    accountInfo.className = 'account-info';
+    accountInfo.style.cssText = 'background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;';
+    accountInfo.innerHTML = `
+        <h5 style="margin: 0 0 10px 0; color: #333;">Información de la Cuenta</h5>
+        <p style="margin: 5px 0;"><strong>Cliente:</strong> ${account.clientName}</p>
+        <p style="margin: 5px 0;"><strong>Factura:</strong> ${account.invoiceNumber}</p>
+        <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${account.totalAmount.toLocaleString('es-DO')}</p>
+        <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${account.paidAmount.toLocaleString('es-DO')}</p>
+        <p style="margin: 5px 0;"><strong>Saldo Pendiente:</strong> <span style="font-weight: bold; color: #28a745;">RD$ ${saldoFinal.toLocaleString('es-DO')}</span></p>
+        ${currentPendingBalance < 0 ? 
+            `<p style="margin: 5px 0; color: #dc3545; font-weight: bold;">
+                ⚠️ Atención: El monto pagado excede el monto total. 
+                Se ajustará a RD$ 0 para aplicar descuentos.
+            </p>` : ''}
+    `;
+    
+    // Insertar antes del formulario de descuento
+    const discountInfo = modalBody.querySelector('.payment-info');
+    modalBody.insertBefore(accountInfo, discountInfo);
+
+    document.getElementById('discountModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDiscountModal() {
+    document.getElementById('discountModal').classList.remove('active');
+    document.body.style.overflow = 'auto';
+    document.getElementById('discountForm').reset();
+}
+
+function submitDiscount() {
+    const accountId = document.getElementById('discountAccountId').value;
+    const discountType = document.getElementById('discountType').value;
+    const discountValue = parseFloat(document.getElementById('discountValue').value);
+    const discountReason = document.getElementById('discountReason').value;
+    const authorizedBy = document.getElementById('authorizedBy').value;
+    
+    // Encontrar la cuenta actual para validaciones
+    const currentAccount = accounts.find(acc => acc.id == accountId);
+    if (!currentAccount) {
+        Swal.fire({
+            title: 'Error',
+            text: 'Cuenta no encontrada',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
+        return;
+    }
+    
+    // **CORRECCIÓN**: Calcular saldo pendiente igual que en openDiscountModal
+    let currentPendingBalance = currentAccount.totalAmount - currentAccount.paidAmount;
+    if (currentPendingBalance < 0) {
+        currentPendingBalance = 0;
+    }
+    
+    let discountAmount = discountValue;
+    
+    // Validaciones básicas
+    if (!discountType) {
+        Swal.fire({
+            title: 'Campo requerido',
+            text: 'Seleccione el tipo de descuento',
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
+        return;
+    }
+    
+    if (!discountValue || discountValue <= 0 || isNaN(discountValue)) {
+        document.getElementById('discountValueError').textContent = 'Ingrese un valor válido mayor a 0.';
+        document.getElementById('discountValueError').style.display = 'block';
+        return;
+    }
+    
+    if (!discountReason || discountReason.trim() === '') {
+        Swal.fire({
+            title: 'Campo requerido',
+            text: 'Ingrese el motivo del descuento',
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
+        return;
+    }
+    
+    if (!authorizedBy || authorizedBy.trim() === '') {
+        Swal.fire({
+            title: 'Campo requerido',
+            text: 'Ingrese el nombre de quien autoriza',
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
+        return;
+    }
+    
+    // Validar según el tipo de descuento
+    if (discountType === 'porcentaje') {
+        if (discountValue > 100) {
+            document.getElementById('discountValueError').textContent = 'El porcentaje no puede ser mayor a 100%';
+            document.getElementById('discountValueError').style.display = 'block';
+            return;
+        }
+        discountAmount = (currentPendingBalance * discountValue) / 100;
+    }
+    
+    // Validar que el descuento no exceda el saldo pendiente
+    if (discountAmount > currentPendingBalance) {
+        document.getElementById('discountValueError').textContent = `El descuento excede el saldo pendiente de RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
+        document.getElementById('discountValueError').style.display = 'block';
+        return;
+    }
+    
+    // **NUEVO**: Mostrar información detallada antes de confirmar
+    const nuevoSaldo = currentPendingBalance - discountAmount;
+    
+    // Mostrar confirmación con SweetAlert2
+    Swal.fire({
+        title: 'Confirmar Descuento',
+        html: `
+            <div style="text-align: left; margin: 10px 0;">
+                <p><strong>Cliente:</strong> ${currentAccount.clientName}</p>
+                <p><strong>Factura:</strong> ${currentAccount.invoiceNumber}</p>
+                <p><strong>Monto Total:</strong> RD$ ${currentAccount.totalAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Monto Pagado:</strong> RD$ ${currentAccount.paidAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Saldo Actual:</strong> RD$ ${currentPendingBalance.toLocaleString('es-DO')}</p>
+                <hr>
+                <p><strong>Tipo de Descuento:</strong> ${discountType === 'porcentaje' ? 'Porcentaje' : 'Monto Fijo'}</p>
+                <p><strong>Valor:</strong> ${discountValue}${discountType === 'porcentaje' ? '%' : ' RD$'}</p>
+                <p><strong>Monto del Descuento:</strong> RD$ ${discountAmount.toLocaleString('es-DO')}</p>
+                <p><strong>Motivo:</strong> ${discountReason}</p>
+                <p><strong>Autorizado por:</strong> ${authorizedBy}</p>
+                <hr>
+                <p style="font-weight: bold; color: #28a745;">
+                    <strong>Nuevo Saldo Pendiente:</strong> RD$ ${nuevoSaldo.toLocaleString('es-DO')}
+                </p>
+            </div>
+            <p style="color: #dc3545; font-weight: bold;">¿Está seguro de aplicar este descuento?</p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, aplicar descuento',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        width: '600px'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Aplicando descuento...',
+                text: 'Por favor espere',
+                icon: 'info',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Enviar descuento al servidor con información adicional
+            fetch('/aplicar-descuento/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                body: JSON.stringify({
+                    cuenta_id: accountId,
+                    tipo_descuento: discountType,
+                    valor_descuento: discountValue,
+                    monto_descuento: discountAmount,
+                    motivo: discountReason,
+                    autorizado_por: authorizedBy,
+                    saldo_actual: currentPendingBalance,
+                    monto_total: currentAccount.totalAmount,
+                    monto_pagado: currentAccount.paidAmount
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Descuento Aplicado!',
+                        html: `
+                            <div style="text-align: left; margin: 15px 0;">
+                                <p>${data.message}</p>
+                                <p><strong>Monto del Descuento:</strong> RD$ ${data.monto_descuento.toLocaleString('es-DO')}</p>
+                                <p><strong>Saldo Anterior:</strong> RD$ ${data.saldo_anterior ? data.saldo_anterior.toLocaleString('es-DO') : currentPendingBalance.toLocaleString('es-DO')}</p>
+                                <p><strong>Nuevo saldo pendiente:</strong> RD$ ${data.nuevo_saldo_pendiente.toLocaleString('es-DO')}</p>
+                                ${data.comprobante_numero ? `<p><strong>Comprobante:</strong> ${data.comprobante_numero}</p>` : ''}
+                                ${data.monto_base_usado ? `<p style="font-size: 0.9rem; color: #666;">Monto base usado: RD$ ${data.monto_base_usado.toLocaleString('es-DO')}</p>` : ''}
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonColor: '#28a745',
+                        width: '600px'
+                    }).then(() => {
+                        closeDiscountModal();
+                        // Recargar la página para ver los cambios actualizados
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error al aplicar descuento',
+                        html: `
+                            <div style="text-align: left; margin: 15px 0;">
+                                <p>${data.message}</p>
+                                ${data.detalles ? `<p style="font-size: 0.8rem; color: #666;">Detalles: ${data.detalles.substring(0, 200)}...</p>` : ''}
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545',
+                        width: '600px'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error de conexión',
+                    text: 'Error al aplicar el descuento. Verifique su conexión e intente nuevamente.',
+                    icon: 'error',
+                    confirmButtonColor: '#dc3545'
+                });
+            });
+        }
+    });
+}
+
 function exportData() {
     console.log('Exportando datos...');
     
@@ -2290,6 +2692,144 @@ function exportData() {
     });
 }
 
+// ===== FUNCIÓN PARA GENERAR PDF DE DEUDAS =====
+function generateDebtPDF() {
+    console.log('Generando PDF de deudas...');
+    
+    // Filtrar cuentas anuladas y eliminadas para el PDF
+    const validAccounts = accounts.filter(account => account.status !== 'anulada' && !account.eliminada);
+    
+    if (validAccounts.length === 0) {
+        Swal.fire({
+            title: 'Sin datos',
+            text: 'No hay datos para generar el PDF',
+            icon: 'warning',
+            confirmButtonColor: '#ffc107'
+        });
+        return;
+    }
+    
+    // Agrupar por cliente para el PDF
+    const debtData = {};
+    
+    validAccounts.forEach(account => {
+        const clientKey = `${account.clientName}|${account.clientPhone}`;
+        
+        if (!debtData[clientKey]) {
+            debtData[clientKey] = {
+                cliente: account.clientName,
+                telefono: account.clientPhone,
+                facturasPendientes: [],
+                montoTotalPendiente: 0
+            };
+        }
+        
+        const saldoPendiente = account.totalAmount - account.paidAmount;
+        if (saldoPendiente > 0 && account.status !== 'pagada') {
+            debtData[clientKey].facturasPendientes.push({
+                factura: account.invoiceNumber,
+                monto: saldoPendiente,
+                estado: account.status
+            });
+            debtData[clientKey].montoTotalPendiente += saldoPendiente;
+        }
+    });
+    
+    // Filtrar clientes que tengan deudas pendientes
+    const clientsWithDebts = Object.values(debtData).filter(client => 
+        client.montoTotalPendiente > 0 && client.facturasPendientes.length > 0
+    );
+    
+    if (clientsWithDebts.length === 0) {
+        Swal.fire({
+            title: 'Sin deudas',
+            text: 'No hay deudas pendientes para generar el PDF',
+            icon: 'info',
+            confirmButtonColor: '#667eea'
+        });
+        return;
+    }
+    
+    // Mostrar loading
+    Swal.fire({
+        title: 'Generando PDF...',
+        text: 'Por favor espere mientras se genera el reporte',
+        icon: 'info',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        allowEnterKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Preparar datos para enviar al servidor
+    const pdfData = {
+        fecha_generacion: new Date().toISOString(),
+        clientes: clientsWithDebts.map(client => ({
+            cliente: client.cliente,
+            telefono: client.telefono,
+            cantidad_facturas: client.facturasPendientes.length,
+            monto_total_pendiente: client.montoTotalPendiente,
+            facturas_detalle: client.facturasPendientes.map(f => ({
+                numero: f.factura,
+                monto: f.monto,
+                estado: f.estado
+            }))
+        })),
+        total_general: clientsWithDebts.reduce((sum, client) => sum + client.montoTotalPendiente, 0),
+        total_clientes: clientsWithDebts.length
+    };
+    
+    // Enviar datos al servidor para generar PDF
+    fetch('/generar-pdf-deudas/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify(pdfData)
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        } else {
+            throw new Error('Error al generar el PDF');
+        }
+    })
+    .then(blob => {
+        // Crear un enlace para descargar el PDF
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `deudas_clientes_${new Date().toISOString().slice(0,10)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        Swal.close();
+        
+        Swal.fire({
+            title: '¡PDF Generado!',
+            text: `Se ha generado el reporte de deudas para ${pdfData.total_clientes} clientes`,
+            icon: 'success',
+            confirmButtonColor: '#28a745',
+            timer: 3000
+        });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            title: 'Error al generar PDF',
+            text: 'No se pudo generar el PDF. Verifique su conexión e intente nuevamente.',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
+    });
+}
+
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM cargado, inicializando...');
@@ -2324,6 +2864,50 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Agregar validación en tiempo real al campo de descuento
+    const discountValueInput = document.getElementById('discountValue');
+    if (discountValueInput) {
+        discountValueInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            const discountType = document.getElementById('discountType').value;
+            const accountId = document.getElementById('discountAccountId').value;
+            const account = accounts.find(acc => acc.id == accountId);
+            
+            if (account && discountType) {
+                // Calcular saldo pendiente igual que en las otras funciones
+                let currentPendingBalance = account.totalAmount - account.paidAmount;
+                if (currentPendingBalance < 0) {
+                    currentPendingBalance = 0;
+                }
+                
+                const errorElement = document.getElementById('discountValueError');
+                
+                if (discountType === 'porcentaje') {
+                    if (value > 100) {
+                        errorElement.textContent = 'El porcentaje no puede ser mayor a 100%';
+                        errorElement.style.display = 'block';
+                    } else if (value <= 0) {
+                        errorElement.textContent = 'El valor debe ser mayor a 0';
+                        errorElement.style.display = 'block';
+                    } else {
+                        errorElement.style.display = 'none';
+                    }
+                } else {
+                    if (value > currentPendingBalance) {
+                        errorElement.textContent = `El monto no puede exceder RD$ ${currentPendingBalance.toLocaleString('es-DO')}`;
+                        errorElement.style.display = 'block';
+                    } else if (value <= 0) {
+                        errorElement.textContent = 'El monto debe ser mayor a 0';
+                        errorElement.style.display = 'block';
+                    } else {
+                        errorElement.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
+
     // Manejar el cierre de sesión con SweetAlert2
     document.querySelector("a[href='{% url 'index' %}']").addEventListener("click", function(e) {
             e.preventDefault();
@@ -2352,6 +2936,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('paymentModal').addEventListener('click', function(e) {
         if (e.target === this) closePaymentModal();
+    });
+    
+    document.getElementById('discountModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDiscountModal();
     });
     
     // Renderizar datos iniciales

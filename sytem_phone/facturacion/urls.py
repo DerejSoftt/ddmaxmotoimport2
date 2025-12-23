@@ -61,6 +61,10 @@ urlpatterns = [
     path('buscar_comprobante/', views.buscar_comprobante, name='buscar_comprobante'),
     path('anular_comprobante/', views.anular_comprobante_action, name='anular_comprobante_action'),
     path('ultimo-comprobante/', views.ultimo_comprobante, name='ultimo_comprobante'),
+    path('aplicar-descuento/', views.aplicar_descuento, name='aplicar_descuento'),
+    path('cuentasAtrasada', views.cuentasAtrasada, name='cuentasAtrasada'),
+    path('generar-pdf-deudas/', views.generar_pdf_deudas, name='generar_pdf_deudas'),
+
 ]
 
     

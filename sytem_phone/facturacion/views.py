@@ -46,10 +46,10 @@ from django.http import JsonResponse
 from functools import wraps
 from django.db import connection
 from django.db.models.functions import TruncDate
+import calendar
+from reportlab.lib.pagesizes import letter
 
-
-
-
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 
 
@@ -3152,6 +3152,307 @@ def cuentaporcobrar(request):
     
     return render(request, "facturacion/cuentaporcobrar.html", context)
 
+@csrf_exempt
+def generar_pdf_deudas(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            response = HttpResponse(content_type='application/pdf')
+            filename = f"deudas_clientes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            # Crear el objeto PDF
+            p = canvas.Canvas(response, pagesize=letter)
+            width, height = letter
+            
+            # Margenes
+            left_margin = 50
+            right_margin = width - 50
+            top_margin = height - 50
+            
+            # Título
+            p.setFont("Helvetica-Bold", 16)
+            p.setFillColorRGB(0.2, 0.2, 0.4)  # Azul oscuro
+            p.drawCentredString(width/2, top_margin, "Reporte de Deudas por Cliente")
+            
+            # Fecha de generación
+            p.setFont("Helvetica", 10)
+            p.setFillColorRGB(0.4, 0.4, 0.4)  # Gris oscuro
+            fecha_gen = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            p.drawCentredString(width/2, top_margin - 25, f"Generado el: {fecha_gen}")
+            
+            # Línea separadora
+            p.setLineWidth(1)
+            p.setStrokeColorRGB(0.8, 0.8, 0.8)  # Gris claro
+            p.line(left_margin, top_margin - 40, right_margin, top_margin - 40)
+            
+            # Información de resumen
+            p.setFont("Helvetica-Bold", 11)
+            p.setFillColorRGB(0, 0, 0)  # Negro
+            total_clientes = data.get('total_clientes', 0)
+            total_general = data.get('total_general', 0)
+            p.drawString(left_margin, top_margin - 65, f"Total Clientes con Deudas: {total_clientes}")
+            p.drawString(left_margin + 300, top_margin - 65, f"Deuda Total: RD$ {total_general:,.2f}")
+            
+            # Posición inicial para la tabla
+            y = top_margin - 90
+            
+            # Encabezados de la tabla
+            p.setFont("Helvetica-Bold", 10)
+            p.setFillColorRGB(1, 1, 1)  # Blanco
+            p.setStrokeColorRGB(0.4, 0.4, 0.4)  # Gris para bordes
+            
+            # Dibujar fondo de encabezados (azul)
+            p.setFillColorRGB(0.2, 0.4, 0.8)  # Azul
+            p.rect(left_margin, y - 20, right_margin - left_margin, 25, fill=1, stroke=0)
+            
+            # Texto de encabezados
+            p.setFillColorRGB(1, 1, 1)  # Blanco
+            p.drawString(left_margin + 10, y - 15, "Cliente")
+            p.drawString(left_margin + 200, y - 15, "Teléfono")
+            p.drawString(left_margin + 300, y - 15, "Facturas Pendientes")
+            p.drawString(left_margin + 450, y - 15, "Monto Total Pendiente")
+            
+            # Bordes de encabezado
+            p.setLineWidth(1)
+            p.setStrokeColorRGB(1, 1, 1)  # Blanco para bordes del encabezado
+            p.rect(left_margin, y - 20, right_margin - left_margin, 25)
+            
+            # Línea debajo del encabezado
+            p.setStrokeColorRGB(0, 0, 0)  # Negro
+            p.line(left_margin, y - 20, right_margin, y - 20)
+            
+            # Datos de la tabla
+            p.setFont("Helvetica", 9)
+            y -= 45  # Mover hacia abajo para los datos
+            
+            # Alternar colores de filas
+            row_colors = [
+                (1, 1, 1),      # Blanco
+                (0.95, 0.95, 0.95)  # Gris muy claro
+            ]
+            
+            clientes = data.get('clientes', [])
+            for i, cliente in enumerate(clientes):
+                # Cambiar color de fondo cada fila
+                color_index = i % 2
+                p.setFillColorRGB(*row_colors[color_index])
+                
+                # Dibujar fondo de la fila
+                p.rect(left_margin, y - 15, right_margin - left_margin, 20, fill=1, stroke=0)
+                
+                # Dibujar bordes de la celda
+                p.setStrokeColorRGB(0.8, 0.8, 0.8)  # Gris claro para bordes
+                p.setLineWidth(0.5)
+                p.rect(left_margin, y - 15, right_margin - left_margin, 20)
+                
+                # Texto de la fila
+                p.setFillColorRGB(0, 0, 0)  # Negro
+                p.drawString(left_margin + 10, y - 10, cliente.get('cliente', 'N/A'))
+                p.drawString(left_margin + 200, y - 10, cliente.get('telefono', 'N/A'))
+                p.drawString(left_margin + 300, y - 10, str(cliente.get('cantidad_facturas', 0)))
+                p.drawString(left_margin + 450, y - 10, f"RD$ {cliente.get('monto_total_pendiente', 0):,.2f}")
+                
+                # Mover a la siguiente fila
+                y -= 25
+                
+                # Verificar si necesitamos nueva página
+                if y < 100 and i < len(clientes) - 1:
+                    p.showPage()
+                    p.setFont("Helvetica", 9)
+                    y = height - 50
+                    
+                    # Encabezado de nueva página
+                    p.setFont("Helvetica-Bold", 10)
+                    p.setFillColorRGB(0.2, 0.4, 0.8)
+                    p.rect(left_margin, y - 20, right_margin - left_margin, 25, fill=1, stroke=0)
+                    
+                    p.setFillColorRGB(1, 1, 1)
+                    p.drawString(left_margin + 10, y - 15, "Cliente")
+                    p.drawString(left_margin + 200, y - 15, "Teléfono")
+                    p.drawString(left_margin + 300, y - 15, "Facturas Pendientes")
+                    p.drawString(left_margin + 450, y - 15, "Monto Total Pendiente")
+                    
+                    p.setStrokeColorRGB(1, 1, 1)
+                    p.rect(left_margin, y - 20, right_margin - left_margin, 25)
+                    p.setStrokeColorRGB(0, 0, 0)
+                    p.line(left_margin, y - 20, right_margin, y - 20)
+                    
+                    y -= 45
+            
+            # Línea de total
+            p.setLineWidth(1)
+            p.setStrokeColorRGB(0, 0, 0)
+            p.line(left_margin, y, right_margin, y)
+            y -= 20
+            
+            # Total general
+            p.setFont("Helvetica-Bold", 12)
+            p.setFillColorRGB(0.9, 0.2, 0.2)  # Rojo para el total
+            p.drawString(left_margin + 300, y, "TOTAL GENERAL:")
+            p.drawString(left_margin + 450, y, f"RD$ {total_general:,.2f}")
+            
+            # Pie de página
+            p.setFont("Helvetica-Oblique", 8)
+            p.setFillColorRGB(0.4, 0.4, 0.4)
+            p.drawString(left_margin, 30, f"DDMAX Moto Import - Sistema de Cuentas por Cobrar")
+            p.drawString(right_margin - 100, 30, f"Página 1")
+            
+            # Cerrar el objeto PDF
+            p.showPage()
+            p.save()
+            
+            return response
+            
+        except Exception as e:
+            return HttpResponse(f"Error al generar el PDF: {str(e)}", status=500)
+    
+    return HttpResponse("Método no permitido", status=405)
+
+def aplicar_descuento(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            cuenta_id = data.get('cuenta_id')
+            tipo_descuento = data.get('tipo_descuento')
+            valor_descuento = Decimal(data.get('valor_descuento'))
+            monto_descuento = Decimal(data.get('monto_descuento'))
+            motivo = data.get('motivo')
+            autorizado_por = data.get('autorizado_por')
+            
+            cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
+            
+            # Verificar que la cuenta no esté anulada o eliminada
+            if cuenta.anulada:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No se puede aplicar descuento a una cuenta anulada'
+                })
+            
+            if cuenta.eliminada:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No se puede aplicar descuento a una cuenta eliminada'
+                })
+            
+            # VERIFICACIÓN ADICIONAL: Asegurarse de que la cuenta no esté pagada
+            if cuenta.estado == 'pagada':
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No se puede aplicar descuento a una cuenta completamente pagada'
+                })
+            
+            # **CORRECCIÓN CRÍTICA**: Usar el MONTO TOTAL CORRECTO
+            # Primero intentar usar total_a_pagar de la venta si existe
+            monto_base = cuenta.monto_total  # Por defecto, usar monto_total de la cuenta
+            
+            if cuenta.venta and cuenta.venta.total_a_pagar:
+                monto_base = cuenta.venta.total_a_pagar
+            # Si existe total_con_interes, usarlo como monto base
+            elif cuenta.venta and cuenta.venta.total_con_interes:
+                monto_base = cuenta.venta.total_con_interes
+            
+            # Calcular el saldo pendiente REAL
+            saldo_pendiente_real = monto_base - cuenta.monto_pagado
+            
+            # Asegurarse de que el saldo pendiente no sea negativo
+            if saldo_pendiente_real < 0:
+                saldo_pendiente_real = Decimal('0.00')
+            
+            # **IMPORTANTE**: Validar que haya saldo pendiente
+            if saldo_pendiente_real <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'No hay saldo pendiente para aplicar descuento. Saldo actual: RD$ {saldo_pendiente_real}'
+                })
+            
+            # Validar que el descuento no exceda el saldo pendiente
+            if monto_descuento > saldo_pendiente_real:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'El descuento (RD${monto_descuento}) excede el saldo pendiente real de RD${saldo_pendiente_real}'
+                })
+            
+            # **NUEVO**: Verificar si el monto_descuento calculado desde el frontend es correcto
+            # Recalcular por seguridad
+            monto_descuento_calculado = monto_descuento
+            if tipo_descuento == 'porcentaje':
+                # Recalcular el porcentaje usando el saldo pendiente real
+                monto_descuento_calculado = (saldo_pendiente_real * valor_descuento) / 100
+            
+            # Usar el menor de los dos montos (el del frontend o el recalculado)
+            monto_descuento_final = min(monto_descuento, monto_descuento_calculado)
+            
+            # Validar nuevamente con el monto final
+            if monto_descuento_final > saldo_pendiente_real:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Error de cálculo: Descuento final (RD${monto_descuento_final}) excede saldo pendiente (RD${saldo_pendiente_real})'
+                })
+            
+            # Registrar el descuento como un pago especial
+            pago_descuento = PagoCuentaPorCobrar(
+                cuenta=cuenta,
+                monto=monto_descuento_final,
+                metodo_pago='descuento',
+                referencia=f"DESC-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                observaciones=f"DESCUENTO APLICADO: {motivo}. Tipo: {tipo_descuento}, Valor: {valor_descuento}{'%' if tipo_descuento == 'porcentaje' else 'RD$'}. Autorizado por: {autorizado_por}. Monto: RD${monto_descuento_final}"
+            )
+            pago_descuento.save()
+            
+            # **IMPORTANTE**: Actualizar el monto pagado en la cuenta
+            cuenta.monto_pagado += monto_descuento_final
+            
+            # **CALCULAR NUEVO SALDO CON EL MONTO BASE CORRECTO**
+            nuevo_saldo = monto_base - cuenta.monto_pagado
+            
+            # Actualizar el estado basado en el nuevo saldo
+            if nuevo_saldo <= 0:
+                cuenta.estado = 'pagada'
+                # Asegurar que no haya valores negativos
+                cuenta.monto_pagado = monto_base
+                nuevo_saldo = Decimal('0.00')
+            elif cuenta.monto_pagado > 0:
+                cuenta.estado = 'parcial'
+            else:
+                cuenta.estado = 'pendiente'
+            
+            cuenta.save()
+            
+            # **CORRECCIÓN**: Crear comprobante SIN el parámetro 'observaciones' que no existe en tu modelo
+            comprobante = ComprobantePago(
+                pago=pago_descuento,
+                cuenta=cuenta,
+                cliente=cuenta.cliente,
+                tipo_comprobante='comprobante'  # Usando 'comprobante' en lugar de 'descuento' que no existe en TIPOS_COMPROBANTE
+            )
+            comprobante.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Descuento aplicado exitosamente. Se redujo la deuda en RD${monto_descuento_final}',
+                'monto_descuento': float(monto_descuento_final),
+                'nuevo_saldo_pendiente': float(nuevo_saldo),
+                'saldo_anterior': float(saldo_pendiente_real),
+                'comprobante_numero': comprobante.numero_comprobante,
+                'comprobante_id': comprobante.id,
+                'estado_actual': cuenta.estado,
+                'monto_base_usado': float(monto_base),
+                'monto_pagado_total': float(cuenta.monto_pagado)
+            })
+            
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error en aplicar_descuento: {error_details}")
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al aplicar descuento: {str(e)}',
+                'detalles': error_details
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
 def registrar_pago(request):
     if request.method == 'POST':
@@ -5026,3 +5327,214 @@ def ultimo_comprobante(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+
+
+
+def cuentasAtrasada(request):
+    # Obtener la fecha actual
+    hoy = date.today()
+    
+    try:
+        # Filtrar cuentas por cobrar que están pendientes/parciales/vencidas y no anuladas/eliminadas
+        cuentas = CuentaPorCobrar.objects.filter(
+            Q(estado='pendiente') | Q(estado='vencida') | Q(estado='parcial'),
+            anulada=False,
+            eliminada=False
+        ).select_related('cliente', 'venta')
+        
+        # Preparar los datos para el template
+        overdue_data = []
+        
+        for cuenta in cuentas:
+            venta = cuenta.venta
+            if not venta or not venta.fecha_venta:
+                continue
+                
+            # Obtener la fecha de la venta (factura)
+            fecha_factura = venta.fecha_venta.date()
+            
+            # Obtener información sobre pagos realizados
+            pagos = cuenta.pagos.filter(anulado=False).order_by('fecha_pago')
+            
+            # Calcular el monto total con interés
+            try:
+                monto_total = cuenta.monto_total_con_interes
+            except:
+                monto_total = cuenta.monto_total
+            
+            # Calcular el saldo pendiente
+            saldo_pendiente = float(monto_total - cuenta.monto_pagado)
+            
+            # Si el saldo es 0, no está atrasado
+            if saldo_pendiente <= 0:
+                continue
+            
+            # Determinar cuántas cuotas se han pagado y cuál es la próxima vencida
+            # Asumimos que el monto de cada cuota es igual
+            # Primero, necesitamos saber el total de cuotas (plazo en meses)
+            plazo_meses = 1  # Por defecto 1 mes
+            if hasattr(venta, 'plazo_meses'):
+                plazo_meses = venta.plazo_meses
+            elif hasattr(venta, 'plazo'):
+                try:
+                    plazo_meses = int(venta.plazo)
+                except:
+                    plazo_meses = 1
+            
+            # Calcular el monto por cuota
+            monto_por_cuota = float(monto_total) / plazo_meses
+            
+            # Determinar cuántas cuotas se han pagado
+            # Esto es simplificado - en un sistema real necesitarías un modelo de cuotas
+            monto_pagado_total = float(cuenta.monto_pagado)
+            cuotas_pagadas = int(monto_pagado_total // monto_por_cuota)
+            
+            # Calcular la fecha de vencimiento de la próxima cuota
+            # Si no se ha pagado ninguna, la primera cuota vence 1 mes después de la fecha de factura
+            proxima_cuota_numero = cuotas_pagadas + 1
+            fecha_vencimiento_proxima = calcular_fecha_cuota(fecha_factura, proxima_cuota_numero)
+            
+            # Si ya se pagaron todas las cuotas, no hay atraso
+            if proxima_cuota_numero > plazo_meses:
+                continue
+            
+            # Verificar si la próxima cuota está vencida
+            if fecha_vencimiento_proxima >= hoy:
+                continue  # Aún no está vencida
+            
+            # Calcular días de atraso desde la fecha de vencimiento
+            dias_atraso = (hoy - fecha_vencimiento_proxima).days
+            
+            # Solo incluir si tiene días de atraso positivo
+            if dias_atraso <= 0:
+                continue
+            
+            # Determinar el estado según los días de atraso
+            if dias_atraso > 14:
+                status = 'overdue'
+            elif dias_atraso >= 5:
+                status = 'alert'
+            else:
+                status = 'alert'
+            
+            # Obtener información del cliente
+            cliente = cuenta.cliente
+            
+            # Obtener teléfono del cliente de manera segura
+            telefono_cliente = 'No disponible'
+            if hasattr(cliente, 'telefono'):
+                telefono_cliente = cliente.telefono
+            elif hasattr(cliente, 'phone'):
+                telefono_cliente = cliente.phone
+            elif hasattr(cliente, 'phone_number'):
+                telefono_cliente = cliente.phone_number
+            
+            # Obtener nombre del cliente de manera segura
+            nombre_cliente = 'Cliente'
+            if hasattr(cliente, 'full_name'):
+                nombre_cliente = cliente.full_name
+            elif hasattr(cliente, 'nombre'):
+                nombre_cliente = cliente.nombre
+            elif hasattr(cliente, 'name'):
+                nombre_cliente = cliente.name
+            
+            # Obtener número de factura
+            numero_factura = getattr(venta, 'numero_factura', 'N/A')
+            
+            # Calcular el monto atrasado (monto de la cuota vencida)
+            monto_atrasado = min(monto_por_cuota, saldo_pendiente)
+            
+            # Determinar estado de contacto (usaremos un campo en el modelo si existe)
+            contact_status = 'no_contacted'
+            if hasattr(cuenta, 'contact_status'):
+                contact_status = cuenta.contact_status
+            elif hasattr(cuenta, 'contacted'):
+                contact_status = 'contacted' if cuenta.contacted else 'no_contacted'
+            
+            # Preparar el objeto de datos
+            cuenta_data = {
+                'id': cuenta.id,
+                'clientName': nombre_cliente,
+                'clientPhone': telefono_cliente,
+                'invoiceNumber': numero_factura,
+                'dueDate': fecha_vencimiento_proxima.strftime('%Y-%m-%d'),
+                'originalAmount': float(monto_total),
+                'overdueAmount': monto_atrasado,
+                'daysOverdue': dias_atraso,
+                'status': status,
+                'contactStatus': contact_status,
+                'saleDate': fecha_factura.strftime('%Y-%m-%d'),
+                'plazoMeses': plazo_meses,
+                'cuotaActual': proxima_cuota_numero,
+                'totalCuotas': plazo_meses,
+                'montoPorCuota': monto_por_cuota,
+                'cuotasPagadas': cuotas_pagadas
+            }
+            
+            overdue_data.append(cuenta_data)
+        
+        # Ordenar por días de atraso (mayor primero)
+        overdue_data.sort(key=lambda x: x['daysOverdue'], reverse=True)
+        
+    except Exception as e:
+        print(f"Error al obtener cuentas atrasadas: {e}")
+        overdue_data = []
+    
+    context = {
+        'overdue_data_json': overdue_data
+    }
+    
+    return render(request, 'facturacion/cuentasAtrasada.html', context)
+
+
+def calcular_fecha_cuota(fecha_factura, numero_cuota):
+    """
+    Calcula la fecha de vencimiento de una cuota específica.
+    Ejemplo: Factura del 25 de diciembre, cuota 1 vence 25 de enero, cuota 2 vence 25 de febrero, etc.
+    """
+    año = fecha_factura.year
+    mes = fecha_factura.month
+    dia = fecha_factura.day
+    
+    # Sumar los meses según el número de cuota
+    mes += numero_cuota
+    
+    # Ajustar año si es necesario
+    while mes > 12:
+        mes -= 12
+        año += 1
+    
+    # Manejar casos donde el día no existe en el mes (ej: 31 de abril)
+    try:
+        return date(año, mes, dia)
+    except ValueError:
+        # Si el día no existe, usar el último día del mes
+        ultimo_dia = calendar.monthrange(año, mes)[1]
+        return date(año, mes, ultimo_dia)
+
+
+# Si necesitas también actualizar el estado de las cuentas automáticamente, puedes agregar esta función
+def actualizar_estados_cuentas_atrasadas():
+    """
+    Función para actualizar automáticamente el estado de las cuentas atrasadas.
+    Se puede llamar desde un cron job o desde la vista.
+    """
+    hoy = date.today()
+    
+    cuentas = CuentaPorCobrar.objects.filter(
+        Q(estado='pendiente') | Q(estado='parcial'),
+        anulada=False,
+        eliminada=False
+    )
+    
+    for cuenta in cuentas:
+        # Verificar si la cuenta tiene fecha de vencimiento y está vencida
+        if cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < hoy:
+            # Marcar como vencida si no está ya marcada
+            if cuenta.estado != 'vencida':
+                cuenta.estado = 'vencida'
+                cuenta.save()
+    
+    return True
