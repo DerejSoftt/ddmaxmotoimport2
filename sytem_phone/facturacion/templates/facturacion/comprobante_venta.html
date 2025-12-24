@@ -353,7 +353,7 @@
                 <tbody id="productos">
                     {% for detalle in detalles %}
                     <tr>
-<<<<<<< HEAD
+
                         <td class="col-codigo">{{ detalle.producto.codigo_producto }}</td>
                         <td class="col-cantidad">{{ detalle.cantidad }}</td>
                         <td class="col-descripcion">
@@ -372,14 +372,14 @@
                                 <div class="chasis-text">{{ detalle.producto.numero_maquina }}</div>
                             {% else %}
                                 -
-=======
+
                        <td>{{ detalle.producto.codigo_producto }}</td>
                         <td>{{ detalle.cantidad }}</td>
                           <td>{{ detalle.producto.numero_maquina|default:"N/A" }}</td>
                         <td>{{ detalle.producto.nombre_producto }}
                             {% if detalle.producto.descripcion %}
                             <br><small>{{ detalle.producto.descripcion }}</small>
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
+
                             {% endif %}
                         </td>
                         <td class="col-precio">{{ detalle.precio_unitario|currency_format }}</td>

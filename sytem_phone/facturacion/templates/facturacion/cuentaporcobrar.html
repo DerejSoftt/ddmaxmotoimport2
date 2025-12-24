@@ -1011,19 +1011,12 @@
             <i class='bx bx-printer'></i>
             <span>Reimprimir</span>
         </a>
-<<<<<<< HEAD
 
           <a href="{% url 'cuentasAtrasada' %}" class="menu-item ">
            <i class='bx bx-time-five'></i>
             <span>Cuenta Atrasadas</span>
         </a>
 
-=======
-        <a href="{% url 'cuentasAtrasada' %}" class="menu-item ">
-           <i class='bx bx-time-five'></i>
-            <span>Cuenta Atrasadas</span>
-        </a>
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
         <a href="{% url 'dashboard' %}" class="menu-item">
             <i class='bx bx-grid-alt'></i>
             <span>Dashboard</span>
@@ -1296,7 +1289,7 @@
     </div>
 </div>
 
-<<<<<<< HEAD
+
 <!-- Modal para Aplicar Descuento/Reducción (NUEVO) -->
 <div class="modal" id="discountModal">
     <div class="modal-content">
@@ -1306,7 +1299,7 @@
                 Aplicar Descuento/Reducción
             </h2>
             <button class="close-btn" onclick="closeDiscountModal()">
-=======
+
 <!-- Modal para Rebajar Deuda -->
 <div class="modal" id="rebajaModal">
     <div class="modal-content">
@@ -1316,12 +1309,11 @@
                 Rebajar Deuda
             </h2>
             <button class="close-btn" onclick="closeRebajaModal()">
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
                 <i class='bx bx-x'></i>
             </button>
         </div>
         <div class="modal-body">
-<<<<<<< HEAD
+
             <div class="payment-info">
                 <i class='bx bx-info-circle'></i>
                 Saldo Pendiente: <span id="discountModalPendingAmount" class="currency">RD$ 0</span>
@@ -1348,7 +1340,7 @@
                 <div class="payment-form-group">
                     <label for="authorizedBy">Autorizado por *</label>
                     <input type="text" id="authorizedBy" class="filter-input" placeholder="Nombre de quien autoriza" required>
-=======
+
             <div class="payment-info" style="background: #fff3cd; border-color: #ffeaa7; color: #856404;">
                 <i class='bx bx-info-circle'></i>
                 Información Actual de la Deuda
@@ -1380,12 +1372,12 @@
                 <div class="payment-info" style="background: #d4edda; border-color: #c3e6cb; color: #155724;">
                     <i class='bx bx-calendar-check'></i>
                     Nueva Deuda después de la Rebaja: <span id="rebajaModalNewDebt" class="currency">RD$ 0</span>
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
+
                 </div>
             </form>
         </div>
         <div class="modal-footer">
-<<<<<<< HEAD
+
             <button type="button" class="btn btn-outline" onclick="closeDiscountModal()">
                 <i class='bx bx-x'></i>
                 Cancelar
@@ -1393,7 +1385,7 @@
             <button type="button" class="btn btn-warning" onclick="submitDiscount()">
                 <i class='bx bx-check'></i>
                 Aplicar Descuento
-=======
+
             <button type="button" class="btn btn-outline" onclick="closeRebajaModal()">
                 <i class='bx bx-x'></i>
                 Cancelar
@@ -1401,7 +1393,6 @@
             <button type="button" class="btn btn-warning" onclick="submitRebaja()">
                 <i class='bx bx-trending-down'></i>
                 Aplicar Rebaja
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
             </button>
         </div>
     </div>
@@ -1732,15 +1723,15 @@ function renderTable(data = accounts) {
                                     <i class='bx bx-dollar'></i>
                                 </button>
                                 ` : ''}
-<<<<<<< HEAD
+
                                 ${invoice.pendingBalance > 0 && invoice.status !== 'anulada' ? `
                                 <button class="btn btn-warning" onclick="openDiscountModal(${invoice.id})" title="Aplicar Descuento">
                                     <i class='bx bx-money'></i>
-=======
+
                                 ${invoice.pendingBalance > 0 ? `
                                 <button class="btn btn-warning" onclick="openRebajaModal(${invoice.id})" title="Rebajar Deuda">
                                     <i class='bx bx-trending-down'></i>
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
+
                                 </button>
                                 ` : ''}
                                 <!-- BOTÓN DE ELIMINAR - SOLO PARA CUENTAS PAGADAS -->
@@ -3234,7 +3225,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-<<<<<<< HEAD
+
     // Agregar validación en tiempo real al campo de descuento
     const discountValueInput = document.getElementById('discountValue');
     if (discountValueInput) {
@@ -3278,14 +3269,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-=======
+
     // Event listener para el campo de rebaja
     const rebajaAmountInput = document.getElementById('rebajaAmountInput');
     if (rebajaAmountInput) {
         rebajaAmountInput.addEventListener('input', updateProjectedDebt);
     }
     
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
+
     // Manejar el cierre de sesión con SweetAlert2
     const logoutLink = document.querySelector("a[href='{% url 'index' %}']");
     if (logoutLink) {
@@ -3319,13 +3310,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === this) closePaymentModal();
     });
     
-<<<<<<< HEAD
+
     document.getElementById('discountModal').addEventListener('click', function(e) {
         if (e.target === this) closeDiscountModal();
-=======
+
     document.getElementById('rebajaModal').addEventListener('click', function(e) {
         if (e.target === this) closeRebajaModal();
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
+
     });
     
     // Renderizar datos iniciales

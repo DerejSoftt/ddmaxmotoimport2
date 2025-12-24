@@ -61,18 +61,11 @@ urlpatterns = [
     path('buscar_comprobante/', views.buscar_comprobante, name='buscar_comprobante'),
     path('anular_comprobante/', views.anular_comprobante_action, name='anular_comprobante_action'),
     path('ultimo-comprobante/', views.ultimo_comprobante, name='ultimo_comprobante'),
-<<<<<<< HEAD
     path('aplicar-descuento/', views.aplicar_descuento, name='aplicar_descuento'),
     path('cuentasAtrasada', views.cuentasAtrasada, name='cuentasAtrasada'),
     path('generar-pdf-deudas/', views.generar_pdf_deudas, name='generar_pdf_deudas'),
 
-=======
-    path('cuentasAtrasada', views.cuentasAtrasada, name='cuentasAtrasada'),
 
-    # En urls.py, agrega esta ruta:
-
-path('rebajar-deuda/', views.rebajar_deuda, name='rebajar_deuda'),
->>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
 ]
 
     
