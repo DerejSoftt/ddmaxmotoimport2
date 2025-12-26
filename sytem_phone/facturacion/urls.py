@@ -65,6 +65,7 @@ urlpatterns = [
     path('cuentasAtrasada', views.cuentasAtrasada, name='cuentasAtrasada'),
     path('generar-pdf-deudas/', views.generar_pdf_deudas, name='generar_pdf_deudas'),
 
+
 ]
 
     

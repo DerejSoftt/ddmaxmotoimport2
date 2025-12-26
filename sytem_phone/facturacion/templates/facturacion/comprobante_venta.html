@@ -333,17 +333,27 @@
             <table class="invoice-table">
                 <thead>
                     <tr>
+<<<<<<< HEAD
                         <th class="col-codigo">Código</th>
                         <th class="col-cantidad">Cantidad</th>
                         <th class="col-descripcion">Descripción</th>
                         <th class="col-chasis">Número/Chasi</th>
                         <th class="col-precio">Precio</th>
                         <th class="col-importe">Importe</th>
+=======
+                        <th width="15%">Código</th>
+                        <th width="10%">Cantidad</th>
+                        <th width="25%">Núm/Máquina</th>
+                        <th width="45%">Descripción</th>
+                        <th width="15%">Precio</th>
+                        <th width="15%">Importe</th>
+>>>>>>> e91feed82f24aa0bc1f1d9413f9b2c41c79ad51f
                     </tr>
                 </thead>
                 <tbody id="productos">
                     {% for detalle in detalles %}
                     <tr>
+
                         <td class="col-codigo">{{ detalle.producto.codigo_producto }}</td>
                         <td class="col-cantidad">{{ detalle.cantidad }}</td>
                         <td class="col-descripcion">
@@ -362,6 +372,14 @@
                                 <div class="chasis-text">{{ detalle.producto.numero_maquina }}</div>
                             {% else %}
                                 -
+
+                       <td>{{ detalle.producto.codigo_producto }}</td>
+                        <td>{{ detalle.cantidad }}</td>
+                          <td>{{ detalle.producto.numero_maquina|default:"N/A" }}</td>
+                        <td>{{ detalle.producto.nombre_producto }}
+                            {% if detalle.producto.descripcion %}
+                            <br><small>{{ detalle.producto.descripcion }}</small>
+
                             {% endif %}
                         </td>
                         <td class="col-precio">{{ detalle.precio_unitario|currency_format }}</td>
