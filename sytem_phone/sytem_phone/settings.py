@@ -28,7 +28,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # SECRET_KEY = 'django-insecure-xf0=u@=4-_d7kd4xsv+p6&9cmc#&7oiv$v2$cogh#eg$@*ui_h'
+
+# SECRET_KEY = os.environ.get('SECRET_KEY')
+
 SECRET_KEY = os.environ.get('SECRET_KEY')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
 # ALLOWED_HOSTS = ['*']
@@ -88,6 +92,19 @@ WSGI_APPLICATION = 'sytem_phone.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": "ddmaxmotoimportdb",
+#         "USER": "root",
+#         "PASSWORD": "",
+#         "HOST": "localhost",
+#         "PORT": "3306",
+#         "OPTIONS": {
+#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+#         }
+#     }
+# }
 
 # DATABASES = {
 #     "default": {
@@ -108,7 +125,9 @@ WSGI_APPLICATION = 'sytem_phone.wsgi.application'
 
 
 
+
 #  BASE DE DATS DE PRODUCCION
+
 
 DATABASES = {
     'default': {
