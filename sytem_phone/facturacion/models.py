@@ -732,38 +732,6 @@ class PagoCuentaPorCobrar(models.Model):
         return f"Pago #{self.id} - {self.cuenta} - RD${self.monto}"
 
 
-class ComprobantePago(models.Model):
-    TIPOS_COMPROBANTE = (
-        ('recibo', 'Recibo'),
-        ('factura', 'Factura'),
-        ('comprobante', 'Comprobante'),
-    )
-    
-    pago = models.OneToOneField('PagoCuentaPorCobrar', on_delete=models.CASCADE, related_name='comprobante')
-    cuenta = models.ForeignKey('CuentaPorCobrar', on_delete=models.CASCADE, related_name='comprobantes')
-    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='comprobantes_pago')
-    numero_comprobante = models.CharField(max_length=20, unique=True, verbose_name="Número de Comprobante")
-    tipo_comprobante = models.CharField(max_length=15, choices=TIPOS_COMPROBANTE, default='recibo')
-    fecha_emision = models.DateTimeField(default=timezone.now)
-    contenido = models.TextField(blank=True, verbose_name="Contenido del Comprobante")
-    
-    class Meta:
-        db_table = 'comprobantes_pago'
-        verbose_name = 'Comprobante de Pago'
-        verbose_name_plural = 'Comprobantes de Pago'
-        ordering = ['-fecha_emision']
-    
-    def save(self, *args, **kwargs):
-        if not self.numero_comprobante:
-            # Generar número de comprobante automáticamente
-            last_comprobante = ComprobantePago.objects.order_by('-id').first()
-            last_number = int(last_comprobante.numero_comprobante.split('-')[-1]) if last_comprobante else 0
-            self.numero_comprobante = f"COMP-{last_number + 1:06d}"
-        super().save(*args, **kwargs)
-    
-    def __str__(self):
-        return f"Comprobante {self.numero_comprobante} - {self.cliente.full_name}"
-
 
 
 # Modelo para control de caja
@@ -794,7 +762,7 @@ class Caja(models.Model):
 
 
 
-
+# Modelo para registrar movimientos de stock
 class MovimientoStock(models.Model):
     TIPOS_MOVIMIENTO = (
         ('entrada', 'Entrada'),
@@ -823,7 +791,7 @@ class MovimientoStock(models.Model):
     
 
 
-    # Añade este modelo a tu models.py
+# Modelo para registrar cierres de caja
 class CierreCaja(models.Model):
     caja = models.ForeignKey(Caja, on_delete=models.CASCADE)
     monto_efectivo_real = models.DecimalField(max_digits=10, decimal_places=2)
@@ -849,7 +817,7 @@ class CierreCaja(models.Model):
 
 
 
-
+# Modelo para registrar devoluciones de productos
 class Devolucion(models.Model):
     venta = models.ForeignKey(Venta, on_delete=models.PROTECT)
     producto = models.ForeignKey(EntradaProducto, on_delete=models.PROTECT)
@@ -865,7 +833,7 @@ class Devolucion(models.Model):
 
 
 
-
+# Modelo para registrar comprobantes de pago
 class ComprobantePago(models.Model):
     TIPOS_COMPROBANTE = (
         ('recibo', 'Recibo de Pago'),
