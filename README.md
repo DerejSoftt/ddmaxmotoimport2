@@ -4,12 +4,12 @@
 
 ## 1. Introducción
 
-El proyecto **sytem_phone** es una plataforma integral para la operación diaria de una casa comercial de motocicletas y dispositivos móviles. La aplicación centraliza la gestión de inventario, ciclo de ventas, control de caja, créditos, cobranzas, devoluciones y generación de comprobantes. Está construida sobre **Django 5.2** con un backend basado en **MySQL** y una única app denominada `facturacion`, que concentra modelos, vistas, plantillas y recursos estáticos propios del negocio.
+El proyecto **DerejMotiun** (implementado en el paquete Django `sytem_phone`) es una plataforma integral para la operación diaria de una casa comercial de motocicletas y dispositivos móviles. La aplicación centraliza la gestión de inventario, ciclo de ventas, control de caja, créditos, cobranzas, devoluciones y generación de comprobantes. Está construida sobre **Django 5.2** con un backend basado en **MySQL** y una única app denominada `facturacion`, que concentra modelos, vistas, plantillas y recursos estáticos propios del negocio.
 
 ## 2. Tecnologías y dependencias clave
 
 - **Django 5.2** para el framework web y ORM.
-- **MySQL** como motor relacional principal (configurado mediante variables de entorno en `sytem_phone/settings.py`).
+- **MySQL** como motor relacional principal (configurado mediante variables de entorno en [settings.py](sytem_phone/sytem_phone/settings.py)).
 - **ReportLab** para la emisión de comprobantes PDF y otros reportes impresos.
 - **Pandas** y funciones personalizadas para cálculos agregados del dashboard.
 - **WhiteNoise** para servir archivos estáticos en despliegues productivos.
@@ -17,15 +17,17 @@ El proyecto **sytem_phone** es una plataforma integral para la operación diaria
 
 ## 3. Arquitectura general
 
-- **App única (`facturacion`)**: concentra los modelos de dominio, vistas basadas en funciones y rutas declaradas en `facturacion/urls.py`.
-- **Plantillas HTML** bajo `facturacion/templates/facturacion/`, organizadas por vistas (ventas, dashboard, entradas, cuentas por cobrar, etc.).
-- **Recursos estáticos** ubicados en `facturacion/static/` y recolectados en `staticfiles/` para despliegue.
-- **Configuración central** en `sytem_phone/settings.py`, donde se habilitan middlewares, almacenamiento de estáticos y parámetros regionales (`LANGUAGE_CODE='es-do'`, `TIME_ZONE='America/Santo_Domingo'`).
+- **App única (`facturacion`)**: concentra los modelos de dominio, vistas basadas en funciones y rutas declaradas en [urls.py](sytem_phone/facturacion/urls.py).
+- **Plantillas HTML** bajo [`Plantillas HTML`](sytem_phone/facturacion/templates/facturacion/), organizadas por vistas (ventas, dashboard, entradas, cuentas por cobrar, etc.).
+- **Templatetags personalizados** en [custom_filters.py](sytem_phone/facturacion/templatetags/custom_filters.py) para formatear montos (`currency_format`) y números (`number_format`) con el estilo contable local.
+- **Recursos estáticos** ubicados en [static](sytem_phone/facturacion/static/) y recolectados en [staticfiles](sytem_phone/facturacion/staticfiles/) para despliegue.
+
+- **Configuración central** en [settings.py](sytem_phone/sytem_phone/settings.py), donde se habilitan middlewares, almacenamiento de estáticos y parámetros regionales (`LANGUAGE_CODE='es-do'`, `TIME_ZONE='America/Santo_Domingo'`).
 - **Seguridad**: autenticación estándar de Django, decoradores `login_required` y un decorador custom `superuser_required` para operaciones sensibles (por ejemplo edición o eliminación de inventario).
 
 ## 4. Modelo de datos principal
 
-Los modelos residen en [facturacion/models.py](facturacion/models.py) y cubren todo el ciclo operativo.
+Los modelos residen en [models.py](sytem_phone/facturacion/models.py) y cubren todo el ciclo operativo.
 
 | Modelo                | Rol principal                                                                                                                                           | Relacionamientos destacados                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -84,6 +86,7 @@ Los modelos residen en [facturacion/models.py](facturacion/models.py) y cubren t
 - `cuentaporcobrar` muestra cartera con filtros por estado, vencimiento y cliente.
 - `detalle_cuenta` expone la ficha completa con historial de pagos.
 - `registrar_pago` crea `PagoCuentaPorCobrar` y genera `ComprobantePago` numerado, con opción de anulación (`anular_comprobante_action`).
+- `aplicar_descuento` valida el saldo real antes de aplicar descuentos porcentuales o fijos, registra el ajuste como pago tipo "descuento" y emite automáticamente un `ComprobantePago` autorizado.
 - `anular_cuenta`, `eliminar_cuenta_pagada` y `rebajar_deuda` gestionan casos especiales (anulaciones, descuentos, ajustes.
 - `cuentasAtrasada` y `generar_pdf_deudas` ofrecen reportes puntuales de morosidad.
 
@@ -96,8 +99,21 @@ Los modelos residen en [facturacion/models.py](facturacion/models.py) y cubren t
 ### 5.9 Reporting y utilitarios
 
 - Reportes PDF: comprobantes, listados de cuentas vencidas y facturas reimpresas (basado en ReportLab).
-- Exportaciones CSV desde funciones auxiliares en `views.py`.
+- Exportaciones CSV desde funciones auxiliares en [views.py](sytem_phone/facturacion/views.py).
 - Consultas especiales (`buscar_productos`, `buscar_productos_similares`, `obtener_productos_disponibles`) facilitan experiencias tipo POS.
+
+### 5.10 Organización de `views.py`
+
+El archivo monolítico [views.py](sytem_phone/facturacion/views.py) agrupa todas las vistas de la app y está dividido por bloques temáticos, cada uno con decoradores y helpers específicos:
+
+- **Autenticación y dashboard**: `index`, `dashboard` y `dashboard_data` manejan login, control de sesión y generación del JSON con métricas diarias/mensuales; `dashboard_data_tradicional` sirve como fallback cuando fallan las consultas avanzadas.
+- **Inventario**: `inventario`, `inventario_datos`, `obtener_productos_disponibles`, `obtener_datos_entrada` y `reavastecer` componen el módulo tipo SPA; `EntradaProducto.save()` coordina con `MovimientoStock` a través de estos endpoints.
+- **Catálogos y proveedores**: funciones como `gestiondesuplidores`, `agregar_proveedor`, `editar_proveedor` y `get_proveedor_data` ofrecen CRUD AJAX protegido por `login_required` y, en algunos casos, `superuser_required`.
+- **Clientes y ventas**: `listadecliente`, `registrodecliente`, `guardar_cliente`, `ventas`, `procesar_venta` y `comprobante_venta` orquestan la experiencia POS, validando entradas con helpers (`safe_decimal`, `safe_int`) y creando `Venta`, `DetalleVenta` y `CuentaPorCobrar` en una sola transacción.
+- **Caja y cierres**: vistas como `iniciocaja`, `cuadre`, `cierredecaja` y `procesar_cierre_caja` aseguran que cada usuario tenga una única caja abierta y registran arqueos y discrepancias.
+- **Cuentas por cobrar**: `cuentaporcobrar`, `detalle_cuenta`, `registrar_pago`, `aplicar_descuento`, `anular_cuenta`, `eliminar_cuenta_pagada`, `rebajar_deuda` y `generar_pdf_deudas` representan el ciclo completo de crédito; destacan los cálculos de saldo real antes de aceptar descuentos o rebajas.
+- **Devoluciones y anulaciones**: `devoluciones`, `buscar_factura_devolucion`, `procesar_devolucion`, `anular`, `anular_factura` y `anular_comprobante_action` garantizan trazabilidad de reversos y restablecen stock cuando corresponde.
+- **Comprobantes y utilitarios**: `lista_comprobantes`, `generar_comprobante_pdf`, `ultimo_comprobante` y `reimprimirfactura` producen PDFs con ReportLab, mientras que helpers como `buscar_productos_similares` facilitan búsquedas flexibles en UI.
 
 ## 6. Flujo operativo end-to-end
 
@@ -115,9 +131,9 @@ Los modelos residen en [facturacion/models.py](facturacion/models.py) y cubren t
 
 ## 7. Integraciones internas y archivos relevantes
 
-- **Rutas**: cubren todo el dominio y se centralizan en [facturacion/urls.py](facturacion/urls.py).
-- **Plantillas**: cada feature tiene su HTML (por ejemplo `facturacion/templates/facturacion/ventas.html`, `dashboard.html`, `cuentaporcobrar.html`).
-- **Assets**: imágenes y scripts en `facturacion/static/`; archivos compilados en `staticfiles/` listos para WhiteNoise.
+- **Rutas**: cubren todo el dominio y se centralizan en [urls.py](sytem_phone/facturacion/urls.py).
+- **Plantillas**: cada feature tiene su HTML (por ejemplo [ventas.html](sytem_phone/facturacion/templates/facturacion/ventas.html), [dashboard.html](sytem_phone/facturacion/templates/facturacion/dashboard.html), [cuentaporcobrar.html](sytem_phone/facturacion/templates/facturacion/cuentaporcobrar.html)).
+- **Assets**: imágenes y scripts en [facturacion/static/](sytem_phone/facturacion/static/); archivos compilados en [staticfiles/](staticfiles/) listos para WhiteNoise.
 
 ## 8. Seguridad y cumplimiento
 
@@ -129,17 +145,15 @@ Los modelos residen en [facturacion/models.py](facturacion/models.py) y cubren t
 ## 9. Despliegue y configuración
 
 1. Crear archivo `.env` con `SECRET_KEY`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` y `DEBUG`.
-2. Instalar dependencias (`pip install -r requirements.txt`).
-3. Ejecutar migraciones (`python manage.py migrate`).
-4. Crear superusuario (`python manage.py createsuperuser`).
-5. Colectar estáticos (`python manage.py collectstatic`).
-6. Configurar servicio WSGI (Gunicorn/uwsgi) apuntando a `sytem_phone.wsgi` y habilitar WhiteNoise para estáticos.
+2. Instalar dependencias ([requirements.txt](sytem_phone/requirements.txt)`).
+3. Ejecutar migraciones (`python [manage.py](sytem_phone/manage.py) migrate`).
+4. Crear superusuario (`python [manage.py](sytem_phone/manage.py) createsuperuser`).
+5. Colectar estáticos (`python [manage.py](sytem_phone/manage.py) collectstatic`).
+6. Configurar servicio WSGI (Gunicorn/uwsgi) apuntando a [wsgi.py](sytem_phone/sytem_phone/wsgi.py) y habilitar WhiteNoise para estáticos.
 
 ## 10. Métricas y mejoras futuras sugeridas
 
 - **KPI adicionales**: rotación de inventario, margen por marca, aging de cuentas.<br>
 - **Alertas proactivas**: notificaciones por correo o WhatsApp para cuentas vencidas o stock crítico.
 - **API pública**: encapsular endpoints clave en una API REST (Django REST Framework) para integraciones externas.
-- **Pruebas automatizadas**: ampliar `facturacion/tests.py` con casos de venta, rebaja de deuda y devoluciones.
-
-Esta documentación resume la estructura actual del proyecto y sirve como base para incorporación de nuevos desarrolladores, auditorías internas y planificación de roadmap.
+- **Pruebas automatizadas**: ampliar [tests.py](sytem_phone/facturacion/tests.py) con casos de venta, rebaja de deuda y devoluciones.
