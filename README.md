@@ -1,4 +1,4 @@
-![Logotipo de la aplicación](../facturacion/static/image/logo.png)
+![Logotipo de la aplicación](sytem_phone/facturacion/static/image/logo.png)
 
 # Documentacion Técnica del Sistema de Facturación y Gestión
 
