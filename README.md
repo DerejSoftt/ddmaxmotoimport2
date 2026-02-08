@@ -2,13 +2,9 @@
 
 # Documentación Técnica del Sistema de Facturación y Gestión
 
----
-
 ## 1. Introducción
 
 El proyecto **DerejMotiun** es una plataforma integral para la operación diaria de una casa comercial de motocicletas y dispositivos móviles. Centraliza la gestión de inventario, ciclo de ventas, control de caja, créditos, cobranzas, devoluciones y generación de comprobantes. Está construido sobre **Django 5.2** con un backend basado en **MySQL** y una única app denominada `facturacion`, que concentra modelos, vistas, plantillas y recursos estáticos propios del negocio.
-
----
 
 ## 2. Tecnologías y dependencias clave
 
@@ -19,18 +15,7 @@ El proyecto **DerejMotiun** es una plataforma integral para la operación diaria
 - **WhiteNoise** para servir archivos estáticos en despliegues productivos.
 - **python-dotenv** (`load_dotenv`) para inyectar secretos y credenciales sin exponerlos en el repositorio.
 
----
-
 ## 3. Arquitectura general
-
-- **App única (`facturacion`)**: concentra los modelos de dominio, vistas basadas en funciones y rutas declaradas en [urls.py](sytem_phone/facturacion/urls.py).
-- **Plantillas HTML** bajo [`templates/facturacion`](sytem_phone/facturacion/templates/facturacion/), organizadas por vistas (ventas, dashboard, entradas, cuentas por cobrar, etc.).
-- **Templatetags personalizados** en [custom_filters.py](sytem_phone/facturacion/templatetags/custom_filters.py) para formatear montos y números con el estilo contable local.
-- **Recursos estáticos** ubicados en [static](sytem_phone/facturacion/static/) y recolectados en [staticfiles](sytem_phone/facturacion/staticfiles/) para despliegue.
-- **Configuración central** en [settings.py](sytem_phone/sytem_phone/settings.py), donde se habilitan middlewares, almacenamiento de estáticos y parámetros regionales (`LANGUAGE_CODE='es-do'`, `TIME_ZONE='America/Santo_Domingo'`).
-- **Seguridad**: autenticación estándar de Django, decoradores `login_required` y un decorador custom `superuser_required` para operaciones sensibles (por ejemplo edición o eliminación de inventario).
-
-## Estructura de Carpetas
 
 ```
 sytem_phone/
@@ -93,11 +78,7 @@ sytem_phone/
 │   └── ventas.html
 ```
 
----
-
 ## 4. Modelo de datos principal
-
-Los modelos residen en [models.py](sytem_phone/facturacion/models.py) y cubren todo el ciclo operativo.
 
 | Modelo                | Rol principal                                                                                                  | Relacionamientos destacados                                                           |
 | --------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -113,8 +94,6 @@ Los modelos residen en [models.py](sytem_phone/facturacion/models.py) y cubren t
 | `MovimientoStock`     | Auditoría de entradas, salidas, devoluciones y ajustes.                                                        | FK a `EntradaProducto` y `User`.                                                      |
 | `Devolucion`          | Registra devoluciones vinculadas a una `Venta` y reinstala stock si aplica.                                    | FK a `EntradaProducto`.                                                               |
 | `ComprobantePago`     | Emite comprobantes numerados para pagos o descuentos.                                                          | 1:1 con `PagoCuentaPorCobrar`.                                                        |
-
----
 
 ## 5. Módulos funcionales
 
@@ -137,31 +116,24 @@ Los modelos residen en [models.py](sytem_phone/facturacion/models.py) y cubren t
 
 - Registro, gestión y validación de crédito. Endpoints REST para integraciones.
 
-### 5.5 Ventas y caja
+### 5.5 Pedidos y facturación
 
 - Formulario de ventas, validación de totales, descuentos, tipos de venta y facturación.
 - Cada `DetalleVenta` descuenta stock y registra movimientos. El view final retorna respuesta JSON con desglose de totales.
 - Cierre de caja, arqueos diarios y consolidación de datos.
 
-### 5.6 Cuentas por cobrar y pagos
-
-- Cartera con filtros por estado, vencimiento y cliente.
-- Registro de pagos, generación de comprobantes, aplicación de descuentos y rebajas.
-
-### 5.7 Devoluciones y anulaciones
+### 5.6 Devoluciones y anulaciones
 
 - Control de devoluciones, restauración de stock y trazabilidad.
 - Anulación de ventas y comprobantes.
 
-### 5.8 Reporting y utilitarios
+### 5.7 Reporting y utilitarios
 
 - Reportes PDF, exportaciones CSV, consultas tipo POS.
 
-### 5.9 Organización de views.py
+### 5.8 Organización de views.py
 
 - Bloques temáticos: autenticación, dashboard, inventario, clientes, ventas, caja, cuentas por cobrar, devoluciones, utilitarios.
-
----
 
 ## 6. Flujo operativo end-to-end
 
@@ -172,15 +144,11 @@ Los modelos residen en [models.py](sytem_phone/facturacion/models.py) y cubren t
 5. Devoluciones/anulaciones: reversión de ventas o productos, restauración de inventario.
 6. Cierre: consolidación de datos y arqueos diarios.
 
----
-
 ## 7. Integraciones internas y archivos relevantes
 
 - Rutas centralizadas en [urls.py](sytem_phone/facturacion/urls.py).
 - Plantillas por funcionalidad en [templates/facturacion](sytem_phone/facturacion/templates/facturacion/).
 - Assets en [facturacion/static/](sytem_phone/facturacion/static/) y compilados en [staticfiles/](sytem_phone/facturacion/staticfiles/).
-
----
 
 ## 8. Seguridad y cumplimiento
 
@@ -189,9 +157,7 @@ Los modelos residen en [models.py](sytem_phone/facturacion/models.py) y cubren t
 - Validaciones server-side para montos, stock y crédito.
 - Soft delete en modelos críticos.
 
----
-
-## 9. Despliegue, instalación y configuración
+## 9. Despliegue y configuración
 
 1. **Requisitos:**
    - Python 3.10+
@@ -232,20 +198,95 @@ Los modelos residen en [models.py](sytem_phone/facturacion/models.py) y cubren t
    python manage.py createsuperuser
    ```
 
-6. **Colectar estáticos:**
-
-   ```bash
-   python manage.py collectstatic
-   ```
-
-7. **Ejecución del servidor:**
-
+6. **Ejecución del servidor:**
    ```bash
    python manage.py runserver
    ```
 
-8. **Despliegue:**
-   Configura el servicio WSGI (Gunicorn/uwsgi) apuntando a `sytem_phone/sytem_phone/wsgi.py` y habilita WhiteNoise para archivos estáticos.
+## 10. Métricas y mejoras futuras sugeridas
+
+- **KPI adicionales**: rotación de inventario, margen por marca, aging de cuentas.
+- **Alertas proactivas**: notificaciones por correo o WhatsApp para cuentas vencidas o stock crítico.
+- **API pública**: encapsular endpoints clave en una API REST (Django REST Framework) para integraciones externas.
+- **Pruebas automatizadas**: ampliar [tests.py](sytem_phone/facturacion/tests.py) con casos de venta, rebaja de deuda y devoluciones.
+
+---
+
+## Modelos Clave
+
+- **Proveedor:** Catálogo de suplidores con datos de contacto, país y términos de pago.
+- **EntradaProducto:** Inventario granular (IMEI, marca, color, estado, costos, margen).
+- **Cliente:** Registro de clientes con límite de crédito y datos de contacto.
+- **Venta:** Encapsula cada transacción de venta, soportando contado, crédito y financiamiento.
+- **DetalleVenta:** Desglose de productos vendidos, cantidades y precios unitarios.
+- **CuentaPorCobrar:** Control de créditos, estados y cálculo de saldo.
+- **PagoCuentaPorCobrar:** Registro de abonos y observaciones.
+- **RebajaDeuda:** Bitácora de ajustes manuales al saldo de una cuenta.
+- **Caja y CierreCaja:** Control de apertura/cierre de caja.
+- **MovimientoStock:** Auditoría de entradas, salidas, devoluciones y ajustes.
+- **Devolucion:** Registra devoluciones vinculadas a una venta.
+- **ComprobantePago:** Emite comprobantes numerados para pagos o descuentos.
+
+## Templates
+
+La aplicación cuenta con templates personalizados para cada funcionalidad, con diseño moderno y sidebar fijo. Ejemplos:
+
+- `facturacion.html`: Panel de facturación.
+- `dashboard.html`: Dashboard de métricas.
+- `entrada.html`: Registro de entradas de productos.
+- `cuentaporcobrar.html`: Gestión de cuentas por cobrar.
+- `cuentasAtrasada.html`: Reporte de cuentas vencidas.
+- `cierredecaja.html`: Cierre de caja.
+- `devoluciones.html`: Devoluciones y anulaciones.
+- `comprobante_venta.html`: Comprobante de venta.
+- `cuadre.html`: Arqueo de caja.
+- `ventas.html`: Visualización de ventas.
+- `listadecliente.html`: Listado de clientes.
+- `registrodecliente.html`: Registro de clientes.
+- `roles.html`: Gestión de usuarios y permisos.
+- `anular.html`: Anulación de ventas.
+- `imprimir_termica.html`: Factura para impresión térmica.
+- `ticket_chef.html`: Ticket para cocina.
+- `salida.html`: Registro de salidas de productos.
+- `historial_pedidos.html`: Historial de pedidos pagados.
+
+---
+
+## Instalación
+
+1. **Requisitos:**
+   - Python 3.10+
+   - Django 5.2
+   - MySQL
+   - Paquetes adicionales: `mysqlclient`, `pillow`, `reportlab`, `asgiref`, `sqlparse`, `tzdata`, `charset-normalizer`, `pandas`.
+
+2. **Instalación de dependencias:**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configuración de base de datos:**
+   - Edita las variables de entorno en `.env` para definir `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`.
+   - El sistema utiliza MySQL con configuración estricta y soporte para zona horaria.
+
+4. **Migraciones:**
+
+   ```bash
+   python manage.py makemigrations
+   python manage.py migrate
+   ```
+
+5. **Creación de superusuario:**
+
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+6. **Ejecución del servidor:**
+   ```bash
+   python manage.py runserver
+   ```
 
 ---
 
@@ -299,5 +340,3 @@ Ver archivo [requirements.txt](sytem_phone/requirements.txt) para la lista compl
 Para soporte, contactar al desarrollador o consultar la documentación de Django.
 
 ---
-
-
