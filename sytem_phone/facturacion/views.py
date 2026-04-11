@@ -3134,6 +3134,36 @@ def cuentaporcobrar(request):
         # Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
         puede_eliminar = cuenta.estado == 'pagada'
 
+        # Calcular cuota sugerida para registrar pago
+        cuota_mensual = 0.0
+        plazo_meses = 0
+        if cuenta.venta:
+            try:
+                plazo_meses = int(getattr(cuenta.venta, 'plazo_meses', 0) or 0)
+            except (ValueError, TypeError):
+                plazo_meses = 0
+
+            try:
+                cuota_mensual = float(getattr(cuenta.venta, 'cuota_mensual', 0) or 0)
+            except (ValueError, TypeError):
+                cuota_mensual = 0.0
+
+        if cuota_mensual <= 0:
+            if plazo_meses > 0:
+                cuota_mensual = float(Decimal(str(monto_total_actual)) / Decimal(plazo_meses))
+            else:
+                cuota_mensual = saldo_pendiente_actual
+
+        cuota_sugerida_pago = min(cuota_mensual, saldo_pendiente_actual) if saldo_pendiente_actual > 0 else 0.0
+
+        # Calcular cuotas pagadas y pendientes para el selector de pagos por cuotas
+        cuotas_pagadas = 0
+        cuotas_pendientes = 0
+        if plazo_meses > 0 and cuota_mensual > 0:
+            cuotas_pagadas = int(Decimal(str(monto_pagado_actual)) // Decimal(str(cuota_mensual)))
+            cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
+            cuotas_pendientes = max(0, plazo_meses - cuotas_pagadas)
+
         cuentas_data.append({
             'id': cuenta.id,
             'invoiceNumber': invoice_number,
@@ -3146,6 +3176,11 @@ def cuentaporcobrar(request):
             'totalAmount': monto_total_actual,
             'paidAmount': monto_pagado_actual,
             'pendingBalance': saldo_pendiente_actual,  # Saldo pendiente ACTUAL
+            'installmentAmount': cuota_mensual,
+            'suggestedPaymentAmount': cuota_sugerida_pago,
+            'plazoMeses': plazo_meses,
+            'paidInstallments': cuotas_pagadas,
+            'pendingInstallments': cuotas_pendientes,
             'status': cuenta.estado,
             'observations': cuenta.observaciones or '',
             'puede_eliminar': puede_eliminar
@@ -5471,6 +5506,8 @@ def cuentasAtrasada(request):
 
             # Obtener información sobre pagos realizados
             pagos = cuenta.pagos.filter(anulado=False).order_by('fecha_pago')
+            total_pagos_registrados = pagos.aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+            monto_inicial_venta = getattr(venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00')
 
             # Calcular el monto total con interés
             try:
@@ -5478,8 +5515,18 @@ def cuentasAtrasada(request):
             except:
                 monto_total = cuenta.monto_total
 
+            monto_total = Decimal(monto_total or 0)
+
+            # Calcular monto pagado real con respaldo:
+            # 1) monto_pagado de la cuenta
+            # 2) pagos registrados + monto inicial de la venta
+            monto_pagado_total = max(
+                Decimal(cuenta.monto_pagado or 0),
+                Decimal(total_pagos_registrados) + Decimal(monto_inicial_venta)
+            )
+
             # Calcular el saldo pendiente
-            saldo_pendiente = float(monto_total - cuenta.monto_pagado)
+            saldo_pendiente = monto_total - monto_pagado_total
 
             # Si el saldo es 0, no está atrasado
             if saldo_pendiente <= 0:
@@ -5498,11 +5545,11 @@ def cuentasAtrasada(request):
                     plazo_meses = 1
 
             # Calcular el monto por cuota
-            monto_por_cuota = float(monto_total) / plazo_meses
+            monto_por_cuota = monto_total / Decimal(plazo_meses)
 
             # Determinar cuántas cuotas se han pagado
-            monto_pagado_total = float(cuenta.monto_pagado)
-            cuotas_pagadas = int(monto_pagado_total // monto_por_cuota)
+            cuotas_pagadas = int(monto_pagado_total // monto_por_cuota) if monto_por_cuota > 0 else 0
+            cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
 
             # Calcular la fecha de vencimiento de la próxima cuota
             proxima_cuota_numero = cuotas_pagadas + 1
@@ -5537,11 +5584,15 @@ def cuentasAtrasada(request):
 
             # Obtener teléfono del cliente de manera segura
             telefono_cliente = 'No disponible'
-            if hasattr(cliente, 'telefono'):
+            if hasattr(cliente, 'primary_phone') and cliente.primary_phone:
+                telefono_cliente = cliente.primary_phone
+            elif hasattr(cliente, 'secondary_phone') and cliente.secondary_phone:
+                telefono_cliente = cliente.secondary_phone
+            elif hasattr(cliente, 'telefono') and cliente.telefono:
                 telefono_cliente = cliente.telefono
-            elif hasattr(cliente, 'phone'):
+            elif hasattr(cliente, 'phone') and cliente.phone:
                 telefono_cliente = cliente.phone
-            elif hasattr(cliente, 'phone_number'):
+            elif hasattr(cliente, 'phone_number') and cliente.phone_number:
                 telefono_cliente = cliente.phone_number
 
             # Obtener nombre del cliente de manera segura
@@ -5556,15 +5607,28 @@ def cuentasAtrasada(request):
             # Obtener número de factura
             numero_factura = getattr(venta, 'numero_factura', 'N/A')
 
-            # Calcular el monto atrasado (monto de la cuota vencida)
-            monto_atrasado = min(monto_por_cuota, saldo_pendiente)
-
             # Determinar estado de contacto
             contact_status = 'no_contacted'
             if hasattr(cuenta, 'contact_status'):
                 contact_status = cuenta.contact_status
             elif hasattr(cuenta, 'contacted'):
                 contact_status = 'contacted' if cuenta.contacted else 'no_contacted'
+
+            # Calcular cuántas cuotas están vencidas a la fecha actual
+            cuotas_atrasadas = 0
+            for numero_cuota in range(proxima_cuota_numero, plazo_meses + 1):
+                fecha_cuota = calcular_fecha_cuota(fecha_factura, numero_cuota)
+                if fecha_cuota < hoy:
+                    cuotas_atrasadas += 1
+                else:
+                    break
+
+            # Calcular el monto total atrasado según cuotas vencidas.
+            # Se limita al saldo pendiente para evitar sobrepasar lo adeudado real.
+            monto_atrasado = min(
+                saldo_pendiente,
+                monto_por_cuota * Decimal(cuotas_atrasadas)
+            )
 
             # Preparar el objeto de datos
             cuenta_data = {
@@ -5574,7 +5638,7 @@ def cuentasAtrasada(request):
                 'invoiceNumber': numero_factura,
                 'dueDate': fecha_vencimiento.strftime('%Y-%m-%d'),
                 'originalAmount': float(monto_total),
-                'overdueAmount': monto_atrasado,
+                'overdueAmount': float(monto_atrasado),
                 'daysOverdue': dias_atraso,
                 'status': status,
                 'contactStatus': contact_status,
@@ -5582,7 +5646,8 @@ def cuentasAtrasada(request):
                 'plazoMeses': plazo_meses,
                 'cuotaActual': proxima_cuota_numero,
                 'totalCuotas': plazo_meses,
-                'montoPorCuota': monto_por_cuota,
+                'overdueInstallments': cuotas_atrasadas,
+                'montoPorCuota': float(monto_por_cuota),
                 'cuotasPagadas': cuotas_pagadas
             }
 

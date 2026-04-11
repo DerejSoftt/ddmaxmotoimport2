@@ -1309,6 +1309,12 @@
           <form id="paymentForm">
             <input type="hidden" id="paymentAccountId" />
             <div class="payment-form-group">
+              <label for="paymentInstallmentsSelect">Cantidad de Cuotas a Pagar *</label>
+              <select id="paymentInstallmentsSelect" class="filter-input select" required>
+                <option value="">Seleccione cuotas</option>
+              </select>
+            </div>
+            <div class="payment-form-group">
               <label for="paymentAmountInput">Monto a Pagar *</label>
               <input
                 type="number"
@@ -1317,6 +1323,7 @@
                 step="0.01"
                 min="0"
                 required
+                readonly
               />
               <div class="error-message" id="paymentAmountError"></div>
             </div>
@@ -1629,6 +1636,74 @@
           anulada: "Anulada",
         };
         return statusNames[status] || status;
+      }
+
+      function formatMoney(amount) {
+        return Number(amount || 0).toLocaleString("es-DO", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      }
+
+      function populateInstallmentsSelect(account, pendingBalance) {
+        const select = document.getElementById("paymentInstallmentsSelect");
+        if (!select) return { selectedAmount: pendingBalance, selectedCount: 1 };
+
+        select.innerHTML = "";
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Seleccione cuotas";
+        select.appendChild(placeholder);
+
+        const installmentAmount = Math.abs(parseFloat(account.installmentAmount) || 0);
+        let pendingInstallments = parseInt(account.pendingInstallments || 0, 10);
+
+        if (pendingInstallments <= 0 && installmentAmount > 0) {
+          pendingInstallments = Math.ceil(pendingBalance / installmentAmount);
+        }
+
+        if (pendingInstallments <= 0 || installmentAmount <= 0) {
+          const singleOption = document.createElement("option");
+          singleOption.value = pendingBalance.toFixed(2);
+          singleOption.textContent = `Pago total - RD$ ${formatMoney(pendingBalance)}`;
+          singleOption.dataset.installments = "1";
+          select.appendChild(singleOption);
+          select.value = singleOption.value;
+          return { selectedAmount: pendingBalance, selectedCount: 1 };
+        }
+
+        for (let i = 1; i <= pendingInstallments; i++) {
+          const amountForInstallments = Math.min(pendingBalance, installmentAmount * i);
+          const option = document.createElement("option");
+          option.value = amountForInstallments.toFixed(2);
+          option.dataset.installments = String(i);
+          option.textContent = `${i} cuota${i > 1 ? "s" : ""} - RD$ ${formatMoney(amountForInstallments)}`;
+          select.appendChild(option);
+        }
+
+        if (select.options.length > 1) {
+          select.selectedIndex = 1;
+        }
+
+        const selectedOption = select.options[select.selectedIndex];
+        return {
+          selectedAmount: Number(selectedOption?.value || pendingBalance),
+          selectedCount: Number(selectedOption?.dataset.installments || 1),
+        };
+      }
+
+      function syncAmountWithSelectedInstallments() {
+        const select = document.getElementById("paymentInstallmentsSelect");
+        const amountInput = document.getElementById("paymentAmountInput");
+        if (!select || !amountInput) return;
+
+        const selectedAmount = Number(select.value || 0);
+        if (selectedAmount > 0) {
+          amountInput.value = selectedAmount.toFixed(2);
+          amountInput.max = selectedAmount.toFixed(2);
+          document.getElementById("paymentAmountError").style.display = "none";
+        }
       }
 
       // Función para obtener el token CSRF
@@ -2334,6 +2409,14 @@
         // Calcular el saldo pendiente (siempre positivo)
         const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
 
+        // Construir opciones de cuotas y seleccionar por defecto 1 cuota
+        const selectedInstallment = populateInstallmentsSelect(
+          account,
+          currentPendingBalance,
+        );
+        const montoDefaultPago = selectedInstallment.selectedAmount;
+        const cuotasSeleccionadas = selectedInstallment.selectedCount;
+
         // Verificar que haya saldo pendiente
         if (currentPendingBalance <= 0) {
           Swal.fire({
@@ -2350,11 +2433,11 @@
           `RD$ ${currentPendingBalance.toLocaleString("es-DO")}`;
         document.getElementById("paymentAccountId").value = id;
 
-        // Prellenar con el saldo pendiente completo
+        // Prellenar con la cuota sugerida (en lugar del saldo total pendiente)
         document.getElementById("paymentAmountInput").value =
-          currentPendingBalance.toFixed(2);
+          montoDefaultPago.toFixed(2);
         document.getElementById("paymentAmountInput").max =
-          currentPendingBalance.toFixed(2);
+          montoDefaultPago.toFixed(2);
 
         document.getElementById("paymentAmountError").style.display = "none";
 
@@ -2378,6 +2461,8 @@
         <p style="margin: 5px 0;"><strong>Factura:</strong> ${account.invoiceNumber}</p>
         <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${montoTotal.toLocaleString("es-DO")}</p>
         <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${montoPagado.toLocaleString("es-DO")}</p>
+        <p style="margin: 5px 0;"><strong>Cuotas Seleccionadas:</strong> ${cuotasSeleccionadas}</p>
+        <p style="margin: 5px 0;"><strong>Monto por Cuotas:</strong> RD$ ${montoDefaultPago.toLocaleString("es-DO")}</p>
         <p style="margin: 0;"><strong>Saldo Pendiente:</strong> RD$ ${currentPendingBalance.toLocaleString("es-DO")}</p>
     `;
 
@@ -2455,9 +2540,17 @@
         // Calcular saldo pendiente actual
         const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
 
-        if (amount > currentPendingBalance) {
+        const selectedInstallmentsAmount = Number(
+          document.getElementById("paymentInstallmentsSelect")?.value || 0,
+        );
+        const maxAllowedAmount =
+          selectedInstallmentsAmount > 0
+            ? Math.min(selectedInstallmentsAmount, currentPendingBalance)
+            : currentPendingBalance;
+
+        if (amount > maxAllowedAmount) {
           document.getElementById("paymentAmountError").textContent =
-            `El monto excede el saldo pendiente de RD$ ${currentPendingBalance.toLocaleString("es-DO")}`;
+            `El monto excede el monto seleccionado por cuotas: RD$ ${maxAllowedAmount.toLocaleString("es-DO")}`;
           document.getElementById("paymentAmountError").style.display = "block";
           return;
         }
@@ -3588,13 +3681,20 @@
               // CORRECCIÓN: Usar valores absolutos
               const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
               const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
-              const maxAmount = Math.max(0, montoTotal - montoPagado);
+              const saldoPendiente = Math.max(0, montoTotal - montoPagado);
+              const selectedInstallmentsAmount = Number(
+                document.getElementById("paymentInstallmentsSelect")?.value || 0,
+              );
+              const maxAmount =
+                selectedInstallmentsAmount > 0
+                  ? Math.min(selectedInstallmentsAmount, saldoPendiente)
+                  : saldoPendiente;
 
               const errorElement =
                 document.getElementById("paymentAmountError");
 
               if (amount > maxAmount) {
-                errorElement.textContent = `El monto no puede exceder RD$ ${maxAmount.toLocaleString("es-DO")}`;
+                errorElement.textContent = `El monto no puede exceder el monto por cuotas: RD$ ${maxAmount.toLocaleString("es-DO")}`;
                 errorElement.style.display = "block";
               } else if (amount <= 0) {
                 errorElement.textContent = "El monto debe ser mayor a 0";
@@ -3604,6 +3704,16 @@
               }
             }
           });
+        }
+
+        const paymentInstallmentsSelect = document.getElementById(
+          "paymentInstallmentsSelect",
+        );
+        if (paymentInstallmentsSelect) {
+          paymentInstallmentsSelect.addEventListener(
+            "change",
+            syncAmountWithSelectedInstallments,
+          );
         }
 
         // Agregar validación en tiempo real al campo de descuento

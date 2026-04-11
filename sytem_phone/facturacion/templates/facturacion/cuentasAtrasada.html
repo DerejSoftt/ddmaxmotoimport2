@@ -822,6 +822,18 @@
                     <span class="detail-value" id="detailDaysOverdue">-</span>
                 </div>
                 <div class="detail-item">
+                    <span class="detail-label">Cuotas Totales (Plazo):</span>
+                    <span class="detail-value" id="detailTotalInstallments">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Cuotas Atrasadas:</span>
+                    <span class="detail-value" id="detailOverdueInstallments">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Cuotas Pagadas:</span>
+                    <span class="detail-value" id="detailPaidInstallments">-</span>
+                </div>
+                <div class="detail-item">
                     <span class="detail-label">Estado de Contacto:</span>
                     <span class="detail-value" id="detailContactStatus">-</span>
                 </div>
@@ -950,6 +962,13 @@
             });
         }
 
+        function formatInstallmentSummary(count, amountPerInstallment) {
+            const installmentCount = Number(count) || 0;
+            const installmentAmount = Number(amountPerInstallment) || 0;
+            const totalAmount = installmentCount * installmentAmount;
+            return `${installmentCount} cuotas - RD$ ${formatCurrency(totalAmount)}`;
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -1012,6 +1031,9 @@
                 document.getElementById('detailOverdueAmount').textContent = `RD$ ${formatCurrency(item.overdueAmount || 0)}`;
                 document.getElementById('detailDueDate').textContent = item.dueDate ? new Date(item.dueDate).toLocaleDateString('es-DO') : 'N/A';
                 document.getElementById('detailDaysOverdue').textContent = `${item.daysOverdue || 0} días`;
+                document.getElementById('detailTotalInstallments').textContent = formatInstallmentSummary(item.totalCuotas, item.montoPorCuota);
+                document.getElementById('detailOverdueInstallments').textContent = formatInstallmentSummary(item.overdueInstallments, item.montoPorCuota);
+                document.getElementById('detailPaidInstallments').textContent = formatInstallmentSummary(item.cuotasPagadas, item.montoPorCuota);
                 document.getElementById('detailContactStatus').textContent = item.contactStatus === 'contacted' ? 'Contactado' : 'No Contactado';
 
                 document.getElementById('detailsModal').classList.add('active');
