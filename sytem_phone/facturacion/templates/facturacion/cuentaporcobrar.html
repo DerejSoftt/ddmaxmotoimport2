@@ -1246,6 +1246,18 @@
             <span class="detail-value" id="detailDueDate"></span>
           </div>
           <div class="detail-item">
+            <span class="detail-label">Cuotas Totales:</span>
+            <span class="detail-value" id="detailTotalInstallments"></span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Cuotas Atrasadas:</span>
+            <span class="detail-value" id="detailOverdueInstallments"></span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Cuotas Pagadas:</span>
+            <span class="detail-value" id="detailPaidInstallments"></span>
+          </div>
+          <div class="detail-item">
             <span class="detail-label">Monto Total Original:</span>
             <span class="detail-value currency" id="detailTotalAmount"></span>
           </div>
@@ -1316,12 +1328,11 @@
             </div>
             <div class="payment-form-group">
               <label for="paymentAmountInput">Monto a Pagar *</label>
+              <input type="hidden" id="paymentAmountValue" />
               <input
-                type="number"
+                type="text"
                 id="paymentAmountInput"
                 class="filter-input"
-                step="0.01"
-                min="0"
                 required
                 readonly
               />
@@ -1645,6 +1656,27 @@
         });
       }
 
+      function formatInstallmentSummary(count, amount) {
+        const cuotas = Number(count || 0);
+        const monto = Number(amount || 0);
+        return `${cuotas} cuota${cuotas === 1 ? "" : "s"} - RD$ ${formatMoney(monto)}`;
+      }
+
+      function getAccountAmounts(account) {
+        const totalAmount = Math.abs(parseFloat(account?.totalAmount) || 0);
+        const paidAmount = Math.abs(parseFloat(account?.paidAmount) || 0);
+        const backendPending = parseFloat(account?.pendingBalance);
+        const pendingBalance = Number.isFinite(backendPending)
+          ? Math.max(0, backendPending)
+          : Math.max(0, totalAmount - paidAmount);
+
+        return {
+          totalAmount,
+          paidAmount,
+          pendingBalance,
+        };
+      }
+
       function populateInstallmentsSelect(account, pendingBalance) {
         const select = document.getElementById("paymentInstallmentsSelect");
         if (!select) return { selectedAmount: pendingBalance, selectedCount: 1 };
@@ -1696,12 +1728,15 @@
       function syncAmountWithSelectedInstallments() {
         const select = document.getElementById("paymentInstallmentsSelect");
         const amountInput = document.getElementById("paymentAmountInput");
+        const amountValueInput = document.getElementById("paymentAmountValue");
         if (!select || !amountInput) return;
 
         const selectedAmount = Number(select.value || 0);
         if (selectedAmount > 0) {
-          amountInput.value = selectedAmount.toFixed(2);
-          amountInput.max = selectedAmount.toFixed(2);
+          amountInput.value = `RD$ ${formatMoney(selectedAmount)}`;
+          if (amountValueInput) {
+            amountValueInput.value = selectedAmount.toFixed(2);
+          }
           document.getElementById("paymentAmountError").style.display = "none";
         }
       }
@@ -1748,23 +1783,11 @@
             };
           }
 
-          // CORRECCIÓN: Usar valores absolutos y asegurar positivos
-          const montoTotalCuenta = Math.abs(
-            parseFloat(account.totalAmount) || 0,
-          );
-          const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
-
-          // Calcular saldo pendiente (siempre positivo)
-          let pendingBalance = montoTotalCuenta - montoPagado;
-          if (pendingBalance < 0) {
-            console.warn("Saldo pendiente negativo detectado y corregido:", {
-              cuentaId: account.id,
-              total: montoTotalCuenta,
-              pagado: montoPagado,
-              pendiente: pendingBalance,
-            });
-            pendingBalance = 0;
-          }
+          const {
+            totalAmount: montoTotalCuenta,
+            paidAmount: montoPagado,
+            pendingBalance,
+          } = getAccountAmounts(account);
 
           // Buscar si ya existe esta factura para preservar el estado de expansión
           const existingInvoice = clientsMap[clientKey].invoices.find(
@@ -1827,13 +1850,8 @@
             return;
           }
 
-          // CORRECCIÓN: Usar valores absolutos y asegurar positivos
-          const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
-          const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
-
-          // Calcular saldo pendiente (siempre positivo)
-          let pendingBalance = montoTotal - montoPagado;
-          if (pendingBalance < 0) pendingBalance = 0;
+          const { totalAmount: montoTotal, pendingBalance } =
+            getAccountAmounts(account);
 
           totalReceivableAmount += pendingBalance;
 
@@ -2290,13 +2308,11 @@
           return;
         }
 
-        // CORRECCIÓN: Usar valores absolutos
-        const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
-        const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
-
-        // Calcular saldo pendiente (siempre positivo)
-        let pendingBalance = montoTotal - montoPagado;
-        if (pendingBalance < 0) pendingBalance = 0;
+        const {
+          totalAmount: montoTotal,
+          paidAmount: montoPagado,
+          pendingBalance,
+        } = getAccountAmounts(account);
 
         // Llenar modal de detalles
         document.getElementById("detailId").textContent = account.id;
@@ -2322,6 +2338,28 @@
         document.getElementById("detailDueDate").textContent = formatDate(
           account.dueDate,
         );
+
+        const totalInstallments = Number(account.plazoMeses || 0);
+        const paidInstallments = Number(account.paidInstallments || 0);
+        const overdueInstallments = Number(account.overdueInstallments || 0);
+        const installmentAmount = Number(account.installmentAmount || 0);
+
+        const totalInstallmentsAmount =
+          totalInstallments > 0
+            ? Math.min(montoTotal, installmentAmount * totalInstallments)
+            : 0;
+        const paidInstallmentsAmount =
+          Number(account.paidInstallmentsAmount || paidInstallments * installmentAmount);
+        const overdueInstallmentsAmount =
+          Number(account.overdueInstallmentsAmount || overdueInstallments * installmentAmount);
+
+        document.getElementById("detailTotalInstallments").textContent =
+          formatInstallmentSummary(totalInstallments, totalInstallmentsAmount);
+        document.getElementById("detailOverdueInstallments").textContent =
+          formatInstallmentSummary(overdueInstallments, overdueInstallmentsAmount);
+        document.getElementById("detailPaidInstallments").textContent =
+          formatInstallmentSummary(paidInstallments, paidInstallmentsAmount);
+
         document.getElementById("detailTotalAmount").textContent =
           `RD$ ${montoTotal.toLocaleString("es-DO")}`;
         document.getElementById("detailPaidAmount").textContent =
@@ -2402,12 +2440,11 @@
           return;
         }
 
-        // CORRECCIÓN: Usar valores absolutos
-        const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
-        const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
-
-        // Calcular el saldo pendiente (siempre positivo)
-        const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
+        const {
+          totalAmount: montoTotal,
+          paidAmount: montoPagado,
+          pendingBalance: currentPendingBalance,
+        } = getAccountAmounts(account);
 
         // Construir opciones de cuotas y seleccionar por defecto 1 cuota
         const selectedInstallment = populateInstallmentsSelect(
@@ -2435,9 +2472,11 @@
 
         // Prellenar con la cuota sugerida (en lugar del saldo total pendiente)
         document.getElementById("paymentAmountInput").value =
-          montoDefaultPago.toFixed(2);
-        document.getElementById("paymentAmountInput").max =
-          montoDefaultPago.toFixed(2);
+          `RD$ ${formatMoney(montoDefaultPago)}`;
+        const paymentAmountValue = document.getElementById("paymentAmountValue");
+        if (paymentAmountValue) {
+          paymentAmountValue.value = montoDefaultPago.toFixed(2);
+        }
 
         document.getElementById("paymentAmountError").style.display = "none";
 
@@ -2490,9 +2529,12 @@
 
       function submitPayment() {
         const accountId = document.getElementById("paymentAccountId").value;
-        const amount = parseFloat(
-          document.getElementById("paymentAmountInput").value,
-        );
+        const rawAmountValue =
+          document.getElementById("paymentAmountValue")?.value ||
+          document
+            .getElementById("paymentAmountInput")
+            .value.replace(/[^\d.-]/g, "");
+        const amount = parseFloat(rawAmountValue);
         const method = document.getElementById("paymentMethod").value;
         const reference = document.getElementById("paymentReference").value;
         const observations = document.getElementById(
@@ -2529,16 +2571,11 @@
           return;
         }
 
-        // CORRECCIÓN: Usar valores absolutos
-        const montoTotal = Math.abs(
-          parseFloat(currentAccount.totalAmount) || 0,
-        );
-        const montoPagado = Math.abs(
-          parseFloat(currentAccount.paidAmount) || 0,
-        );
-
-        // Calcular saldo pendiente actual
-        const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
+        const {
+          totalAmount: montoTotal,
+          paidAmount: montoPagado,
+          pendingBalance: currentPendingBalance,
+        } = getAccountAmounts(currentAccount);
 
         const selectedInstallmentsAmount = Number(
           document.getElementById("paymentInstallmentsSelect")?.value || 0,
@@ -2705,42 +2742,37 @@
         // Encontrar y actualizar la cuenta en el array local
         const accountIndex = accounts.findIndex((acc) => acc.id == accountId);
         if (accountIndex !== -1) {
-          // Actualizar monto pagado
-          accounts[accountIndex].paidAmount =
-            Math.abs(parseFloat(accounts[accountIndex].paidAmount) || 0) +
-            paymentAmount;
+          const currentAccount = accounts[accountIndex];
+          const { totalAmount, paidAmount, pendingBalance } =
+            getAccountAmounts(currentAccount);
 
-          // Actualizar estado si viene en la respuesta
-          if (serverResponse.estado_actual) {
-            accounts[accountIndex].status = serverResponse.estado_actual;
-          } else {
-            // Actualizar estado basado en el nuevo saldo
-            const montoTotal = Math.abs(
-              parseFloat(accounts[accountIndex].totalAmount) || 0,
-            );
-            const montoPagado = Math.abs(
-              parseFloat(accounts[accountIndex].paidAmount) || 0,
-            );
-            const newPendingBalance = montoTotal - montoPagado;
+          let newPaidAmount = paidAmount + paymentAmount;
+          let newPendingBalance = Math.max(0, pendingBalance - paymentAmount);
 
-            if (newPendingBalance <= 0) {
-              accounts[accountIndex].status = "pagada";
-            } else {
-              accounts[accountIndex].status = "parcial";
-            }
-          }
-
-          // Si el servidor envió información actualizada, usarla
+          // Si el servidor envió información actualizada, usarla como fuente de verdad.
           if (serverResponse.nuevo_saldo_pendiente !== undefined) {
-            const montoTotal = Math.abs(
-              parseFloat(accounts[accountIndex].totalAmount) || 0,
+            newPendingBalance = Math.max(
+              0,
+              parseFloat(serverResponse.nuevo_saldo_pendiente) || 0,
             );
-            accounts[accountIndex].paidAmount =
-              montoTotal - serverResponse.nuevo_saldo_pendiente;
+            newPaidAmount = Math.max(0, totalAmount - newPendingBalance);
           }
+
           if (serverResponse.monto_pagado_total !== undefined) {
-            accounts[accountIndex].paidAmount =
-              serverResponse.monto_pagado_total;
+            newPaidAmount = Math.abs(
+              parseFloat(serverResponse.monto_pagado_total) || 0,
+            );
+            newPendingBalance = Math.max(0, totalAmount - newPaidAmount);
+          }
+
+          currentAccount.paidAmount = newPaidAmount;
+          currentAccount.pendingBalance = newPendingBalance;
+
+          // Actualizar estado
+          if (serverResponse.estado_actual) {
+            currentAccount.status = serverResponse.estado_actual;
+          } else {
+            currentAccount.status = newPendingBalance <= 0 ? "pagada" : "parcial";
           }
         }
 
@@ -2773,12 +2805,10 @@
           return;
         }
 
-        // CORRECCIÓN: Usar valores absolutos
-        const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
-        const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
-
-        // Calcular el saldo pendiente (siempre positivo)
-        const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
+        const {
+          totalAmount: montoTotal,
+          pendingBalance: currentPendingBalance,
+        } = getAccountAmounts(account);
 
         // Verificar que haya saldo pendiente
         if (currentPendingBalance <= 0) {
@@ -2871,16 +2901,10 @@
           return;
         }
 
-        // CORRECCIÓN: Usar valores absolutos
-        const montoTotal = Math.abs(
-          parseFloat(currentAccount.totalAmount) || 0,
-        );
-        const montoPagado = Math.abs(
-          parseFloat(currentAccount.paidAmount) || 0,
-        );
-
-        // Calcular saldo pendiente actual
-        const currentPendingBalance = Math.max(0, montoTotal - montoPagado);
+        const {
+          totalAmount: montoTotal,
+          pendingBalance: currentPendingBalance,
+        } = getAccountAmounts(currentAccount);
 
         if (amount > currentPendingBalance) {
           document.getElementById("rebajaAmountError").textContent =
@@ -3124,17 +3148,16 @@
           return;
         }
 
-        // **CORRECCIÓN IMPORTANTE**: Calcular el saldo pendiente de la misma manera que en el backend
-        const currentPendingBalance = account.totalAmount - account.paidAmount;
-
-        // **Asegurar que el saldo no sea negativo**
-        const saldoFinal =
-          currentPendingBalance < 0 ? 0 : currentPendingBalance;
+        const {
+          totalAmount: montoTotal,
+          paidAmount: montoPagado,
+          pendingBalance: saldoFinal,
+        } = getAccountAmounts(account);
 
         console.log("Saldo pendiente calculado:", {
-          totalAmount: account.totalAmount,
-          paidAmount: account.paidAmount,
-          pending: currentPendingBalance,
+          totalAmount: montoTotal,
+          paidAmount: montoPagado,
+          pending: saldoFinal,
           saldoFinal: saldoFinal,
         });
 
@@ -3146,8 +3169,8 @@
                 <div style="text-align: left; margin: 10px 0;">
                     <p><strong>Cliente:</strong> ${account.clientName}</p>
                     <p><strong>Factura:</strong> ${account.invoiceNumber}</p>
-                    <p><strong>Monto Total:</strong> RD$ ${account.totalAmount.toLocaleString("es-DO")}</p>
-                    <p><strong>Monto Pagado:</strong> RD$ ${account.paidAmount.toLocaleString("es-DO")}</p>
+                    <p><strong>Monto Total:</strong> RD$ ${montoTotal.toLocaleString("es-DO")}</p>
+                    <p><strong>Monto Pagado:</strong> RD$ ${montoPagado.toLocaleString("es-DO")}</p>
                     <p><strong>Saldo Pendiente:</strong> RD$ ${saldoFinal.toLocaleString("es-DO")}</p>
                 </div>
                 <p style="color: #ffc107; font-weight: bold;">
@@ -3191,17 +3214,10 @@
         <h5 style="margin: 0 0 10px 0; color: #333;">Información de la Cuenta</h5>
         <p style="margin: 5px 0;"><strong>Cliente:</strong> ${account.clientName}</p>
         <p style="margin: 5px 0;"><strong>Factura:</strong> ${account.invoiceNumber}</p>
-        <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${account.totalAmount.toLocaleString("es-DO")}</p>
-        <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${account.paidAmount.toLocaleString("es-DO")}</p>
+        <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${montoTotal.toLocaleString("es-DO")}</p>
+        <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${montoPagado.toLocaleString("es-DO")}</p>
         <p style="margin: 5px 0;"><strong>Saldo Pendiente:</strong> <span style="font-weight: bold; color: #28a745;">RD$ ${saldoFinal.toLocaleString("es-DO")}</span></p>
-        ${
-          currentPendingBalance < 0
-            ? `<p style="margin: 5px 0; color: #dc3545; font-weight: bold;">
-                ⚠️ Atención: El monto pagado excede el monto total. 
-                Se ajustará a RD$ 0 para aplicar descuentos.
-            </p>`
-            : ""
-        }
+
     `;
 
         // Insertar antes del formulario de descuento
@@ -3239,12 +3255,11 @@
           return;
         }
 
-        // **CORRECCIÓN**: Calcular saldo pendiente igual que en openDiscountModal
-        let currentPendingBalance =
-          currentAccount.totalAmount - currentAccount.paidAmount;
-        if (currentPendingBalance < 0) {
-          currentPendingBalance = 0;
-        }
+        const {
+          totalAmount: montoTotal,
+          paidAmount: montoPagado,
+          pendingBalance: currentPendingBalance,
+        } = getAccountAmounts(currentAccount);
 
         let discountAmount = discountValue;
 
@@ -3316,8 +3331,8 @@
             <div style="text-align: left; margin: 10px 0;">
                 <p><strong>Cliente:</strong> ${currentAccount.clientName}</p>
                 <p><strong>Factura:</strong> ${currentAccount.invoiceNumber}</p>
-                <p><strong>Monto Total:</strong> RD$ ${currentAccount.totalAmount.toLocaleString("es-DO")}</p>
-                <p><strong>Monto Pagado:</strong> RD$ ${currentAccount.paidAmount.toLocaleString("es-DO")}</p>
+                <p><strong>Monto Total:</strong> RD$ ${montoTotal.toLocaleString("es-DO")}</p>
+                <p><strong>Monto Pagado:</strong> RD$ ${montoPagado.toLocaleString("es-DO")}</p>
                 <p><strong>Saldo Actual:</strong> RD$ ${currentPendingBalance.toLocaleString("es-DO")}</p>
                 <hr>
                 <p><strong>Tipo de Descuento:</strong> ${discountType === "porcentaje" ? "Porcentaje" : "Monto Fijo"}</p>
@@ -3678,10 +3693,8 @@
             const account = accounts.find((acc) => acc.id == accountId);
 
             if (account) {
-              // CORRECCIÓN: Usar valores absolutos
-              const montoTotal = Math.abs(parseFloat(account.totalAmount) || 0);
-              const montoPagado = Math.abs(parseFloat(account.paidAmount) || 0);
-              const saldoPendiente = Math.max(0, montoTotal - montoPagado);
+              const { pendingBalance: saldoPendiente } =
+                getAccountAmounts(account);
               const selectedInstallmentsAmount = Number(
                 document.getElementById("paymentInstallmentsSelect")?.value || 0,
               );
@@ -3727,12 +3740,8 @@
             const account = accounts.find((acc) => acc.id == accountId);
 
             if (account && discountType) {
-              // Calcular saldo pendiente igual que en las otras funciones
-              let currentPendingBalance =
-                account.totalAmount - account.paidAmount;
-              if (currentPendingBalance < 0) {
-                currentPendingBalance = 0;
-              }
+              const { pendingBalance: currentPendingBalance } =
+                getAccountAmounts(account);
 
               const errorElement =
                 document.getElementById("discountValueError");

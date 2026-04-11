@@ -2975,6 +2975,36 @@ def buscar_productos_similares(request):
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
 
 
+def _get_effective_paid_amount(cuenta):
+    """Devuelve el monto pagado real considerando monto inicial + pagos registrados."""
+    pagos_total = cuenta.pagos.filter(anulado=False).aggregate(
+        total=Sum('monto')
+    )['total'] or Decimal('0.00')
+    monto_inicial = Decimal(getattr(cuenta.venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00'))
+    monto_pagado_registrado = Decimal(cuenta.monto_pagado or Decimal('0.00'))
+    monto_pagado_calculado = Decimal(pagos_total) + monto_inicial
+    return max(monto_pagado_registrado, monto_pagado_calculado)
+
+
+def _get_effective_total_amount(cuenta):
+    """Obtiene el total base correcto para calcular saldo pendiente sin duplicar el inicial."""
+    monto_total_cuenta = Decimal(cuenta.monto_total or Decimal('0.00'))
+    venta = getattr(cuenta, 'venta', None)
+    if not venta:
+        return monto_total_cuenta
+
+    monto_inicial = Decimal(getattr(venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00'))
+    total_a_pagar = Decimal(getattr(venta, 'total_a_pagar', Decimal('0.00')) or Decimal('0.00'))
+
+    # Caso común de este proyecto: cuenta.monto_total guarda el saldo financiado
+    # y total_a_pagar incluye inicial + financiado.
+    if total_a_pagar > Decimal('0.00') and monto_inicial > Decimal('0.00'):
+        if monto_total_cuenta < total_a_pagar:
+            return monto_total_cuenta + monto_inicial
+
+    return monto_total_cuenta
+
+
 def cuentaporcobrar(request):
     # Obtener parámetros de filtrado
     search = request.GET.get('search', '')
@@ -2982,27 +3012,63 @@ def cuentaporcobrar(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
 
-    # Filtrar cuentas por cobrar (excluir anuladas Y eliminadas)
-    cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(
+    # Filtrar cuentas por cobrar (excluir anuladas y eliminadas)
+    cuentas_qs = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(
         anulada=False,
         eliminada=False
     )
 
     if search:
-        cuentas = cuentas.filter(
+        cuentas_qs = cuentas_qs.filter(
             Q(cliente__full_name__icontains=search) |
             Q(venta__numero_factura__icontains=search) |
             Q(cliente__identification_number__icontains=search)
         )
 
-    if status_filter:
-        cuentas = cuentas.filter(estado=status_filter)
-
     if date_from:
-        cuentas = cuentas.filter(venta__fecha_venta__gte=date_from)
+        cuentas_qs = cuentas_qs.filter(venta__fecha_venta__gte=date_from)
 
     if date_to:
-        cuentas = cuentas.filter(venta__fecha_venta__lte=date_to)
+        cuentas_qs = cuentas_qs.filter(venta__fecha_venta__lte=date_to)
+
+    cuentas = list(cuentas_qs)
+    hoy = timezone.now().date()
+
+    for cuenta in cuentas:
+        monto_total_actual = _get_effective_total_amount(cuenta)
+        monto_pagado_efectivo = _get_effective_paid_amount(cuenta)
+        saldo_pendiente = monto_total_actual - monto_pagado_efectivo
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal('0.00')
+
+        if saldo_pendiente <= 0:
+            estado_esperado = 'pagada'
+            monto_pagado_efectivo = monto_total_actual
+        elif cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < hoy:
+            estado_esperado = 'vencida'
+        elif monto_pagado_efectivo > 0:
+            estado_esperado = 'parcial'
+        else:
+            estado_esperado = 'pendiente'
+
+        campos_actualizar = []
+        if cuenta.monto_pagado != monto_pagado_efectivo:
+            cuenta.monto_pagado = monto_pagado_efectivo
+            campos_actualizar.append('monto_pagado')
+        if estado_esperado == 'pagada' and cuenta.monto_pagado != monto_total_actual:
+            cuenta.monto_pagado = monto_total_actual
+            if 'monto_pagado' not in campos_actualizar:
+                campos_actualizar.append('monto_pagado')
+        if cuenta.estado != estado_esperado:
+            cuenta.estado = estado_esperado
+            campos_actualizar.append('estado')
+
+        if campos_actualizar:
+            campos_actualizar.append('fecha_actualizacion')
+            cuenta.save(update_fields=campos_actualizar)
+
+    if status_filter:
+        cuentas = [c for c in cuentas if c.estado == status_filter]
 
     # Calcular estadísticas usando monto_total de CuentaPorCobrar (solo cuentas no anuladas y no eliminadas)
     total_pendiente = Decimal('0.00')
@@ -3010,8 +3076,10 @@ def cuentaporcobrar(request):
     total_por_cobrar = Decimal('0.00')
 
     for cuenta in cuentas:
-        # Usar siempre monto_total de CuentaPorCobrar
-        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
+        monto_total_actual = _get_effective_total_amount(cuenta)
+        saldo_pendiente = monto_total_actual - Decimal(cuenta.monto_pagado or Decimal('0.00'))
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal('0.00')
 
         if cuenta.estado in ['pendiente', 'parcial']:
             total_pendiente += saldo_pendiente
@@ -3119,13 +3187,13 @@ def cuentaporcobrar(request):
         if cuenta.fecha_vencimiento:
             due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
 
-        # CORRECCIÓN IMPORTANTE: Usar monto_total actualizado después de rebajas
-        # Este ya incluye las rebajas aplicadas
-        monto_total_actual = float(cuenta.monto_total)
-        monto_pagado_actual = float(cuenta.monto_pagado)
+        monto_total_decimal = _get_effective_total_amount(cuenta)
+        monto_pagado_decimal = Decimal(cuenta.monto_pagado or Decimal('0.00'))
+        monto_total_actual = float(monto_total_decimal)
+        monto_pagado_actual = float(monto_pagado_decimal)
 
         # Calcular saldo pendiente basado en monto_total ACTUAL (después de rebajas)
-        saldo_pendiente_actual = monto_total_actual - monto_pagado_actual
+        saldo_pendiente_actual = float(monto_total_decimal - monto_pagado_decimal)
 
         # Asegurarse de que el saldo pendiente no sea negativo
         if saldo_pendiente_actual < 0:
@@ -3134,9 +3202,11 @@ def cuentaporcobrar(request):
         # Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
         puede_eliminar = cuenta.estado == 'pagada'
 
-        # Calcular cuota sugerida para registrar pago
+        # Calcular cuota sugerida y métricas de cuotas
         cuota_mensual = 0.0
         plazo_meses = 0
+        cuotas_atrasadas = 0
+        fecha_factura = None
         if cuenta.venta:
             try:
                 plazo_meses = int(getattr(cuenta.venta, 'plazo_meses', 0) or 0)
@@ -3147,6 +3217,9 @@ def cuentaporcobrar(request):
                 cuota_mensual = float(getattr(cuenta.venta, 'cuota_mensual', 0) or 0)
             except (ValueError, TypeError):
                 cuota_mensual = 0.0
+
+            if cuenta.venta.fecha_venta:
+                fecha_factura = cuenta.venta.fecha_venta.date()
 
         if cuota_mensual <= 0:
             if plazo_meses > 0:
@@ -3160,9 +3233,27 @@ def cuentaporcobrar(request):
         cuotas_pagadas = 0
         cuotas_pendientes = 0
         if plazo_meses > 0 and cuota_mensual > 0:
-            cuotas_pagadas = int(Decimal(str(monto_pagado_actual)) // Decimal(str(cuota_mensual)))
+            cuotas_pagadas = int((monto_pagado_decimal // Decimal(str(cuota_mensual))))
             cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
             cuotas_pendientes = max(0, plazo_meses - cuotas_pagadas)
+
+            if fecha_factura:
+                proxima_cuota_numero = cuotas_pagadas + 1
+                for numero_cuota in range(proxima_cuota_numero, plazo_meses + 1):
+                    fecha_cuota = calcular_fecha_cuota(fecha_factura, numero_cuota)
+                    if fecha_cuota < hoy:
+                        cuotas_atrasadas += 1
+                    else:
+                        break
+
+        monto_total_cuotas_pagadas = min(
+            monto_total_decimal,
+            Decimal(str(cuota_mensual)) * Decimal(cuotas_pagadas)
+        ) if cuota_mensual > 0 else Decimal('0.00')
+        monto_total_cuotas_atrasadas = min(
+            Decimal(str(saldo_pendiente_actual)),
+            Decimal(str(cuota_mensual)) * Decimal(cuotas_atrasadas)
+        ) if cuota_mensual > 0 else Decimal('0.00')
 
         cuentas_data.append({
             'id': cuenta.id,
@@ -3181,6 +3272,9 @@ def cuentaporcobrar(request):
             'plazoMeses': plazo_meses,
             'paidInstallments': cuotas_pagadas,
             'pendingInstallments': cuotas_pendientes,
+            'overdueInstallments': cuotas_atrasadas,
+            'paidInstallmentsAmount': float(monto_total_cuotas_pagadas),
+            'overdueInstallmentsAmount': float(monto_total_cuotas_atrasadas),
             'status': cuenta.estado,
             'observations': cuenta.observaciones or '',
             'puede_eliminar': puede_eliminar
@@ -3410,18 +3504,11 @@ def aplicar_descuento(request):
                     'message': 'No se puede aplicar descuento a una cuenta completamente pagada'
                 })
 
-            # **CORRECCIÓN CRÍTICA**: Usar el MONTO TOTAL CORRECTO
-            # Primero intentar usar total_a_pagar de la venta si existe
-            monto_base = cuenta.monto_total  # Por defecto, usar monto_total de la cuenta
+            monto_base = _get_effective_total_amount(cuenta)
+            monto_pagado_actual = _get_effective_paid_amount(cuenta)
 
-            if cuenta.venta and cuenta.venta.total_a_pagar:
-                monto_base = cuenta.venta.total_a_pagar
-            # Si existe total_con_interes, usarlo como monto base
-            elif cuenta.venta and cuenta.venta.total_con_interes:
-                monto_base = cuenta.venta.total_con_interes
-
-            # Calcular el saldo pendiente REAL
-            saldo_pendiente_real = monto_base - cuenta.monto_pagado
+            # Calcular el saldo pendiente real con respaldo de monto inicial + pagos
+            saldo_pendiente_real = monto_base - monto_pagado_actual
 
             # Asegurarse de que el saldo pendiente no sea negativo
             if saldo_pendiente_real < 0:
@@ -3471,7 +3558,7 @@ def aplicar_descuento(request):
             pago_descuento.save()
 
             # **IMPORTANTE**: Actualizar el monto pagado en la cuenta
-            cuenta.monto_pagado += monto_descuento_final
+            cuenta.monto_pagado = monto_pagado_actual + monto_descuento_final
 
             # **CALCULAR NUEVO SALDO CON EL MONTO BASE CORRECTO**
             nuevo_saldo = monto_base - cuenta.monto_pagado
@@ -3482,6 +3569,8 @@ def aplicar_descuento(request):
                 # Asegurar que no haya valores negativos
                 cuenta.monto_pagado = monto_base
                 nuevo_saldo = Decimal('0.00')
+            elif cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < timezone.now().date():
+                cuenta.estado = 'vencida'
             elif cuenta.monto_pagado > 0:
                 cuenta.estado = 'parcial'
             else:
@@ -3544,15 +3633,16 @@ def registrar_pago(request):
                     'message': 'No se puede registrar pago en una cuenta anulada'
                 })
 
-            # ✅ CORRECCIÓN: Usar el MONTO TOTAL ORIGINAL de la venta
-            monto_total_original = cuenta.monto_total  # Monto base de la cuenta
+            monto_total_original = _get_effective_total_amount(cuenta)
+            monto_pagado_actual = _get_effective_paid_amount(cuenta)
 
-            # Si existe la venta y tiene total_a_pagar, usar ese valor
-            if cuenta.venta and cuenta.venta.total_a_pagar:
-                monto_total_original = cuenta.venta.total_a_pagar
-
-            # ✅ CALCULAR SALDO PENDIENTE CORRECTAMENTE
-            saldo_pendiente = monto_total_original - cuenta.monto_pagado
+            # Calcular saldo pendiente real incluyendo monto inicial cuando aplique
+            saldo_pendiente = monto_total_original - monto_pagado_actual
+            if saldo_pendiente <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Esta cuenta ya está completamente pagada'
+                })
 
             # Validar que el monto no exceda el saldo pendiente
             if monto > saldo_pendiente:
@@ -3572,7 +3662,7 @@ def registrar_pago(request):
             pago.save()
 
             # ✅ ACTUALIZAR MONTO PAGADO (sumar el nuevo pago)
-            cuenta.monto_pagado += monto
+            cuenta.monto_pagado = monto_pagado_actual + monto
 
             # ✅ CALCULAR NUEVO SALDO PENDIENTE CON EL MONTO TOTAL ORIGINAL
             nuevo_saldo = monto_total_original - cuenta.monto_pagado
@@ -3580,8 +3670,10 @@ def registrar_pago(request):
             # Actualizar el estado basado en el nuevo saldo
             if nuevo_saldo <= 0:
                 cuenta.estado = 'pagada'
-                # ✅ Asegurar que monto_pagado sea exactamente igual al monto_total_original
                 cuenta.monto_pagado = monto_total_original
+                nuevo_saldo = Decimal('0.00')
+            elif cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < timezone.now().date():
+                cuenta.estado = 'vencida'
             elif cuenta.monto_pagado > 0:
                 cuenta.estado = 'parcial'
             else:
@@ -3634,10 +3726,12 @@ def generar_comprobante_pdf(request, comprobante_id):
         y_position = height - 20  # Empezar desde la parte superior
         line_height = 14
         small_line_height = 10
-        # Obtener información de totales
-        monto_original = comprobante.cuenta.venta.total_a_pagar if comprobante.cuenta.venta and comprobante.cuenta.venta.total_a_pagar else comprobante.cuenta.monto_total
-        # Usar la misma fórmula que en el view `registrar_pago`
-        saldo_pendiente = monto_original - comprobante.cuenta.monto_pagado
+        # Obtener información de totales usando el monto real de la cuenta
+        monto_original = Decimal(comprobante.cuenta.monto_total or Decimal('0.00'))
+        monto_pagado_acumulado = _get_effective_paid_amount(comprobante.cuenta)
+        saldo_pendiente = monto_original - monto_pagado_acumulado
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal('0.00')
         # Función para centrar texto
 
         def draw_centered_text(text, y, font_size=12, bold=False):
@@ -3703,9 +3797,8 @@ def generar_comprobante_pdf(request, comprobante_id):
         y_position -= small_line_height
         y_position = draw_left_text(
             f"Monto Original: RD$ {monto_original:,.2f}", y_position, 9)
-        # Mostrar saldo pendiente (usando la misma fórmula que en `registrar_pago`)
         y_position = draw_left_text(
-            f"Pagado Acumulado: RD$ {comprobante.cuenta.monto_pagado:,.2f}", y_position, 9)
+            f"Pagado Acumulado: RD$ {monto_pagado_acumulado:,.2f}", y_position, 9)
         y_position = draw_left_text(
             f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}", y_position, 9, True)
         y_position -= line_height
