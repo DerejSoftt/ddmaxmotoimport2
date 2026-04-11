@@ -11,7 +11,8 @@ telefono/
 *.py[cod]
 __pycache__/
 
-null/
+../null/
 env/
 *.sqlite3
 *.sql
+staticfiles/
