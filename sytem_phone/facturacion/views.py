@@ -5760,6 +5760,174 @@ def cuentasAtrasada(request):
     return render(request, 'facturacion/cuentasAtrasada.html', context)
 
 
+@login_required
+@csrf_exempt
+@require_POST
+def generar_pdf_cuotas_atrasadas(request):
+    try:
+        payload = json.loads(request.body or '{}')
+        items = payload.get('items', [])
+        resumen = payload.get('summary', {})
+        usuario_reporte = getattr(request.user, 'username', 'N/A')
+
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"reporte_cuotas_atrasadas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        p = canvas.Canvas(response, pagesize=letter)
+        width, height = letter
+
+        left = 45
+        right = width - 45
+        y = height - 45
+
+        def money(value):
+            try:
+                return f"RD$ {Decimal(str(value or 0)):,.2f}"
+            except Exception:
+                return "RD$ 0.00"
+
+        def draw_header():
+            nonlocal y
+            p.setFont("Helvetica-Bold", 15)
+            p.setFillColorRGB(0.86, 0.18, 0.22)
+            p.drawCentredString(width / 2, y, "Reporte de Cuotas Atrasadas")
+
+            p.setFont("Helvetica-Bold", 10)
+            p.setFillColorRGB(0.2, 0.2, 0.2)
+            p.drawCentredString(width / 2, y - 14, "ddmaxmotoimport")
+
+            p.setFont("Helvetica", 9)
+            p.setFillColorRGB(0.35, 0.35, 0.35)
+            p.drawCentredString(width / 2, y - 27, f"Realizado por: {usuario_reporte}")
+
+            p.setFont("Helvetica", 9)
+            p.setFillColorRGB(0.35, 0.35, 0.35)
+            p.drawCentredString(
+                width / 2,
+                y - 40,
+                f"Generado el {datetime.now().strftime('%d/%m/%Y %I:%M %p')}"
+            )
+
+            y_line = y - 47
+            p.setStrokeColorRGB(0.85, 0.85, 0.85)
+            p.setLineWidth(1)
+            p.line(left, y_line, right, y_line)
+            y = y_line - 18
+
+        def draw_summary_box():
+            nonlocal y
+            box_h = 66
+            p.setFillColorRGB(0.97, 0.97, 0.97)
+            p.setStrokeColorRGB(0.9, 0.9, 0.9)
+            p.rect(left, y - box_h, right - left, box_h, fill=1, stroke=1)
+
+            p.setFillColorRGB(0.15, 0.15, 0.15)
+            p.setFont("Helvetica-Bold", 10)
+            p.drawString(left + 10, y - 16, f"Cuotas con atraso de 15+ dias: {resumen.get('overdueCount', 0)}")
+            p.drawString(left + 295, y - 16, f"Cuotas en alerta (5 a 14 dias): {resumen.get('alertCount', 0)}")
+            p.drawString(left + 10, y - 34, f"Clientes contactados: {resumen.get('contactedCount', 0)}")
+            p.drawString(left + 295, y - 34, f"Monto total atrasado: {money(resumen.get('totalAmount', 0))}")
+
+            p.setFont("Helvetica", 8)
+            p.setFillColorRGB(0.35, 0.35, 0.35)
+            p.drawString(left + 10, y - 50, "Leyenda: 15+ dias = vencido | 5 a 14 dias = alerta")
+
+            y -= (box_h + 14)
+
+        def draw_table_header():
+            nonlocal y
+            p.setFillColorRGB(0.86, 0.18, 0.22)
+            p.rect(left, y - 16, right - left, 18, fill=1, stroke=0)
+
+            p.setFillColorRGB(1, 1, 1)
+            p.setFont("Helvetica-Bold", 8)
+            p.drawString(left + 6, y - 11, "Cliente")
+            p.drawString(left + 170, y - 11, "Factura")
+            p.drawString(left + 260, y - 11, "Tel.")
+            p.drawString(left + 342, y - 11, "Monto atrasado")
+            p.drawString(left + 435, y - 11, "Dias")
+            p.drawString(left + 468, y - 11, "Estado")
+            y -= 23
+
+        draw_header()
+        draw_summary_box()
+
+        if not items:
+            p.setFillColorRGB(0.3, 0.3, 0.3)
+            p.setFont("Helvetica", 11)
+            p.drawString(left, y, "No hay cuotas atrasadas para mostrar.")
+            p.showPage()
+            p.save()
+            return response
+
+        draw_table_header()
+
+        for index, item in enumerate(items):
+            # Cada bloque consume aprox 64 puntos (fila + 3 lineas + separador)
+            if y < 130:
+                p.showPage()
+                y = height - 45
+                draw_header()
+                draw_table_header()
+
+            # Fondo alternado para separar visualmente cada cuenta
+            if index % 2 == 0:
+                p.setFillColorRGB(0.99, 0.99, 0.99)
+                p.rect(left, y - 54, right - left, 56, fill=1, stroke=0)
+
+            client_name = str(item.get('clientName') or 'N/A')[:34]
+            invoice_number = str(item.get('invoiceNumber') or 'N/A')[:16]
+            client_phone = str(item.get('clientPhone') or 'N/A')[:16]
+            overdue_amount = item.get('overdueAmount', 0)
+            days_overdue = int(item.get('daysOverdue', 0) or 0)
+            contact_status = str(item.get('contactStatus') or 'no_contacted')
+            status_text = 'Contactado' if contact_status == 'contacted' else ('Vencido' if days_overdue > 14 else 'Alerta')
+
+            p.setFillColorRGB(0.12, 0.12, 0.12)
+            p.setFont("Helvetica", 8)
+            p.drawString(left + 6, y, client_name)
+            p.drawString(left + 170, y, invoice_number)
+            p.drawString(left + 260, y, client_phone)
+            p.setFont("Helvetica-Bold", 8)
+            p.drawString(left + 342, y, money(overdue_amount))
+            p.setFont("Helvetica", 8)
+            p.drawString(left + 435, y, f"{days_overdue}")
+            p.drawString(left + 468, y, status_text)
+
+            y -= 14
+
+            total_cuotas = int(item.get('totalCuotas', 0) or 0)
+            cuotas_atrasadas = int(item.get('overdueInstallments', 0) or 0)
+            cuotas_pagadas = int(item.get('cuotasPagadas', 0) or 0)
+            monto_por_cuota = Decimal(str(item.get('montoPorCuota', 0) or 0))
+
+            total_plazo = monto_por_cuota * Decimal(total_cuotas)
+            total_atrasadas = monto_por_cuota * Decimal(cuotas_atrasadas)
+            total_pagadas = monto_por_cuota * Decimal(cuotas_pagadas)
+
+            p.setFillColorRGB(0.3, 0.3, 0.3)
+            p.setFont("Helvetica", 7.4)
+            p.drawString(left + 16, y, f"Cuotas Totales (Plazo): {total_cuotas} cuotas - {money(total_plazo)}")
+            y -= 11
+            p.drawString(left + 16, y, f"Cuotas Atrasadas: {cuotas_atrasadas} cuotas - {money(total_atrasadas)}")
+            y -= 11
+            p.drawString(left + 16, y, f"Cuotas Pagadas: {cuotas_pagadas} cuotas - {money(total_pagadas)}")
+            y -= 10
+
+            p.setStrokeColorRGB(0.85, 0.85, 0.85)
+            p.setLineWidth(0.6)
+            p.line(left, y, right, y)
+            y -= 9
+
+        p.showPage()
+        p.save()
+        return response
+
+    except Exception as e:
+        return HttpResponse(f"Error al generar el reporte de cuotas atrasadas: {str(e)}", status=500)
+
+
 def calcular_fecha_cuota(fecha_factura, numero_cuota):
     """
     Calcula la fecha de vencimiento de una cuota específica.

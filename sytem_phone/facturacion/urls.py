@@ -64,6 +64,7 @@ urlpatterns = [
     path('aplicar-descuento/', views.aplicar_descuento, name='aplicar_descuento'),
     path('rebajar-deuda/', views.rebajar_deuda, name='rebajar_deuda'),
     path('cuentasAtrasada', views.cuentasAtrasada, name='cuentasAtrasada'),
+    path('cuotas-atrasadas/reporte-pdf/', views.generar_pdf_cuotas_atrasadas, name='generar_pdf_cuotas_atrasadas'),
     path('generar-pdf-deudas/', views.generar_pdf_deudas, name='generar_pdf_deudas'),
 
 

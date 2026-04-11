@@ -1029,7 +1029,12 @@
                 document.getElementById('detailInvoice').textContent = item.invoiceNumber || 'N/A';
                 document.getElementById('detailOriginalAmount').textContent = `RD$ ${formatCurrency(item.originalAmount || 0)}`;
                 document.getElementById('detailOverdueAmount').textContent = `RD$ ${formatCurrency(item.overdueAmount || 0)}`;
-                document.getElementById('detailDueDate').textContent = item.dueDate ? new Date(item.dueDate).toLocaleDateString('es-DO') : 'N/A';
+                if (item.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(item.dueDate)) {
+                    const [year, month, day] = item.dueDate.split('-').map(Number);
+                    document.getElementById('detailDueDate').textContent = new Date(year, month - 1, day).toLocaleDateString('es-DO');
+                } else {
+                    document.getElementById('detailDueDate').textContent = item.dueDate ? new Date(item.dueDate).toLocaleDateString('es-DO') : 'N/A';
+                }
                 document.getElementById('detailDaysOverdue').textContent = `${item.daysOverdue || 0} días`;
                 document.getElementById('detailTotalInstallments').textContent = formatInstallmentSummary(item.totalCuotas, item.montoPorCuota);
                 document.getElementById('detailOverdueInstallments').textContent = formatInstallmentSummary(item.overdueInstallments, item.montoPorCuota);
@@ -1110,215 +1115,83 @@
                 executePrint();
             }
             
-            function executePrint() {
-                // Crear una tabla HTML para impresión
-                let printContent = `
-                    <div class="print-section">
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <h1 style="color: #dc3545; margin-bottom: 5px;">Reporte de Cuentas Atrasadas</h1>
-                            <p style="color: #666; margin-bottom: 5px;">DDMAX - Sistema de Gestión</p>
-                            <p style="color: #666; margin-bottom: 20px;">Fecha de generación: ${new Date().toLocaleDateString('es-DO')}</p>
-                        </div>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 30px;">
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <h3 style="color: #dc3545; margin: 0 0 5px 0;">${document.getElementById('overdueCount').textContent}</h3>
-                                <p style="margin: 0; color: #666; font-size: 14px;">Cuotas Vencidas</p>
-                            </div>
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <h3 style="color: #ffc107; margin: 0 0 5px 0;">${document.getElementById('alertCount').textContent}</h3>
-                                <p style="margin: 0; color: #666; font-size: 14px;">En Alerta</p>
-                            </div>
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <h3 style="color: #28a745; margin: 0 0 5px 0;">${document.getElementById('contactedCount').textContent}</h3>
-                                <p style="margin: 0; color: #666; font-size: 14px;">Contactados</p>
-                            </div>
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <h3 style="color: #667eea; margin: 0 0 5px 0;">${document.getElementById('totalAmount').textContent}</h3>
-                                <p style="margin: 0; color: #666; font-size: 14px;">Monto Total</p>
-                            </div>
-                        </div>
-                        
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-                            <thead>
-                                <tr style="background-color: #dc3545; color: white;">
-                                    <th style="padding: 12px; border: 1px solid #ddd;">Cliente</th>
-                                    <th style="padding: 12px; border: 1px solid #ddd;">Teléfono</th>
-                                    <th style="padding: 12px; border: 1px solid #ddd;">Factura</th>
-                                    <th style="padding: 12px; border: 1px solid #ddd;">Monto</th>
-                                    <th style="padding: 12px; border: 1px solid #ddd;">Días Atraso</th>
-                                    <th style="padding: 12px; border: 1px solid #ddd;">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                // Agregar filas de datos
-                overdueData.forEach(item => {
-                    let statusText = item.contactStatus === 'contacted' ? 'Contactado' : 
-                                    (item.daysOverdue > 14 ? 'Vencido' : 'Alerta');
-                    let statusColor = item.contactStatus === 'contacted' ? '#28a745' : 
-                                     (item.daysOverdue > 14 ? '#dc3545' : '#ffc107');
-                    
-                    printContent += `
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <td style="padding: 10px; border: 1px solid #ddd;">${escapeHtml(item.clientName || 'N/A')}</td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">${escapeHtml(item.clientPhone || 'N/A')}</td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">${escapeHtml(item.invoiceNumber || 'N/A')}</td>
-                            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #dc3545;">RD$ ${formatCurrency(item.overdueAmount || 0)}</td>
-                            <td style="padding: 10px; border: 1px solid #ddd; color: ${item.daysOverdue > 14 ? '#dc3545' : '#ff9800'};">
-                                ${item.daysOverdue || 0} días
-                            </td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">
-                                <span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
-                                    ${statusText}
-                                </span>
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                // Calcular totales
-                const totalMonto = overdueData.reduce((sum, item) => sum + (item.overdueAmount || 0), 0);
-                const totalClientes = new Set(overdueData.map(item => item.clientName)).size;
-                
-                printContent += `
-                            </tbody>
-                            <tfoot>
-                                <tr style="background-color: #f8f9fa; font-weight: bold;">
-                                    <td colspan="3" style="padding: 12px; border: 1px solid #ddd; text-align: right;">TOTALES:</td>
-                                    <td style="padding: 12px; border: 1px solid #ddd; color: #dc3545;">RD$ ${formatCurrency(totalMonto)}</td>
-                                    <td style="padding: 12px; border: 1px solid #ddd;">${overdueData.length} registros</td>
-                                    <td style="padding: 12px; border: 1px solid #ddd;">${totalClientes} clientes</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                        
-                        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #dc3545;">
-                            <div style="display: flex; justify-content: space-between;">
-                                <div>
-                                    <p style="margin: 5px 0;"><strong>Total de registros:</strong> ${overdueData.length}</p>
-                                    <p style="margin: 5px 0;"><strong>Total de clientes:</strong> ${totalClientes}</p>
-                                    <p style="margin: 5px 0;"><strong>Generado por:</strong> {{ user.username }}</p>
-                                </div>
-                                <div style="text-align: right;">
-                                    <p style="margin: 5px 0;">DDMAX Sistema de Gestión</p>
-                                    <p style="margin: 5px 0;">${new Date().toLocaleString('es-DO')}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                // Crear ventana de impresión
-                let printWindow = window.open('', '_blank');
-                printWindow.document.write(`
-                    <!DOCTYPE html>
-                    <html lang="es">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Reporte de Cuentas Atrasadas - DDMAX</title>
-                        <style>
-                            body {
-                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                                margin: 20px;
-                                color: #333;
-                            }
-                            
-                            @media print {
-                                @page {
-                                    size: landscape;
-                                    margin: 15mm;
-                                }
-                                
-                                body {
-                                    font-size: 12px;
-                                }
-                            }
-                            
-                            table {
-                                width: 100%;
-                                border-collapse: collapse;
-                                margin: 20px 0;
-                            }
-                            
-                            th, td {
-                                border: 1px solid #ddd;
-                                padding: 8px 10px;
-                                text-align: left;
-                            }
-                            
-                            th {
-                                background-color: #f2f2f2;
-                                font-weight: bold;
-                            }
-                            
-                            tr:nth-child(even) {
-                                background-color: #f9f9f9;
-                            }
-                            
-                            .total-row {
-                                font-weight: bold;
-                                background-color: #f8f9fa !important;
-                            }
-                            
-                            .header {
-                                text-align: center;
-                                margin-bottom: 30px;
-                            }
-                            
-                            .logo {
-                                text-align: center;
-                                margin-bottom: 20px;
-                            }
-                            
-                            .logo h1 {
-                                color: #dc3545;
-                                margin: 0;
-                            }
-                            
-                            .footer {
-                                margin-top: 40px;
-                                padding-top: 20px;
-                                border-top: 2px solid #dc3545;
-                                font-size: 12px;
-                                color: #666;
-                            }
-                            
-                            .stats-container {
-                                display: grid;
-                                grid-template-columns: repeat(4, 1fr);
-                                gap: 10px;
-                                margin-bottom: 30px;
-                            }
-                            
-                            .stat-box {
-                                text-align: center;
-                                padding: 15px;
-                                background: #f8f9fa;
-                                border-radius: 8px;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="logo">
-                            <h1>DDMAX</h1>
-                            <p>Sistema de Gestión de Cuentas</p>
-                        </div>
-                        ${printContent}
-                    </body>
-                    </html>
-                `);
-                
-                printWindow.document.close();
-                
-                // Esperar a que se cargue el contenido y luego imprimir
-                setTimeout(() => {
-                    printWindow.focus();
-                    printWindow.print();
-                    printWindow.close();
-                }, 500);
+            async function executePrint() {
+                if (!overdueData || overdueData.length === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sin datos',
+                        text: 'No hay cuotas atrasadas para imprimir.'
+                    });
+                    return;
+                }
+
+                const summary = {
+                    overdueCount: Number(document.getElementById('overdueCount')?.textContent || 0),
+                    alertCount: Number(document.getElementById('alertCount')?.textContent || 0),
+                    contactedCount: Number(document.getElementById('contactedCount')?.textContent || 0),
+                    totalAmount: overdueData.reduce((sum, item) => sum + (item.overdueAmount || 0), 0)
+                };
+
+                const printButton = document.getElementById('printButton');
+                const originalButtonText = printButton ? printButton.innerHTML : '';
+
+                try {
+                    if (printButton) {
+                        printButton.disabled = true;
+                        printButton.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Generando PDF...";
+                    }
+
+                    const response = await fetch("{% url 'generar_pdf_cuotas_atrasadas' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            items: overdueData,
+                            summary: summary
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('No se pudo generar el PDF.');
+                    }
+
+                    const blob = await response.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = blobUrl;
+                    downloadLink.download = `reporte-cuentas-atrasadas-${new Date().toISOString().split('T')[0]}.pdf`;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+
+                    window.open(blobUrl, '_blank');
+
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(blobUrl);
+                    }, 30000);
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Reporte generado',
+                        text: 'El PDF se descargó y se abrió para imprimir.',
+                        timer: 2200,
+                        showConfirmButton: false
+                    });
+                } catch (error) {
+                    console.error('Error generando PDF:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'No fue posible generar el reporte PDF.'
+                    });
+                } finally {
+                    if (printButton) {
+                        printButton.disabled = false;
+                        printButton.innerHTML = originalButtonText;
+                    }
+                }
             }
         }
 
