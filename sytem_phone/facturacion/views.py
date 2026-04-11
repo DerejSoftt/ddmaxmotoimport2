@@ -3202,6 +3202,9 @@ def cuentaporcobrar(request):
         # Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
         puede_eliminar = cuenta.estado == 'pagada'
 
+        # Obtener monto inicial para excluirlo del cálculo de cuotas pagadas
+        monto_inicial = Decimal(getattr(cuenta.venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00')) if cuenta.venta else Decimal('0.00')
+
         # Calcular cuota sugerida y métricas de cuotas
         cuota_mensual = 0.0
         plazo_meses = 0
@@ -3230,10 +3233,12 @@ def cuentaporcobrar(request):
         cuota_sugerida_pago = min(cuota_mensual, saldo_pendiente_actual) if saldo_pendiente_actual > 0 else 0.0
 
         # Calcular cuotas pagadas y pendientes para el selector de pagos por cuotas
+        # IMPORTANTE: Restar el montoinicial para no contarlo como una cuota
+        monto_pagado_solo_cuotas = max(Decimal('0.00'), monto_pagado_decimal - monto_inicial)
         cuotas_pagadas = 0
         cuotas_pendientes = 0
         if plazo_meses > 0 and cuota_mensual > 0:
-            cuotas_pagadas = int((monto_pagado_decimal // Decimal(str(cuota_mensual))))
+            cuotas_pagadas = int((monto_pagado_solo_cuotas // Decimal(str(cuota_mensual))))
             cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
             cuotas_pendientes = max(0, plazo_meses - cuotas_pagadas)
 
@@ -3247,7 +3252,7 @@ def cuentaporcobrar(request):
                         break
 
         monto_total_cuotas_pagadas = min(
-            monto_total_decimal,
+            max(Decimal('0'), monto_total_decimal - monto_inicial),
             Decimal(str(cuota_mensual)) * Decimal(cuotas_pagadas)
         ) if cuota_mensual > 0 else Decimal('0.00')
         monto_total_cuotas_atrasadas = min(
