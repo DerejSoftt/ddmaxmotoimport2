@@ -565,6 +565,77 @@
                 display: none !important;
             }
         }
+
+        /* Pagination Styles */
+        #paginationContainer {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .pagination-info {
+            width: 100%;
+            text-align: center;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn.btn-sm {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 35px;
+            min-height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        .btn.btn-sm:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn.btn-sm.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .btn.btn-sm:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn.btn-sm i {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -775,6 +846,8 @@
                             <p>¡Excelente! No hay cuotas atrasadas</p>
                         </div>
                     </div>
+                    <!-- Pagination Controls -->
+                    <div id="paginationContainer" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;"></div>
                 </div>
             </div>
         </div>
@@ -867,6 +940,9 @@
         }
         
         let currentDetailId = null;
+        let currentPage = 1;
+        const recordsPerPage = 25;
+        let filteredData = [];
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -912,14 +988,30 @@
 
             if (!tbody || !noData) return;
 
-            if (!data || data.length === 0) {
+            filteredData = data || [];
+            currentPage = 1;
+
+            if (!filteredData || filteredData.length === 0) {
                 tbody.innerHTML = '';
                 noData.style.display = 'block';
+                renderPagination();
                 return;
             }
 
             noData.style.display = 'none';
-            tbody.innerHTML = data.map(item => `
+            renderPageContent();
+            renderPagination();
+        }
+
+        function renderPageContent() {
+            const tbody = document.getElementById('tableBody');
+            if (!tbody) return;
+
+            const startIndex = (currentPage - 1) * recordsPerPage;
+            const endIndex = startIndex + recordsPerPage;
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            tbody.innerHTML = pageData.map(item => `
                 <tr>
                     <td><strong>${escapeHtml(item.clientName || 'N/A')}</strong></td>
                     <td>${escapeHtml(item.clientPhone || 'No disponible')}</td>
@@ -943,6 +1035,58 @@
                     </td>
                 </tr>
             `).join('');
+        }
+
+        function renderPagination() {
+            const paginationContainer = document.getElementById('paginationContainer');
+            if (!paginationContainer || filteredData.length === 0) {
+                if (paginationContainer) paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+            let html = '<div class="pagination-info">Página ' + currentPage + ' de ' + totalPages + '</div>';
+            html += '<div class="pagination-buttons">';
+
+            if (currentPage > 1) {
+                html += `<button class="btn btn-sm" onclick="goToPage(1)" title="Primera página"><i class='bx bx-chevron-left-double'></i></button>`;
+                html += `<button class="btn btn-sm" onclick="goToPage(${currentPage - 1})" title="Página anterior"><i class='bx bx-chevron-left'></i></button>`;
+            }
+
+            // Números de página
+            const maxButtonsToShow = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtonsToShow / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtonsToShow - 1);
+
+            if (endPage - startPage < maxButtonsToShow - 1) {
+                startPage = Math.max(1, endPage - maxButtonsToShow + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                    html += `<button class="btn btn-sm active" disabled>${i}</button>`;
+                } else {
+                    html += `<button class="btn btn-sm" onclick="goToPage(${i})">${i}</button>`;
+                }
+            }
+
+            if (currentPage < totalPages) {
+                html += `<button class="btn btn-sm" onclick="goToPage(${currentPage + 1})" title="Página siguiente"><i class='bx bx-chevron-right'></i></button>`;
+                html += `<button class="btn btn-sm" onclick="goToPage(${totalPages})" title="Última página"><i class='bx bx-chevron-right-double'></i></button>`;
+            }
+
+            html += '</div>';
+            paginationContainer.innerHTML = html;
+        }
+
+        function goToPage(pageNumber) {
+            const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+            if (pageNumber >= 1 && pageNumber <= totalPages) {
+                currentPage = pageNumber;
+                renderPageContent();
+                renderPagination();
+                document.getElementById('tableBody')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
 
         function getStatusClass(item) {
@@ -1005,6 +1149,7 @@
                 filtered.sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''));
             }
 
+            currentPage = 1; // Reset to page 1 when filtering
             renderTable(filtered);
         }
 

@@ -1246,6 +1246,10 @@
             <span class="detail-value" id="detailDueDate"></span>
           </div>
           <div class="detail-item">
+            <span class="detail-label">Días de Atraso:</span>
+            <span class="detail-value" id="detailDaysOverdue"></span>
+          </div>
+          <div class="detail-item">
             <span class="detail-label">Cuotas Totales:</span>
             <span class="detail-value" id="detailTotalInstallments"></span>
           </div>
@@ -2343,6 +2347,8 @@
         document.getElementById("detailDueDate").textContent = formatDate(
           account.dueDate,
         );
+        document.getElementById("detailDaysOverdue").textContent = 
+          account.daysOverdue > 0 ? `${account.daysOverdue} días` : "Al día";
 
         const totalInstallments = Number(account.plazoMeses || 0);
         const paidInstallments = Number(account.paidInstallments || 0);
