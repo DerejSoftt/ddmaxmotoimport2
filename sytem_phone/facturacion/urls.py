@@ -37,6 +37,7 @@ urlpatterns = [
     path('comprobante-venta/<int:venta_id>/', views.comprobante_venta, name='comprobante_venta'),
     path('buscar-productos/', views.buscar_productos_similares, name='buscar_productos'),
     path('registrar-pago/', views.registrar_pago, name='registrar_pago'),
+    path('api/pago-cxc/', views.registrar_pago_cxc, name='registrar_pago_cxc'),  # ← NUEVA: para pagos con cuotas
     path('cuentas-por-cobrar/<int:cuenta_id>/', views.detalle_cuenta, name='detalle_cuenta'),
     path('cierredecaja', views.cierredecaja, name='cierredecaja'),
     path('procesar-cierre/', views.procesar_cierre_caja, name='procesar_cierre_caja'),
@@ -62,7 +63,9 @@ urlpatterns = [
     path('anular_comprobante/', views.anular_comprobante_action, name='anular_comprobante_action'),
     path('ultimo-comprobante/', views.ultimo_comprobante, name='ultimo_comprobante'),
     path('aplicar-descuento/', views.aplicar_descuento, name='aplicar_descuento'),
+    path('rebajar-deuda/', views.rebajar_deuda, name='rebajar_deuda'),
     path('cuentasAtrasada', views.cuentasAtrasada, name='cuentasAtrasada'),
+    path('cuotas-atrasadas/reporte-pdf/', views.generar_pdf_cuotas_atrasadas, name='generar_pdf_cuotas_atrasadas'),
     path('generar-pdf-deudas/', views.generar_pdf_deudas, name='generar_pdf_deudas'),
 
 

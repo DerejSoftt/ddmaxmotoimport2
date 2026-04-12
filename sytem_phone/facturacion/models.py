@@ -467,7 +467,7 @@ class Venta(models.Model):
 
     
 
-    numero_factura = models.CharField(max_length=20, unique=True)
+    numero_factura = models.CharField(max_length=50, unique=True)
     fecha_venta = models.DateTimeField(default=timezone.now)
     vendedor = models.ForeignKey(User, on_delete=models.PROTECT)
     
@@ -515,20 +515,49 @@ class Venta(models.Model):
 
     
     
+    def clean(self):
+        """Validar que el número de factura tenga el formato correcto"""
+        import re
+        from django.core.exceptions import ValidationError
+        
+        if self.numero_factura:
+            # Si ya existe, validar que tenga el formato F-YYYY-XXXXXX
+            if not re.match(r'^F-\d{4}-\d{6,}$', self.numero_factura):
+                raise ValidationError(
+                    f"El número de factura debe tener el formato F-YYYY-XXXXXX. "
+                    f"Recibido: {self.numero_factura}"
+                )
+    
     def save(self, *args, **kwargs):
         if not self.numero_factura:
             # Generar número de factura único
+            from django.db.models import Max, F as DjangoF
+            from django.db.models.functions import Cast
+            from django.db import models as django_models
+            
             año = timezone.now().year
-            ultima_venta = Venta.objects.filter(fecha_venta__year=año).order_by('-id').first()
-            if ultima_venta and ultima_venta.numero_factura:
-                try:
-                    ultimo_numero = int(ultima_venta.numero_factura.split('-')[-1])
-                    nuevo_numero = ultimo_numero + 1
-                except (ValueError, IndexError):
-                    nuevo_numero = 1
-            else:
-                nuevo_numero = 1
+            
+            # Buscar el máximo número de secuencia para este año
+            # Filtrar solo facturas con formato válido F-YYYY-XXXXXX
+            import re
+            
+            max_numero = 0
+            for venta in Venta.objects.filter(fecha_venta__year=año):
+                if venta.numero_factura:
+                    match = re.match(r'F-\d{4}-(\d+)', venta.numero_factura)
+                    if match:
+                        try:
+                            seq = int(match.group(1))
+                            if seq > max_numero:
+                                max_numero = seq
+                        except ValueError:
+                            pass
+            
+            nuevo_numero = max_numero + 1
             self.numero_factura = f"F-{año}-{nuevo_numero:06d}"
+        
+        # Validar el formato antes de guardar
+        self.clean()
         
         super().save(*args, **kwargs)
     
@@ -882,3 +911,363 @@ class ComprobantePago(models.Model):
 
 
 
+import uuid as _uuid
+from datetime import date
+
+# ============================================================
+# 1. DETALLE DE DEVOLUCIÓN
+# ============================================================
+class DetalleDevolucion(models.Model):
+    """
+    Línea de detalle de una devolución.
+    Registra qué producto, en qué cantidad y a qué precio fue devuelto.
+    El nombre se guarda en texto para preservar trazabilidad histórica:
+    aunque el producto sea editado o eliminado después, el registro
+    histórico permanece intacto.
+    """
+
+    devolucion = models.ForeignKey(
+        'Devolucion',
+        on_delete=models.CASCADE,
+        related_name='detalles',
+        verbose_name="Devolución"
+    )
+    nombre_producto = models.CharField(
+        max_length=200,
+        verbose_name="Nombre del Producto"
+    )
+    cantidad = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        verbose_name="Cantidad Devuelta"
+    )
+    precio_unitario = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        verbose_name="Precio Unitario"
+    )
+    monto = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        verbose_name="Monto Devuelto"
+    )
+
+    class Meta:
+        db_table            = 'detalle_devolucion'
+        verbose_name        = "Detalle de Devolución"
+        verbose_name_plural = "Detalles de Devolución"
+
+    def __str__(self):
+        return f"{self.cantidad}x {self.nombre_producto} — RD${self.monto}"
+
+    def save(self, *args, **kwargs):
+        # Calcular monto automáticamente si no viene definido desde la vista
+        if not self.monto:
+            self.monto = self.cantidad * self.precio_unitario
+        super().save(*args, **kwargs)
+
+
+# ============================================================
+# 2. MOVIMIENTO FINANCIERO
+# ============================================================
+
+class MovimientoFinanciero(models.Model):
+    """
+    Registro inmutable de cada evento que mueve dinero en el sistema.
+    Cubre ventas (contado y crédito), pagos de CxC, devoluciones y anulaciones.
+
+    Reglas de oro:
+    - Nunca editar un movimiento existente.
+    - Nunca borrar un movimiento existente.
+    - Todo evento financiero crea exactamente un movimiento.
+    - Para corregir un error: crear un movimiento REVERTIDO que apunte
+      al original mediante movimiento_origen, y crear el correcto nuevo.
+    """
+
+    TIPO_CHOICES = [
+        ('INGRESO', 'Ingreso'),
+        ('EGRESO',  'Egreso'),
+    ]
+
+    ORIGEN_CHOICES = [
+        ('VENTA',      'Venta'),
+        ('PAGO_CXC',   'Pago Cuenta por Cobrar'),
+        ('DEVOLUCION', 'Devolución'),
+        ('ANULACION',  'Anulación'),
+        ('AJUSTE',     'Ajuste Manual'),
+    ]
+
+    ESTADO_CHOICES = [
+        ('ACTIVO',    'Activo'),
+        ('INACTIVO',  'Inactivo'),
+        ('REVERTIDO', 'Revertido'),
+    ]
+
+    # Método de pago — mismos choices que Venta para consistencia
+    METODO_PAGO_CHOICES = [
+        ('efectivo',      'Efectivo'),
+        ('tarjeta',       'Tarjeta'),
+        ('transferencia', 'Transferencia'),
+    ]
+
+    tipo   = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name="Tipo")
+    origen = models.CharField(max_length=20, choices=ORIGEN_CHOICES, verbose_name="Origen")
+    estado = models.CharField(
+        max_length=10, choices=ESTADO_CHOICES,
+        default='ACTIVO', verbose_name="Estado"
+    )
+
+    monto = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="Monto"
+    )
+
+    # Dos fechas: cuándo ocurrió el hecho vs cuándo entró al sistema.
+    # Crítico para registros retroactivos o caídas de red.
+    fecha_operacion = models.DateTimeField(verbose_name="Fecha de Operación")
+    fecha_registro  = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Registro")
+
+    # ----------------------------------------------------------
+    # Trazabilidad — conecta el movimiento con su documento origen
+    # ----------------------------------------------------------
+    factura = models.ForeignKey(
+        'Venta',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='movimientos_financieros',
+        verbose_name="Factura/Venta"
+    )
+    devolucion = models.ForeignKey(
+        'Devolucion',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='movimientos_financieros',
+        verbose_name="Devolución"
+    )
+    pago_cxc = models.ForeignKey(
+        'PagoCuentaPorCobrar',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='movimientos_financieros',
+        verbose_name="Pago CxC"
+    )
+
+    # FK directa a Cliente — permite filtrar todos los movimientos de un
+    # cliente sin pasar por Venta ni CuentaPorCobrar (evita joins en reportes)
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='movimientos_financieros',
+        verbose_name="Cliente"
+    )
+
+    metodo_pago = models.CharField(
+        max_length=20,
+        choices=METODO_PAGO_CHOICES,
+        null=True, blank=True,
+        verbose_name="Método de Pago"
+    )
+
+    descripcion = models.TextField(verbose_name="Descripción")
+    referencia  = models.CharField(
+        max_length=100, blank=True,
+        db_index=True,
+        verbose_name="Referencia"
+    )
+
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='movimientos_financieros_creados',
+        verbose_name="Creado por"
+    )
+
+    # Para reversos: apunta al movimiento que este cancela
+    movimiento_origen = models.ForeignKey(
+        'self',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reversos',
+        verbose_name="Movimiento Original"
+    )
+
+    uuid = models.UUIDField(
+        default=_uuid.uuid4,
+        unique=True,
+        editable=False,
+        verbose_name="UUID"
+    )
+
+    class Meta:
+        db_table = 'movimientos_financieros'
+        ordering = ['-fecha_operacion']
+        indexes = [
+            models.Index(fields=['tipo', 'origen', 'fecha_operacion']),
+            models.Index(fields=['fecha_operacion']),
+            models.Index(fields=['cliente', 'fecha_operacion']),  # historial por cliente
+            models.Index(fields=['estado']),
+        ]
+        verbose_name        = "Movimiento Financiero"
+        verbose_name_plural = "Movimientos Financieros"
+
+    def __str__(self):
+        return (
+            f"{self.tipo} | {self.origen} | "
+            f"RD${self.monto} | {self.fecha_operacion:%Y-%m-%d}"
+        )
+
+    def delete(self, *args, **kwargs):
+        """Los movimientos financieros nunca se eliminan. Son inmutables."""
+        raise models.ProtectedError(
+            "Los movimientos financieros son inmutables. "
+            "Cree un movimiento REVERTIDO en su lugar.",
+            [self]
+        )
+
+
+# ============================================================
+# 3. CUOTA
+# ============================================================
+
+class Cuota(models.Model):
+    """
+    Representa una cuota individual dentro de una venta a crédito financiada.
+
+    Reglas de negocio:
+    - Los días de atraso se calculan desde la cuota MÁS ANTIGUA no pagada,
+      no desde cada cuota individual.
+    - El estado se actualiza cuando entra un pago vía aplicar_pago().
+    - aplicar_pago() NO llama self.save() — el caller decide cuándo guardar,
+      permitiendo bulk_update() eficiente en pagos que cubren varias cuotas.
+
+    Para listados con N cuotas usar calcular_dias_atraso_bulk() en la vista
+    junto con prefetch_related('venta__cuotas') — evita el problema N+1.
+    El @property dias_atraso es solo para uso puntual (detalle de una cuota).
+    """
+
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('parcial',   'Parcial'),
+        ('pagada',    'Pagada'),
+    ]
+
+    venta = models.ForeignKey(
+        'Venta',
+        on_delete=models.CASCADE,
+        related_name='cuotas',
+        verbose_name="Venta"
+    )
+    # FK directa a Cliente para queries de cobranza sin pasar por Venta
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.CASCADE,
+        related_name='cuotas',
+        verbose_name="Cliente"
+    )
+    numero_cuota    = models.PositiveIntegerField(verbose_name="N° Cuota")
+    monto_original  = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="Monto Original"
+    )
+    monto_pendiente = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="Monto Pendiente"
+    )
+    fecha_vencimiento = models.DateField(
+        db_index=True,
+        verbose_name="Fecha de Vencimiento"
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='pendiente',
+        db_index=True,
+        verbose_name="Estado"
+    )
+    fecha_pago_completo = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Fecha de Pago Completo"
+    )
+    creada_en      = models.DateTimeField(auto_now_add=True)
+    actualizada_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table        = 'cuotas'
+        ordering        = ['fecha_vencimiento']
+        unique_together = ('venta', 'numero_cuota')
+        indexes = [
+            models.Index(fields=['venta', 'estado']),
+            models.Index(fields=['cliente', 'estado']),
+            models.Index(fields=['fecha_vencimiento']),
+        ]
+        verbose_name        = "Cuota"
+        verbose_name_plural = "Cuotas"
+
+    def __str__(self):
+        return (
+            f"Venta {self.venta.numero_factura} – "
+            f"Cuota {self.numero_cuota} – "
+            f"{self.get_estado_display()}"
+        )
+
+    # ----------------------------------------------------------
+    # Estado derivado — sin campo extra, sin tarea cron
+    # ----------------------------------------------------------
+
+    @property
+    def esta_vencida(self):
+        """True si la cuota sigue activa pero ya pasó su fecha de vencimiento."""
+        return self.estado != 'pagada' and date.today() > self.fecha_vencimiento
+
+    # ----------------------------------------------------------
+    # Días de atraso — USO PUNTUAL únicamente
+    # Para listados usar calcular_dias_atraso_bulk() en la vista
+    # ----------------------------------------------------------
+
+    @property
+    def dias_atraso(self):
+        """
+        Devuelve los días transcurridos desde la fecha de vencimiento.
+        USO PUNTUAL solamente (detalle de una cuota individual).
+        No determina si esta cuota es la que "manda" — eso lo hace
+        calcular_dias_atraso_bulk() operando sobre datos ya en memoria.
+        """
+        if self.estado == 'pagada':
+            return 0
+        hoy = date.today()
+        if hoy <= self.fecha_vencimiento:
+            return 0
+        return (hoy - self.fecha_vencimiento).days
+
+    # ----------------------------------------------------------
+    # Aplicar pago — muta campos, NO guarda
+    # El caller (vista/servicio) decide cuándo hacer save/bulk_update
+    # ----------------------------------------------------------
+
+    def aplicar_pago(self, monto: Decimal):
+        """
+        Muta el estado de la cuota según el monto recibido.
+        NO llama self.save() — permite bulk_update() eficiente
+        cuando un pago cubre varias cuotas a la vez.
+
+        Flujo correcto en la vista:
+            cuotas = Cuota.objects.select_for_update().filter(...).order_by('fecha_vencimiento')
+            for cuota in cuotas:
+                aplicar = min(monto_restante, cuota.monto_pendiente)
+                cuota.aplicar_pago(aplicar)
+                monto_restante -= aplicar
+                actualizadas.append(cuota)
+            Cuota.objects.bulk_update(actualizadas, [...])
+        """
+        if monto <= 0:
+            raise ValueError("El monto debe ser mayor a 0")
+        if self.estado == 'pagada':
+            raise ValueError("Esta cuota ya está pagada")
+
+        self.monto_pendiente = max(Decimal('0'), self.monto_pendiente - monto)
+
+        if self.monto_pendiente == 0:
+            self.estado = 'pagada'
+            self.fecha_pago_completo = timezone.now()
+        else:
+            self.estado = 'parcial'
+        # Sin self.save() intencional — responsabilidad del caller

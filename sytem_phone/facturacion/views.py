@@ -1,7 +1,13 @@
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import letter
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta, MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja, ComprobantePago, RebajaDeuda
+from .models import (
+    EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta,
+    MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja,
+    ComprobantePago, RebajaDeuda,
+    # NUEVOS MODELOS
+    Cuota, DetalleDevolucion, MovimientoFinanciero,
+)
 from django.contrib import messages
 
 from django.http import JsonResponse
@@ -1652,6 +1658,42 @@ def procesar_venta(request):
             print(f"Total con interés: RD${venta.total_con_interes}")
             print(f"Total a pagar: RD${total_a_pagar}")
 
+        # ── BLOQUE A — MOVIMIENTO FINANCIERO DE LA VENTA ─────────────────────────────
+        # Registra el movimiento financiero de la venta (contado o inicial de crédito)
+        try:
+            monto_movimiento = (
+                venta.montoinicial if payment_type == 'credito'
+                else venta.total
+            )
+
+            MovimientoFinanciero.objects.create(
+                tipo            = 'INGRESO',
+                origen          = 'VENTA',
+                estado          = 'ACTIVO',
+                monto           = monto_movimiento,
+                fecha_operacion = venta.fecha_venta,
+                factura         = venta,
+                cliente         = cliente,           # None para ventas contado sin cliente FK
+                metodo_pago     = payment_method,
+                descripcion     = (
+                    f"Venta {'a crédito' if payment_type == 'credito' else 'al contado'} — "
+                    f"Factura {venta.numero_factura} — "
+                    f"Cliente: {venta.cliente_nombre}"
+                    + (
+                        f" — Inicial: RD${monto_inicial:,.2f} | "
+                        f"Plazo: {plazo_meses} meses | "
+                        f"Cuota: RD${cuota_mensual:,.2f}"
+                        if payment_type == 'credito' and monto_inicial > 0 else ""
+                    )
+                ),
+                referencia  = venta.numero_factura,
+                creado_por  = request.user,
+            )
+            print(f"MovimientoFinanciero creado: INGRESO | VENTA | RD${monto_movimiento:,.2f}")
+        except Exception as e:
+            print(f"Advertencia: Error al crear MovimientoFinanciero: {str(e)}")
+        # ── FIN BLOQUE A ─────────────────────────────────────────────────────────────
+
         # Procesar detalles de venta y descontar stock
         productos_para_cuenta = []
         for item in sale_items:
@@ -1751,6 +1793,31 @@ Productos:
                     f"Saldo pendiente: RD${cuenta_por_cobrar.saldo_pendiente}")
                 print(f"Productos incluidos:\n{productos_str}")
 
+                # ── BLOQUE B — CREACIÓN DE CUOTAS ────────────────────────────────────────
+                # Crear cuotas solo si la venta es financiada
+                try:
+                    if es_financiada and plazo_meses > 0 and cuota_mensual > 0:
+                        fecha_base     = venta.fecha_venta.date()
+                        cuotas_a_crear = []
+
+                        for numero in range(1, plazo_meses + 1):
+                            fecha_vcto = calcular_fecha_cuota(fecha_base, numero)
+                            cuotas_a_crear.append(Cuota(
+                                venta             = venta,
+                                cliente           = cliente,
+                                numero_cuota      = numero,
+                                monto_original    = cuota_mensual,
+                                monto_pendiente   = cuota_mensual,
+                                fecha_vencimiento = fecha_vcto,
+                                estado            = 'pendiente',
+                            ))
+
+                        Cuota.objects.bulk_create(cuotas_a_crear)
+                        print(f"{len(cuotas_a_crear)} cuotas creadas para venta {venta.numero_factura}")
+                except Exception as e:
+                    print(f"Advertencia: Error al crear cuotas: {str(e)}")
+                # ── FIN BLOQUE B ─────────────────────────────────────────────────────────
+
             except Exception as e:
                 transaction.set_rollback(True)
                 return JsonResponse({'success': False, 'message': f'Error al crear cuenta por cobrar: {str(e)}'})
@@ -1798,6 +1865,150 @@ Productos:
         transaction.set_rollback(True)
         print(f"Error completo: {traceback.format_exc()}")
         return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
+
+
+# ============================================================
+# REGISTRAR PAGO CXC — vista completa atómica con select_for_update
+# ============================================================
+
+@csrf_exempt
+@require_POST
+@login_required
+@transaction.atomic
+def registrar_pago_cxc(request):
+    """
+    Registra un pago sobre una CuentaPorCobrar.
+
+    Flujo:
+        1. Valida monto y estado de la cuenta
+        2. Crea PagoCuentaPorCobrar
+        3. Actualiza CuentaPorCobrar (monto_pagado + estado)
+        4. Aplica el pago a las cuotas más antiguas primero (select_for_update)
+        5. Crea MovimientoFinanciero
+        6. Crea ComprobantePago
+    """
+    try:
+        data       = json.loads(request.body)
+        cuenta_id  = data.get('cuenta_id')
+        monto      = safe_decimal(data.get('monto', 0))
+        metodo     = data.get('metodo_pago', 'efectivo')
+        referencia = data.get('referencia', '')
+        notas      = data.get('observaciones', '')
+
+        if monto <= 0:
+            return JsonResponse({'success': False, 'message': 'El monto debe ser mayor a 0'})
+
+        cuenta = get_object_or_404(
+            CuentaPorCobrar,
+            id=cuenta_id,
+            anulada=False,
+            eliminada=False
+        )
+
+        if cuenta.estado == 'pagada':
+            return JsonResponse({'success': False, 'message': 'Esta cuenta ya está pagada'})
+
+        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
+        if monto > saldo_pendiente:
+            return JsonResponse({
+                'success': False,
+                'message': f'El monto excede el saldo pendiente: RD${saldo_pendiente:,.2f}'
+            })
+
+        # ── 1. GUARDAR EL PAGO ───────────────────────────────────────────
+        pago = PagoCuentaPorCobrar.objects.create(
+            cuenta      = cuenta,
+            monto       = monto,
+            metodo_pago = metodo,
+            referencia  = referencia,
+            observaciones = notas,
+            fecha_pago  = timezone.now(),
+        )
+
+        # ── 2. ACTUALIZAR CUENTA POR COBRAR ─────────────────────────────
+        cuenta.monto_pagado += monto
+        nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+
+        if nuevo_saldo <= 0:
+            cuenta.estado = 'pagada'
+        elif cuenta.monto_pagado > 0:
+            cuenta.estado = 'parcial'
+
+        cuenta.save(update_fields=['monto_pagado', 'estado', 'fecha_actualizacion'])
+
+        # ── 3. ACTUALIZAR CUOTAS (la más antigua primero) ────────────────
+        # select_for_update() bloquea las filas hasta que termine
+        # la transacción. Evita que dos pagos simultáneos corrompan
+        # el mismo registro (race condition).
+        monto_restante     = monto
+        cuotas_actualizadas = []
+
+        cuotas_pendientes = (
+            Cuota.objects
+            .select_for_update()
+            .filter(
+                venta=cuenta.venta,
+                estado__in=['pendiente', 'parcial']
+            )
+            .order_by('fecha_vencimiento')  # la más antigua manda
+        )
+
+        for cuota in cuotas_pendientes:
+            if monto_restante <= 0:
+                break
+
+            aplicar         = min(monto_restante, cuota.monto_pendiente)
+            cuota.aplicar_pago(aplicar)     # muta en memoria, sin save()
+            monto_restante -= aplicar
+            cuotas_actualizadas.append(cuota)
+
+        # Un solo UPDATE para todas las cuotas modificadas — no N saves
+        if cuotas_actualizadas:
+            Cuota.objects.bulk_update(
+                cuotas_actualizadas,
+                ['monto_pendiente', 'estado', 'fecha_pago_completo', 'actualizada_en']
+            )
+
+        # ── 4. MOVIMIENTO FINANCIERO ─────────────────────────────────────
+        MovimientoFinanciero.objects.create(
+            tipo            = 'INGRESO',
+            origen          = 'PAGO_CXC',
+            estado          = 'ACTIVO',
+            monto           = monto,
+            fecha_operacion = timezone.now(),
+            factura         = cuenta.venta,
+            pago_cxc        = pago,
+            cliente         = cuenta.cliente,
+            metodo_pago     = metodo,
+            descripcion     = (
+                f"Pago CxC — Factura {cuenta.venta.numero_factura} — "
+                f"Cliente: {cuenta.cliente.full_name} — "
+                f"Saldo anterior: RD${saldo_pendiente:,.2f} — "
+                f"Saldo nuevo: RD${nuevo_saldo:,.2f}"
+            ),
+            referencia  = referencia or f"PAGO-{pago.id}",
+            creado_por  = request.user,
+        )
+
+        # ── 5. COMPROBANTE ───────────────────────────────────────────────
+        ComprobantePago.objects.create(
+            pago             = pago,
+            cuenta           = cuenta,
+            cliente          = cuenta.cliente,
+            tipo_comprobante = 'recibo',
+        )
+
+        return JsonResponse({
+            'success'            : True,
+            'message'            : 'Pago registrado correctamente',
+            'nuevo_saldo'        : float(nuevo_saldo),
+            'estado_cuenta'      : cuenta.estado,
+            'cuotas_actualizadas': len(cuotas_actualizadas),
+            'pago_id'            : pago.id,
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error al registrar pago: {str(e)}'})
 
 
 def safe_decimal(value, default=0):
@@ -2975,6 +3186,36 @@ def buscar_productos_similares(request):
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
 
 
+def _get_effective_paid_amount(cuenta):
+    """Devuelve el monto pagado real considerando monto inicial + pagos registrados."""
+    pagos_total = cuenta.pagos.filter(anulado=False).aggregate(
+        total=Sum('monto')
+    )['total'] or Decimal('0.00')
+    monto_inicial = Decimal(getattr(cuenta.venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00'))
+    monto_pagado_registrado = Decimal(cuenta.monto_pagado or Decimal('0.00'))
+    monto_pagado_calculado = Decimal(pagos_total) + monto_inicial
+    return max(monto_pagado_registrado, monto_pagado_calculado)
+
+
+def _get_effective_total_amount(cuenta):
+    """Obtiene el total base correcto para calcular saldo pendiente sin duplicar el inicial."""
+    monto_total_cuenta = Decimal(cuenta.monto_total or Decimal('0.00'))
+    venta = getattr(cuenta, 'venta', None)
+    if not venta:
+        return monto_total_cuenta
+
+    monto_inicial = Decimal(getattr(venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00'))
+    total_a_pagar = Decimal(getattr(venta, 'total_a_pagar', Decimal('0.00')) or Decimal('0.00'))
+
+    # Caso común de este proyecto: cuenta.monto_total guarda el saldo financiado
+    # y total_a_pagar incluye inicial + financiado.
+    if total_a_pagar > Decimal('0.00') and monto_inicial > Decimal('0.00'):
+        if monto_total_cuenta < total_a_pagar:
+            return monto_total_cuenta + monto_inicial
+
+    return monto_total_cuenta
+
+
 def cuentaporcobrar(request):
     # Obtener parámetros de filtrado
     search = request.GET.get('search', '')
@@ -2982,27 +3223,63 @@ def cuentaporcobrar(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
 
-    # Filtrar cuentas por cobrar (excluir anuladas Y eliminadas)
-    cuentas = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(
+    # Filtrar cuentas por cobrar (excluir anuladas y eliminadas)
+    cuentas_qs = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(
         anulada=False,
         eliminada=False
     )
 
     if search:
-        cuentas = cuentas.filter(
+        cuentas_qs = cuentas_qs.filter(
             Q(cliente__full_name__icontains=search) |
             Q(venta__numero_factura__icontains=search) |
             Q(cliente__identification_number__icontains=search)
         )
 
-    if status_filter:
-        cuentas = cuentas.filter(estado=status_filter)
-
     if date_from:
-        cuentas = cuentas.filter(venta__fecha_venta__gte=date_from)
+        cuentas_qs = cuentas_qs.filter(venta__fecha_venta__gte=date_from)
 
     if date_to:
-        cuentas = cuentas.filter(venta__fecha_venta__lte=date_to)
+        cuentas_qs = cuentas_qs.filter(venta__fecha_venta__lte=date_to)
+
+    cuentas = list(cuentas_qs)
+    hoy = timezone.now().date()
+
+    for cuenta in cuentas:
+        monto_total_actual = _get_effective_total_amount(cuenta)
+        monto_pagado_efectivo = _get_effective_paid_amount(cuenta)
+        saldo_pendiente = monto_total_actual - monto_pagado_efectivo
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal('0.00')
+
+        if saldo_pendiente <= 0:
+            estado_esperado = 'pagada'
+            monto_pagado_efectivo = monto_total_actual
+        elif cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < hoy:
+            estado_esperado = 'vencida'
+        elif monto_pagado_efectivo > 0:
+            estado_esperado = 'parcial'
+        else:
+            estado_esperado = 'pendiente'
+
+        campos_actualizar = []
+        if cuenta.monto_pagado != monto_pagado_efectivo:
+            cuenta.monto_pagado = monto_pagado_efectivo
+            campos_actualizar.append('monto_pagado')
+        if estado_esperado == 'pagada' and cuenta.monto_pagado != monto_total_actual:
+            cuenta.monto_pagado = monto_total_actual
+            if 'monto_pagado' not in campos_actualizar:
+                campos_actualizar.append('monto_pagado')
+        if cuenta.estado != estado_esperado:
+            cuenta.estado = estado_esperado
+            campos_actualizar.append('estado')
+
+        if campos_actualizar:
+            campos_actualizar.append('fecha_actualizacion')
+            cuenta.save(update_fields=campos_actualizar)
+
+    if status_filter:
+        cuentas = [c for c in cuentas if c.estado == status_filter]
 
     # Calcular estadísticas usando monto_total de CuentaPorCobrar (solo cuentas no anuladas y no eliminadas)
     total_pendiente = Decimal('0.00')
@@ -3010,8 +3287,10 @@ def cuentaporcobrar(request):
     total_por_cobrar = Decimal('0.00')
 
     for cuenta in cuentas:
-        # Usar siempre monto_total de CuentaPorCobrar
-        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
+        monto_total_actual = _get_effective_total_amount(cuenta)
+        saldo_pendiente = monto_total_actual - Decimal(cuenta.monto_pagado or Decimal('0.00'))
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal('0.00')
 
         if cuenta.estado in ['pendiente', 'parcial']:
             total_pendiente += saldo_pendiente
@@ -3119,13 +3398,13 @@ def cuentaporcobrar(request):
         if cuenta.fecha_vencimiento:
             due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
 
-        # CORRECCIÓN IMPORTANTE: Usar monto_total actualizado después de rebajas
-        # Este ya incluye las rebajas aplicadas
-        monto_total_actual = float(cuenta.monto_total)
-        monto_pagado_actual = float(cuenta.monto_pagado)
+        monto_total_decimal = _get_effective_total_amount(cuenta)
+        monto_pagado_decimal = Decimal(cuenta.monto_pagado or Decimal('0.00'))
+        monto_total_actual = float(monto_total_decimal)
+        monto_pagado_actual = float(monto_pagado_decimal)
 
         # Calcular saldo pendiente basado en monto_total ACTUAL (después de rebajas)
-        saldo_pendiente_actual = monto_total_actual - monto_pagado_actual
+        saldo_pendiente_actual = float(monto_total_decimal - monto_pagado_decimal)
 
         # Asegurarse de que el saldo pendiente no sea negativo
         if saldo_pendiente_actual < 0:
@@ -3134,6 +3413,118 @@ def cuentaporcobrar(request):
         # Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
         puede_eliminar = cuenta.estado == 'pagada'
 
+        # ========== USAR TABLA CUOTA PARA CÁLCULOS REALES ==========
+        cuota_mensual = 0.0
+        plazo_meses = 0
+        cuotas_pagadas = 0
+        cuotas_pendientes = 0
+        cuotas_atrasadas = 0
+        monto_total_cuotas_pagadas = Decimal('0.00')
+        monto_total_cuotas_atrasadas = Decimal('0.00')
+        dias_atraso_real = 0
+        fecha_vencimiento_critica = None
+        estado_calculado = cuenta.estado  # Fallback al estado de DB
+
+        if cuenta.venta:
+            # Obtener todas las cuotas de la venta
+            cuotas_qs = Cuota.objects.filter(venta=cuenta.venta)
+            
+            if cuotas_qs.exists():
+                # Conteos reales desde la tabla
+                plazo_meses = cuotas_qs.count()
+                cuotas_pagadas = cuotas_qs.filter(estado='pagada').count()
+                cuotas_pendientes = cuotas_qs.filter(estado__in=['pendiente', 'parcial']).count()
+                
+                # Cuota más antigua (sin importar estado) para obtener la fecha más próxima
+                cuota_proxima = cuotas_qs.order_by('fecha_vencimiento').first()
+                
+                # Cuota crítica (más antigua no pagada)
+                cuota_critica = cuotas_qs.filter(
+                    estado__in=['pendiente', 'parcial']
+                ).order_by('fecha_vencimiento').first()
+                
+                if cuota_critica:
+                    cuota_mensual = float(cuota_critica.monto_original)
+                    fecha_vencimiento_critica = cuota_critica.fecha_vencimiento.strftime('%Y-%m-%d')
+                    
+                    # Calcular días de atraso desde la cuota crítica
+                    if cuota_critica.fecha_vencimiento < hoy:
+                        dias_atraso_real = (hoy - cuota_critica.fecha_vencimiento).days
+                elif cuota_proxima:
+                    # Si todas las cuotas están pagadas, usar la última
+                    cuota_mensual = float(cuota_proxima.monto_original)
+                    fecha_vencimiento_critica = cuota_proxima.fecha_vencimiento.strftime('%Y-%m-%d')
+                
+                # Cuotas vencidas (atrasadas)
+                cuotas_atrasadas = cuotas_qs.filter(
+                    estado__in=['pendiente', 'parcial'],
+                    fecha_vencimiento__lt=hoy
+                ).count()
+                
+                # Monto total atrasado = cuotas_atrasadas × cuota_mensual
+                # (Esto es correcto porque todas las cuotas de una venta tienen el mismo monto)
+                if cuota_critica:
+                    monto_total_cuotas_atrasadas = Decimal(str(cuota_critica.monto_original)) * Decimal(cuotas_atrasadas)
+                else:
+                    monto_total_cuotas_atrasadas = Decimal('0.00')
+                
+                # Monto total de cuotas pagadas
+                monto_pagado_qs = cuotas_qs.filter(
+                    estado='pagada'
+                ).aggregate(total=Sum('monto_original'))['total'] or Decimal('0.00')
+                monto_total_cuotas_pagadas = monto_pagado_qs
+                
+                # ===== CALCULAR ESTADO CORRECTO BASADO EN CUOTAS =====
+                if cuotas_pagadas == plazo_meses:
+                    # Todas las cuotas están pagadas
+                    estado_calculado = 'pagada'
+                elif cuotas_pendientes == 0:
+                    # Sin cuotas pendientes (todas pagadas)
+                    estado_calculado = 'pagada'
+                elif cuotas_atrasadas > 0:
+                    # Hay cuotas vencidas (atrasadas)
+                    estado_calculado = 'vencida'
+                elif cuotas_pagadas > 0:
+                    # Algunas cuotas pagadas, pero ninguna vencida
+                    estado_calculado = 'parcial'
+                else:
+                    # Sin cuotas pagadas aún
+                    estado_calculado = 'pendiente'
+                    
+            else:
+                # Si no hay cuotas registradas, usar el cálculo fallback
+                try:
+                    plazo_meses = int(getattr(cuenta.venta, 'plazo_meses', 0) or 0)
+                except (ValueError, TypeError):
+                    plazo_meses = 0
+                
+                try:
+                    cuota_mensual = float(getattr(cuenta.venta, 'cuota_mensual', 0) or 0)
+                except (ValueError, TypeError):
+                    cuota_mensual = 0.0
+                
+                if cuota_mensual <= 0 and plazo_meses > 0:
+                    cuota_mensual = float(Decimal(str(monto_total_actual)) / Decimal(plazo_meses))
+                
+                # Calcular fecha de vencimiento desde la venta si hay plazo
+                if plazo_meses > 0 and cuenta.venta.fecha_venta:
+                    fecha_factura = cuenta.venta.fecha_venta.date()
+                    fecha_primer_vencimiento = calcular_fecha_cuota(fecha_factura, 1)
+                    fecha_vencimiento_critica = fecha_primer_vencimiento.strftime('%Y-%m-%d')
+                    
+                    # Calcular días de atraso si es necesario
+                    if fecha_primer_vencimiento < hoy:
+                        dias_atraso_real = (hoy - fecha_primer_vencimiento).days
+        
+        # Asegurar que siempre haya una fecha de vencimiento
+        if not fecha_vencimiento_critica and due_date:
+            fecha_vencimiento_critica = due_date
+        elif not fecha_vencimiento_critica:
+            # Último recurso: usar aujourd'hui + 30 días
+            fecha_vencimiento_critica = (hoy + timedelta(days=30)).strftime('%Y-%m-%d')
+
+        cuota_sugerida_pago = min(cuota_mensual, saldo_pendiente_actual) if saldo_pendiente_actual > 0 else 0.0
+
         cuentas_data.append({
             'id': cuenta.id,
             'invoiceNumber': invoice_number,
@@ -3141,14 +3532,25 @@ def cuentaporcobrar(request):
             'clientPhone': client_phone,
             'products': productos,
             'saleDate': sale_date,
-            'dueDate': due_date,
+            'dueDate': fecha_vencimiento_critica,
             # Monto total ACTUAL (incluye rebajas)
             'totalAmount': monto_total_actual,
             'paidAmount': monto_pagado_actual,
             'pendingBalance': saldo_pendiente_actual,  # Saldo pendiente ACTUAL
-            'status': cuenta.estado,
+            'installmentAmount': cuota_mensual,
+            'suggestedPaymentAmount': cuota_sugerida_pago,
+            'plazoMeses': plazo_meses,
+            'paidInstallments': cuotas_pagadas,
+            'pendingInstallments': cuotas_pendientes,
+            'overdueInstallments': cuotas_atrasadas,
+            'overdueAmount': float(monto_total_cuotas_atrasadas),
+            'daysOverdue': dias_atraso_real,
+            'paidInstallmentsAmount': float(monto_total_cuotas_pagadas),
+            'overdueInstallmentsAmount': float(monto_total_cuotas_atrasadas),
+            'status': estado_calculado,  # ← Usar estado CALCULADO desde Cuotas, no el de DB
             'observations': cuenta.observaciones or '',
-            'puede_eliminar': puede_eliminar
+            'puede_eliminar': puede_eliminar,
+            'fechaVencimientoCritica': fecha_vencimiento_critica
         })
 
     # Convertir a JSON para pasarlo al template
@@ -3375,18 +3777,11 @@ def aplicar_descuento(request):
                     'message': 'No se puede aplicar descuento a una cuenta completamente pagada'
                 })
 
-            # **CORRECCIÓN CRÍTICA**: Usar el MONTO TOTAL CORRECTO
-            # Primero intentar usar total_a_pagar de la venta si existe
-            monto_base = cuenta.monto_total  # Por defecto, usar monto_total de la cuenta
+            monto_base = _get_effective_total_amount(cuenta)
+            monto_pagado_actual = _get_effective_paid_amount(cuenta)
 
-            if cuenta.venta and cuenta.venta.total_a_pagar:
-                monto_base = cuenta.venta.total_a_pagar
-            # Si existe total_con_interes, usarlo como monto base
-            elif cuenta.venta and cuenta.venta.total_con_interes:
-                monto_base = cuenta.venta.total_con_interes
-
-            # Calcular el saldo pendiente REAL
-            saldo_pendiente_real = monto_base - cuenta.monto_pagado
+            # Calcular el saldo pendiente real con respaldo de monto inicial + pagos
+            saldo_pendiente_real = monto_base - monto_pagado_actual
 
             # Asegurarse de que el saldo pendiente no sea negativo
             if saldo_pendiente_real < 0:
@@ -3436,7 +3831,7 @@ def aplicar_descuento(request):
             pago_descuento.save()
 
             # **IMPORTANTE**: Actualizar el monto pagado en la cuenta
-            cuenta.monto_pagado += monto_descuento_final
+            cuenta.monto_pagado = monto_pagado_actual + monto_descuento_final
 
             # **CALCULAR NUEVO SALDO CON EL MONTO BASE CORRECTO**
             nuevo_saldo = monto_base - cuenta.monto_pagado
@@ -3447,6 +3842,8 @@ def aplicar_descuento(request):
                 # Asegurar que no haya valores negativos
                 cuenta.monto_pagado = monto_base
                 nuevo_saldo = Decimal('0.00')
+            elif cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < timezone.now().date():
+                cuenta.estado = 'vencida'
             elif cuenta.monto_pagado > 0:
                 cuenta.estado = 'parcial'
             else:
@@ -3490,78 +3887,131 @@ def aplicar_descuento(request):
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
 
+@transaction.atomic
 def registrar_pago(request):
+    """
+    Versión mejorada de registrar_pago que TAMBIÉN actualiza cuotas y crea movimientos.
+    Mantiene compatibilidad con código viejo.
+    
+    Flujo:
+    1. Валидает monto y estado de cuenta
+    2. Crea PagoCuentaPorCobrar
+    3. Actualiza CuentaPorCobrar (monto_pagado + estado)
+    4. Aplica pago a cuotas (select_for_update + bulk_update)
+    5. Crea MovimientoFinanciero INGRESO (PAGO_CXC)
+    6. Crea ComprobantePago
+    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             cuenta_id = data.get('cuenta_id')
-            monto = Decimal(data.get('monto'))
-            metodo_pago = data.get('metodo_pago')
+            monto = safe_decimal(data.get('monto', 0))
+            metodo_pago = data.get('metodo_pago', 'efectivo')
             referencia = data.get('referencia', '')
             observaciones = data.get('observaciones', '')
 
-            cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
+            if monto <= 0:
+                return JsonResponse({'success': False, 'message': 'El monto debe ser mayor a 0'})
 
-            # Verificar que la cuenta no esté anulada
-            if cuenta.anulada:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No se puede registrar pago en una cuenta anulada'
-                })
+            cuenta = get_object_or_404(
+                CuentaPorCobrar,
+                id=cuenta_id,
+                anulada=False,
+                eliminada=False
+            )
 
-            # ✅ CORRECCIÓN: Usar el MONTO TOTAL ORIGINAL de la venta
-            monto_total_original = cuenta.monto_total  # Monto base de la cuenta
+            if cuenta.estado == 'pagada':
+                return JsonResponse({'success': False, 'message': 'Esta cuenta ya está pagada'})
 
-            # Si existe la venta y tiene total_a_pagar, usar ese valor
-            if cuenta.venta and cuenta.venta.total_a_pagar:
-                monto_total_original = cuenta.venta.total_a_pagar
-
-            # ✅ CALCULAR SALDO PENDIENTE CORRECTAMENTE
-            saldo_pendiente = monto_total_original - cuenta.monto_pagado
-
-            # Validar que el monto no exceda el saldo pendiente
+            saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
             if monto > saldo_pendiente:
                 return JsonResponse({
                     'success': False,
-                    'message': f'El monto excede el saldo pendiente de RD${saldo_pendiente}'
+                    'message': f'El monto excede el saldo pendiente: RD${saldo_pendiente:,.2f}'
                 })
 
-            # Crear el pago
-            pago = PagoCuentaPorCobrar(
+            # ── 1. GUARDAR EL PAGO ───────────────────────────────────────────
+            pago = PagoCuentaPorCobrar.objects.create(
                 cuenta=cuenta,
                 monto=monto,
                 metodo_pago=metodo_pago,
                 referencia=referencia,
-                observaciones=observaciones
+                observaciones=observaciones,
+                fecha_pago=timezone.now(),
             )
-            pago.save()
 
-            # ✅ ACTUALIZAR MONTO PAGADO (sumar el nuevo pago)
+            # ── 2. ACTUALIZAR CUENTA POR COBRAR ─────────────────────────────
             cuenta.monto_pagado += monto
+            nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
 
-            # ✅ CALCULAR NUEVO SALDO PENDIENTE CON EL MONTO TOTAL ORIGINAL
-            nuevo_saldo = monto_total_original - cuenta.monto_pagado
-
-            # Actualizar el estado basado en el nuevo saldo
             if nuevo_saldo <= 0:
                 cuenta.estado = 'pagada'
-                # ✅ Asegurar que monto_pagado sea exactamente igual al monto_total_original
-                cuenta.monto_pagado = monto_total_original
             elif cuenta.monto_pagado > 0:
                 cuenta.estado = 'parcial'
-            else:
-                cuenta.estado = 'pendiente'
 
-            cuenta.save()
+            cuenta.save(update_fields=['monto_pagado', 'estado', 'fecha_actualizacion'])
 
-            # Crear comprobante de pago
-            comprobante = ComprobantePago(
+            # ── 3. ACTUALIZAR CUOTAS (la más antigua primero) ────────────────
+            monto_restante     = monto
+            cuotas_actualizadas = []
+
+            cuotas_pendientes = (
+                Cuota.objects
+                .select_for_update()
+                .filter(
+                    venta=cuenta.venta,
+                    estado__in=['pendiente', 'parcial']
+                )
+                .order_by('fecha_vencimiento')
+            )
+
+            for cuota in cuotas_pendientes:
+                if monto_restante <= 0:
+                    break
+
+                aplicar         = min(monto_restante, cuota.monto_pendiente)
+                cuota.aplicar_pago(aplicar)
+                monto_restante -= aplicar
+                cuotas_actualizadas.append(cuota)
+
+            # Un solo UPDATE para todas las cuotas modificadas
+            if cuotas_actualizadas:
+                Cuota.objects.bulk_update(
+                    cuotas_actualizadas,
+                    ['monto_pendiente', 'estado', 'fecha_pago_completo', 'actualizada_en']
+                )
+                print(f"✓ {len(cuotas_actualizadas)} cuotas actualizadas para pago RD${monto:,.2f}")
+
+            # ── 4. MOVIMIENTO FINANCIERO ─────────────────────────────────────
+            MovimientoFinanciero.objects.create(
+                tipo='INGRESO',
+                origen='PAGO_CXC',
+                estado='ACTIVO',
+                monto=monto,
+                fecha_operacion=timezone.now(),
+                factura=cuenta.venta,
+                pago_cxc=pago,
+                cliente=cuenta.cliente,
+                metodo_pago=metodo_pago,
+                descripcion=(
+                    f"Pago CxC – Factura {cuenta.venta.numero_factura} – "
+                    f"Cliente: {cuenta.cliente.full_name} – "
+                    f"Saldo anterior: RD${saldo_pendiente:,.2f} – "
+                    f"Saldo nuevo: RD${nuevo_saldo:,.2f}"
+                ),
+                referencia=referencia or f"PAGO-{pago.id}",
+                creado_por=request.user if request.user.is_authenticated else None,
+            )
+            print(f"✓ MovimientoFinanciero PAGO_CXC creado: RD${monto:,.2f}")
+
+            # ── 5. COMPROBANTE ───────────────────────────────────────────────
+            comprobante = ComprobantePago.objects.create(
                 pago=pago,
                 cuenta=cuenta,
                 cliente=cuenta.cliente,
-                tipo_comprobante='recibo'
+                tipo_comprobante='recibo',
             )
-            comprobante.save()
+            print(f"✓ ComprobantePago creado: {comprobante.numero_comprobante}")
 
             return JsonResponse({
                 'success': True,
@@ -3569,12 +4019,16 @@ def registrar_pago(request):
                 'comprobante_numero': comprobante.numero_comprobante,
                 'comprobante_id': comprobante.id,
                 'nuevo_saldo_pendiente': float(nuevo_saldo),
-                'monto_total_original': float(monto_total_original),
+                'monto_total_original': float(cuenta.monto_total),
                 'monto_pagado_total': float(cuenta.monto_pagado),
-                'estado_actual': cuenta.estado
+                'estado_actual': cuenta.estado,
+                'cuotas_actualizadas': len(cuotas_actualizadas),
+                'pago_id': pago.id,
             })
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return JsonResponse({
                 'success': False,
                 'message': f'Error al registrar pago: {str(e)}'
@@ -3599,10 +4053,12 @@ def generar_comprobante_pdf(request, comprobante_id):
         y_position = height - 20  # Empezar desde la parte superior
         line_height = 14
         small_line_height = 10
-        # Obtener información de totales
-        monto_original = comprobante.cuenta.venta.total_a_pagar if comprobante.cuenta.venta and comprobante.cuenta.venta.total_a_pagar else comprobante.cuenta.monto_total
-        # Usar la misma fórmula que en el view `registrar_pago`
-        saldo_pendiente = monto_original - comprobante.cuenta.monto_pagado
+        # Obtener información de totales usando el monto real de la cuenta
+        monto_original = Decimal(comprobante.cuenta.monto_total or Decimal('0.00'))
+        monto_pagado_acumulado = _get_effective_paid_amount(comprobante.cuenta)
+        saldo_pendiente = monto_original - monto_pagado_acumulado
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal('0.00')
         # Función para centrar texto
 
         def draw_centered_text(text, y, font_size=12, bold=False):
@@ -3668,9 +4124,8 @@ def generar_comprobante_pdf(request, comprobante_id):
         y_position -= small_line_height
         y_position = draw_left_text(
             f"Monto Original: RD$ {monto_original:,.2f}", y_position, 9)
-        # Mostrar saldo pendiente (usando la misma fórmula que en `registrar_pago`)
         y_position = draw_left_text(
-            f"Pagado Acumulado: RD$ {comprobante.cuenta.monto_pagado:,.2f}", y_position, 9)
+            f"Pagado Acumulado: RD$ {monto_pagado_acumulado:,.2f}", y_position, 9)
         y_position = draw_left_text(
             f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}", y_position, 9, True)
         y_position -= line_height
@@ -3789,7 +4244,15 @@ def lista_comprobantes(request):
     return render(request, 'facturacion/lista_comprobantes.html', context)
 
 
+@transaction.atomic
 def anular_cuenta(request, cuenta_id):
+    """
+    Anula una cuenta por cobrar:
+    1. Anula los pagos asociados
+    2. Crea MovimientoFinanciero REVERSO para cada pago
+    3. Anula cuotas
+    4. Marca cuenta como anulada
+    """
     if request.method == 'POST':
         try:
             cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
@@ -3806,7 +4269,52 @@ def anular_cuenta(request, cuenta_id):
                     'message': 'No se puede anular una cuenta completamente pagada'
                 })
 
-            # Anular la cuenta
+            # ── PASO 1: Anular pagos y crear MovimientoFinanciero reversales ─────────
+            pagos = PagoCuentaPorCobrar.objects.filter(cuenta=cuenta, anulado=False)
+            for pago in pagos:
+                # Marcar pago como anulado
+                pago.anulado = True
+                pago.fecha_anulacion = timezone.now()
+                pago.usuario_anulacion = request.user
+                pago.save()
+
+                # Crear MovimientoFinanciero reverso para el pago
+                try:
+                    movimiento_original = MovimientoFinanciero.objects.filter(
+                        pago_cxc=pago,
+                        origen='PAGO_CXC',
+                        tipo='INGRESO'
+                    ).first()
+
+                    if movimiento_original:
+                        MovimientoFinanciero.objects.create(
+                            tipo='EGRESO',
+                            origen='ANULACION',
+                            estado='ACTIVO',
+                            monto=movimiento_original.monto,
+                            fecha_operacion=timezone.now(),
+                            factura=cuenta.venta,
+                            cliente=cuenta.cliente,
+                            movimiento_origen=movimiento_original,
+                            descripcion=(
+                                f"Anulación de Pago - Factura: {cuenta.venta.numero_factura} - "
+                                f"Pago: {pago.id} - Rev. Mov. {movimiento_original.id}"
+                            ),
+                            referencia=f"ANUL-PAG-{pago.id}",
+                            creado_por=request.user,
+                        )
+                except Exception as e:
+                    print(f"Advertencia: Error al crear MovimientoFinanciero reverso de pago: {str(e)}")
+            # ── FIN PASO 1 ──────────────────────────────────────────────────────────
+
+            # ── PASO 2: Anular cuotas ─────────────────────────────────────────────
+            try:
+                Cuota.objects.filter(venta=cuenta.venta, estado__in=['pendiente', 'parcial', 'pagada']).update(estado='anulada')
+            except Exception as e:
+                print(f"Advertencia: Error al anular cuotas: {str(e)}")
+            # ── FIN PASO 2 ──────────────────────────────────────────────────────────
+
+            # ── PASO 3: Anular la cuenta ──────────────────────────────────────────
             cuenta.anular_cuenta()
 
             return JsonResponse({
@@ -4695,7 +5203,16 @@ def buscar_factura_devolucion(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 @transaction.atomic
+@transaction.atomic
 def procesar_devolucion(request):
+    """
+    Procesa una devolución completa:
+    1. Crea registro Devolucion
+    2. Crea DetalleDevolucion con snapshot del producto
+    3. Crea MovimientoFinanciero EGRESO
+    4. Ajusta stock del producto
+    5. Actualiza totales de venta y cuenta por cobrar
+    """
     try:
         data = json.loads(request.body)
 
@@ -4719,7 +5236,54 @@ def procesar_devolucion(request):
         if cantidad_devolver > detalle.cantidad:
             return JsonResponse({'error': 'No puede devolver más unidades de las vendidas.'}, status=400)
 
-        # Realizar la devolución
+        # ── BLOQUE 5 — PROCESAMIENTO DE DEVOLUCIONES ─────────────────────────────────
+        try:
+            # Paso 1: Crear registro de devolución
+            devolucion = Devolucion.objects.create(
+                venta=venta,
+                producto=detalle.producto,
+                cantidad=cantidad_devolver,
+                motivo=data['motivo'],
+                observaciones=data.get('observaciones', ''),
+                usuario=request.user
+            )
+
+            # Paso 2: Crear detalle de devolución con snapshot del producto
+            monto_devolucion = Decimal(cantidad_devolver) * detalle.precio_unitario
+            DetalleDevolucion.objects.create(
+                devolucion=devolucion,
+                nombre_producto=detalle.producto.nombre,  # Snapshot: historial exacto
+                cantidad=cantidad_devolver,
+                precio_unitario=detalle.precio_unitario,
+                # monto se calcula automáticamente en el método save() del modelo
+            )
+
+            # Paso 3: Crear movimiento financiero EGRESO
+            MovimientoFinanciero.objects.create(
+                tipo='EGRESO',
+                origen='DEVOLUCION',
+                estado='ACTIVO',
+                monto=monto_devolucion,
+                fecha_operacion=timezone.now(),
+                factura=venta,
+                devolucion=devolucion,
+                cliente=venta.cliente if venta.cliente else None,
+                metodo_pago='devolucion',
+                descripcion=(
+                    f"Devolución - Factura: {venta.numero_factura} - "
+                    f"Producto: {detalle.producto.nombre} - "
+                    f"Cantidad: {cantidad_devolver} - "
+                    f"Motivo: {data['motivo']}"
+                ),
+                referencia=f"DEV-{devolucion.id}",
+                creado_por=request.user,
+            )
+            print(f"DetalleDevolucion y MovimientoFinanciero creados: EGRESO | RD${monto_devolucion:,.2f}")
+        except Exception as e:
+            print(f"Advertencia: Error al crear registro de devolución: {str(e)}")
+        # ── FIN BLOQUE 5 ─────────────────────────────────────────────────────────────
+
+        # Paso 4: Ajustar stock del producto
         producto = detalle.producto
         producto.sumar_stock(
             cantidad=cantidad_devolver,
@@ -4728,8 +5292,7 @@ def procesar_devolucion(request):
             referencia=f"Factura: {venta.numero_factura}"
         )
 
-        # Registrar la devolución (aquí puedes crear un modelo Devolucion si lo necesitas)
-        # Por ahora, simplemente actualizamos el detalle de venta
+        # Paso 5: Actualizar detalle de venta
         detalle.cantidad -= cantidad_devolver
         if detalle.cantidad == 0:
             detalle.delete()
@@ -4737,17 +5300,28 @@ def procesar_devolucion(request):
             detalle.subtotal = detalle.cantidad * detalle.precio_unitario
             detalle.save()
 
-        # Recalcular totales de la venta
+        # Paso 6: Recalcular totales de la venta
         detalles_restantes = DetalleVenta.objects.filter(venta=venta)
         venta.subtotal = sum(
-            detalle.subtotal for detalle in detalles_restantes)
+            det.subtotal for det in detalles_restantes) if detalles_restantes.exists() else Decimal('0')
         venta.total = venta.subtotal - venta.descuento_monto
+        venta.total_a_pagar = venta.total - venta.montoinicial if venta.es_financiada else venta.total
         venta.save()
+
+        # Paso 7: Actualizar cuenta por cobrar si existe
+        try:
+            cuenta = CuentaPorCobrar.objects.get(venta=venta, anulada=False, eliminada=False)
+            # Reducir monto total devuelto proporcional
+            cuenta.monto_total = venta.total
+            cuenta.save(update_fields=['monto_total'])
+        except CuentaPorCobrar.DoesNotExist:
+            pass  # Venta al contado, no tiene cuenta por cobrar
 
         return JsonResponse({
             'success': True,
             'mensaje': f'Devolución procesada correctamente. Se han devuelto {cantidad_devolver} unidades.',
-            'numero_devolucion': f'DEV-{timezone.now().strftime("%Y%m%d")}-{venta.id}'
+            'numero_devolucion': f'DEV-{venta.numero_factura}-{devolucion.id}',
+            'monto_devuelto': float(monto_devolucion),
         })
 
     except Exception as e:
@@ -5106,7 +5680,15 @@ def buscar_factura(request):
     return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 
+@transaction.atomic
 def anular_factura(request):
+    """
+    Anula una factura de venta:
+    1. Marca venta como anulada
+    2. Restaura inventario
+    3. Crea MovimientoFinanciero REVERSO (ANULACION)
+    4. Anula cuotas asociadas
+    """
     if request.method == 'POST':
         try:
             factura_id = request.POST.get('factura_id')
@@ -5121,19 +5703,60 @@ def anular_factura(request):
             except Venta.DoesNotExist:
                 return JsonResponse({'error': 'Factura no encontrada o ya anulada'}, status=404)
 
-            # Anular la factura
+            # ── PASO 1: Marcar factura como anulada ──────────────────────────────────
             venta.anulada = True
             venta.motivo_anulacion = motivo
             venta.fecha_anulacion = timezone.now()
             venta.usuario_anulacion = request.user
             venta.save()
 
-            # Restaurar el inventario
+            # ── PASO 2: Restaurar el inventario ──────────────────────────────────────
             detalles = DetalleVenta.objects.filter(venta=venta)
             for detalle in detalles:
                 producto = detalle.producto
                 producto.cantidad += detalle.cantidad
                 producto.save()
+
+            # ── PASO 3: Crear MovimientoFinanciero REVERSO ─────────────────────────────
+            try:
+                # Buscar el MovimientoFinanciero original de la venta
+                movimiento_original = MovimientoFinanciero.objects.filter(
+                    factura=venta,
+                    origen='VENTA',
+                    tipo='INGRESO'
+                ).first()
+
+                if movimiento_original:
+                    # Crear movimiento reverso
+                    MovimientoFinanciero.objects.create(
+                        tipo='EGRESO',
+                        origen='ANULACION',
+                        estado='ACTIVO',
+                        monto=movimiento_original.monto,
+                        fecha_operacion=timezone.now(),
+                        factura=venta,
+                        cliente=venta.cliente if venta.cliente else None,
+                        movimiento_origen=movimiento_original,  # Referencia al original
+                        descripcion=(
+                            f"Anulación de Venta - Factura: {venta.numero_factura} - "
+                            f"Motivo: {motivo} - Rev. Mov. {movimiento_original.id}"
+                        ),
+                        referencia=f"ANUL-{venta.numero_factura}",
+                        creado_por=request.user,
+                    )
+                    print(f"MovimientoFinanciero REVERSO creado: EGRESO | ANULACION | RD${movimiento_original.monto:,.2f}")
+            except Exception as e:
+                print(f"Advertencia: Error al crear MovimientoFinanciero reverso: {str(e)}")
+            # ── FIN PASO 3 ──────────────────────────────────────────────────────────
+
+            # ── PASO 4: Anular cuotas asociadas (si existen) ──────────────────────────
+            try:
+                cuotas = Cuota.objects.filter(venta=venta, estado__in=['pendiente', 'parcial', 'pagada'])
+                cuotas.update(estado='anulada')
+                print(f"Cuotas anuladas para factura {venta.numero_factura}")
+            except Exception as e:
+                print(f"Advertencia: Error al anular cuotas: {str(e)}")
+            # ── FIN PASO 4 ──────────────────────────────────────────────────────────
 
             return JsonResponse({'success': True, 'message': 'Factura anulada correctamente'})
 
@@ -5347,7 +5970,15 @@ def buscar_comprobante(request):
     return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 
+@transaction.atomic
 def anular_comprobante_action(request):
+    """
+    Anula un comprobante de pago:
+    1. Anula el pago asociado
+    2. Crea MovimientoFinanciero REVERSO
+    3. Revierte cambios en la cuenta por cobrar
+    4. Anula cuotas afectadas
+    """
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
 
@@ -5374,37 +6005,85 @@ def anular_comprobante_action(request):
         if pago.anulado:
             return JsonResponse({'error': 'El pago ya está anulado'}, status=400)
 
-        # Iniciar transacción para asegurar la consistencia de datos
-        with transaction.atomic():
-            # Revertir el pago en la cuenta por cobrar
-            cuenta.monto_pagado -= pago.monto
+        # ── PASO 1: Revertir el pago en la cuenta por cobrar ──────────────────────
+        cuenta.monto_pagado -= pago.monto
 
-            # Calcular el nuevo saldo pendiente
-            monto_total_cuenta = cuenta.monto_total
-            nuevo_saldo_pendiente = monto_total_cuenta - cuenta.monto_pagado
+        # Calcular el nuevo saldo pendiente
+        monto_total_cuenta = cuenta.monto_total
+        nuevo_saldo_pendiente = monto_total_cuenta - cuenta.monto_pagado
 
-            # Actualizar el estado de la cuenta según el nuevo saldo pendiente
-            if nuevo_saldo_pendiente <= 0:
-                cuenta.estado = 'pagada'
-            elif cuenta.monto_pagado > 0:
-                cuenta.estado = 'parcial'
-            else:
-                cuenta.estado = 'pendiente'
+        # Actualizar el estado de la cuenta según el nuevo saldo pendiente
+        if nuevo_saldo_pendiente <= 0:
+            cuenta.estado = 'pagada'
+        elif cuenta.monto_pagado > 0:
+            cuenta.estado = 'parcial'
+        else:
+            cuenta.estado = 'pendiente'
 
-            cuenta.save()
+        cuenta.save()
+        # ── FIN PASO 1 ──────────────────────────────────────────────────────────
 
-            # Marcar el pago como anulado
-            pago.anulado = True
-            pago.fecha_anulacion = timezone.now()
-            pago.motivo_anulacion = motivo
-            pago.save()
+        # ── PASO 2: Marcar el pago como anulado ──────────────────────────────────
+        pago.anulado = True
+        pago.fecha_anulacion = timezone.now()
+        pago.motivo_anulacion = motivo
+        pago.usuario_anulacion = request.user
+        pago.save()
+        # ── FIN PASO 2 ──────────────────────────────────────────────────────────
 
-            # Marcar el comprobante como anulado
-            if hasattr(comprobante, 'anulado'):
-                comprobante.anulado = True
-                comprobante.fecha_anulacion = timezone.now()
-                comprobante.motivo_anulacion = motivo
-                comprobante.save()
+        # ── PASO 3: Crear MovimientoFinanciero REVERSO ────────────────────────────
+        try:
+            movimiento_original = MovimientoFinanciero.objects.filter(
+                pago_cxc=pago,
+                origen='PAGO_CXC',
+                tipo='INGRESO'
+            ).first()
+
+            if movimiento_original:
+                MovimientoFinanciero.objects.create(
+                    tipo='EGRESO',
+                    origen='ANULACION',
+                    estado='ACTIVO',
+                    monto=movimiento_original.monto,
+                    fecha_operacion=timezone.now(),
+                    factura=cuenta.venta,
+                    cliente=cuenta.cliente,
+                    movimiento_origen=movimiento_original,
+                    descripcion=(
+                        f"Anulación de Comprobante - Factura: {cuenta.venta.numero_factura} - "
+                        f"Comprobante: {numero_comprobante} - Motivo: {motivo} - Rev. Mov. {movimiento_original.id}"
+                    ),
+                    referencia=f"ANUL-COMP-{pago.id}",
+                    creado_por=request.user,
+                )
+                print(f"MovimientoFinanciero REVERSO creado para anulación de comprobante: RD${movimiento_original.monto:,.2f}")
+        except Exception as e:
+            print(f"Advertencia: Error al crear MovimientoFinanciero reverso de comprobante: {str(e)}")
+        # ── FIN PASO 3 ──────────────────────────────────────────────────────────
+
+        # ── PASO 4: Anular cuotas relacionadas ────────────────────────────────────
+        try:
+            # Revertir cuotas que fueron pagadas con este pago
+            # Nota: simplificar a "reabrir" si es parcial o volver a pendiente
+            cuotas = Cuota.objects.filter(venta=cuenta.venta, estado__in=['pagada', 'parcial'])
+            for cuota in cuotas:
+                cuota.estado = 'pendiente'
+                cuota.fecha_pago_completo = None
+                cuota.monto_pendiente = cuota.monto_original
+            Cuota.objects.bulk_update(cuotas, ['estado', 'fecha_pago_completo', 'monto_pendiente'])
+            print(f"Cuotas revertidas para comprobante {numero_comprobante}")
+        except Exception as e:
+            print(f"Advertencia: Error al revertir cuotas: {str(e)}")
+        # ── FIN PASO 4 ──────────────────────────────────────────────────────────
+
+        # ── PASO 5: Marcar el comprobante como anulado ───────────────────────────
+        if hasattr(comprobante, 'anulado'):
+            comprobante.anulado = True
+            comprobante.fecha_anulacion = timezone.now()
+            comprobante.motivo_anulacion = motivo
+            comprobante.usuario_anulacion = request.user
+            comprobante.save()
+        # ── FIN PASO 5 ──────────────────────────────────────────────────────────
 
         return JsonResponse({
             'success': True,
@@ -5443,156 +6122,97 @@ def ultimo_comprobante(request):
 
 
 def cuentasAtrasada(request):
-    # Obtener la fecha actual
+    """
+    Vista para mostrar cuotas ATRASADAS individuales (no cuentas).
+    Cada cuota atrasada es una entrada separada con su fecha específica.
+    """
     hoy = date.today()
 
     try:
+        # Obtener todas las cuotas pendientes/parciales que están vencidas
+        cuotas_atrasadas_qs = (
+            Cuota.objects
+            .filter(
+                estado__in=['pendiente', 'parcial'],
+                fecha_vencimiento__lt=hoy,
+                venta__cuenta_por_cobrar__anulada=False,
+                venta__cuenta_por_cobrar__eliminada=False,
+            )
+            .select_related('venta', 'cliente')
+            .order_by('fecha_vencimiento')  # Más antiguas primero
+        )
 
-        # Filtrar cuentas por cobrar que están pendientes/parciales/vencidas y no anuladas/eliminadas
-
-        # Filtrar cuentas por cobrar que están pendientes/parciales y no anuladas/eliminadas
-
-        cuentas = CuentaPorCobrar.objects.filter(
-            Q(estado='pendiente') | Q(estado='vencida') | Q(estado='parcial'),
-            anulada=False,
-            eliminada=False
-        ).select_related('cliente', 'venta')
-
-        # Preparar los datos para el template
         overdue_data = []
 
-        for cuenta in cuentas:
-            venta = cuenta.venta
-            if not venta or not venta.fecha_venta:
+        for cuota in cuotas_atrasadas_qs:
+            # Información de la cuota específica
+            venta = cuota.venta
+            cliente = cuota.cliente or venta.cliente if venta else None
+            cuenta = venta.cuenta_por_cobrar if venta else None
+            
+            if not venta or not cliente or not cuenta:
                 continue
 
-            # Obtener la fecha de la venta (factura)
-            fecha_factura = venta.fecha_venta.date()
-
-            # Obtener información sobre pagos realizados
-            pagos = cuenta.pagos.filter(anulado=False).order_by('fecha_pago')
-
-            # Calcular el monto total con interés
-            try:
-                monto_total = cuenta.monto_total_con_interes
-            except:
-                monto_total = cuenta.monto_total
-
-            # Calcular el saldo pendiente
-            saldo_pendiente = float(monto_total - cuenta.monto_pagado)
-
-            # Si el saldo es 0, no está atrasado
-            if saldo_pendiente <= 0:
-                continue
-
-            # Determinar cuántas cuotas se han pagado y cuál es la próxima vencida
-            # Asumimos que el monto de cada cuota es igual
-            # Primero, necesitamos saber el total de cuotas (plazo en meses)
-            plazo_meses = 1  # Por defecto 1 mes
-            if hasattr(venta, 'plazo_meses'):
-                plazo_meses = venta.plazo_meses
-            elif hasattr(venta, 'plazo'):
-                try:
-                    plazo_meses = int(venta.plazo)
-                except:
-                    plazo_meses = 1
-
-            # Calcular el monto por cuota
-            monto_por_cuota = float(monto_total) / plazo_meses
-
-            # Determinar cuántas cuotas se han pagado
-            monto_pagado_total = float(cuenta.monto_pagado)
-            cuotas_pagadas = int(monto_pagado_total // monto_por_cuota)
-
-            # Calcular la fecha de vencimiento de la próxima cuota
-            proxima_cuota_numero = cuotas_pagadas + 1
-            fecha_vencimiento = calcular_fecha_cuota(
-                fecha_factura, proxima_cuota_numero)
-
-            # Si ya se pagaron todas las cuotas, no hay atraso
-            if proxima_cuota_numero > plazo_meses:
-                continue
-
-            # Verificar si la próxima cuota está vencida
-            if fecha_vencimiento >= hoy:
-                continue
-
-            # Calcular días de atraso desde la fecha de vencimiento
-            dias_atraso = (hoy - fecha_vencimiento).days
-
-            # Solo incluir si tiene días de atraso positivo
-            if dias_atraso <= 0:
-                continue
-
-            # Determinar el estado según los días de atraso
-            if dias_atraso > 14:
-                status = 'overdue'
-            elif dias_atraso >= 5:
-                status = 'alert'
-            else:
-                status = 'alert'
-
-            # Obtener información del cliente
-            cliente = cuenta.cliente
-
-            # Obtener teléfono del cliente de manera segura
-            telefono_cliente = 'No disponible'
-            if hasattr(cliente, 'telefono'):
-                telefono_cliente = cliente.telefono
-            elif hasattr(cliente, 'phone'):
-                telefono_cliente = cliente.phone
-            elif hasattr(cliente, 'phone_number'):
-                telefono_cliente = cliente.phone_number
-
-            # Obtener nombre del cliente de manera segura
-            nombre_cliente = 'Cliente'
-            if hasattr(cliente, 'full_name'):
-                nombre_cliente = cliente.full_name
-            elif hasattr(cliente, 'nombre'):
-                nombre_cliente = cliente.nombre
-            elif hasattr(cliente, 'name'):
-                nombre_cliente = cliente.name
-
-            # Obtener número de factura
-            numero_factura = getattr(venta, 'numero_factura', 'N/A')
-
-            # Calcular el monto atrasado (monto de la cuota vencida)
-            monto_atrasado = min(monto_por_cuota, saldo_pendiente)
-
-            # Determinar estado de contacto
+            # Datos de la cuota
+            nombre_cliente = cliente.full_name
+            telefono_cliente = cliente.primary_phone or 'No disponible'
+            numero_factura = venta.numero_factura
+            fecha_vencimiento_cuota = cuota.fecha_vencimiento
+            
+            # Días de atraso de esta cuota específica
+            dias_atraso = (hoy - fecha_vencimiento_cuota).days
+            
+            # Determinar estado de contacto desde la cuenta
             contact_status = 'no_contacted'
             if hasattr(cuenta, 'contact_status'):
                 contact_status = cuenta.contact_status
-            elif hasattr(cuenta, 'contacted'):
-                contact_status = 'contacted' if cuenta.contacted else 'no_contacted'
 
-            # Preparar el objeto de datos
-            cuenta_data = {
-                'id': cuenta.id,
+            # Dato del monto: usar el monto_pendiente de la cuota específica
+            monto_atrasado = float(cuota.monto_pendiente or cuota.monto_original)
+            monto_original_cuota = float(cuota.monto_original)
+            
+            # Información adicional de la venta
+            fecha_factura = venta.fecha_venta.date() if venta.fecha_venta else hoy
+            monto_total_venta = Decimal(cuenta.monto_total or 0)
+            
+            # Contar cuotas de esta venta para contexto
+            total_cuotas_venta = cuota.venta.cuotas.count()
+            cuotas_pagadas_venta = cuota.venta.cuotas.filter(estado='pagada').count()
+            cuotas_atrasadas_venta = cuota.venta.cuotas.filter(
+                estado__in=['pendiente', 'parcial'],
+                fecha_vencimiento__lt=hoy
+            ).count()
+
+            cuota_data = {
+                'id': cuenta.id,  # ID de la cuenta (para tracking)
+                'cuotaId': cuota.id,  # ID de la cuota específica
+                'numeroCuota': cuota.numero_cuota,
                 'clientName': nombre_cliente,
                 'clientPhone': telefono_cliente,
                 'invoiceNumber': numero_factura,
-                'dueDate': fecha_vencimiento.strftime('%Y-%m-%d'),
-                'originalAmount': float(monto_total),
-                'overdueAmount': monto_atrasado,
+                'dueDate': fecha_vencimiento_cuota.strftime('%Y-%m-%d'),
+                'originalAmount': float(monto_total_venta),  # Monto total de la venta
+                'overdueAmount': monto_atrasado,  # Monto pendiente de ESTA cuota
+                'montoCuota': monto_original_cuota,  # Monto original de la cuota
                 'daysOverdue': dias_atraso,
-                'status': status,
+                'status': 'vencida',
                 'contactStatus': contact_status,
                 'saleDate': fecha_factura.strftime('%Y-%m-%d'),
-                'plazoMeses': plazo_meses,
-                'cuotaActual': proxima_cuota_numero,
-                'totalCuotas': plazo_meses,
-                'montoPorCuota': monto_por_cuota,
-                'cuotasPagadas': cuotas_pagadas
+                'totalCuotas': total_cuotas_venta,
+                'cuotasPagadas': cuotas_pagadas_venta,
+                'overdueInstallments': cuotas_atrasadas_venta,
+                'montoPorCuota': monto_original_cuota,
             }
 
-            overdue_data.append(cuenta_data)
+            overdue_data.append(cuota_data)
 
-        # Ordenar por días de atraso (mayor primero)
-        overdue_data.sort(key=lambda x: x['daysOverdue'], reverse=True)
+        # Ordenar por días de atraso (mayor primero) y por fecha (más antiguas primero)
+        overdue_data.sort(key=lambda x: (-x['daysOverdue'], x['dueDate']))
 
     except Exception as e:
-        print(f"Error al obtener cuentas atrasadas: {e}")
+        print(f"Error al obtener cuotas atrasadas: {e}")
+        import traceback
+        traceback.print_exc()
         overdue_data = []
 
     context = {
@@ -5600,6 +6220,175 @@ def cuentasAtrasada(request):
     }
 
     return render(request, 'facturacion/cuentasAtrasada.html', context)
+
+
+@login_required
+@csrf_exempt
+@require_POST
+def generar_pdf_cuotas_atrasadas(request):
+    try:
+        payload = json.loads(request.body or '{}')
+        items = payload.get('items', [])
+        resumen = payload.get('summary', {})
+        usuario_reporte = getattr(request.user, 'username', 'N/A')
+
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"reporte_cuotas_atrasadas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        p = canvas.Canvas(response, pagesize=letter)
+        width, height = letter
+
+        left = 45
+        right = width - 45
+        y = height - 45
+
+        def money(value):
+            try:
+                return f"RD$ {Decimal(str(value or 0)):,.2f}"
+            except Exception:
+                return "RD$ 0.00"
+
+        def draw_header():
+            nonlocal y
+            p.setFont("Helvetica-Bold", 15)
+            p.setFillColorRGB(0.86, 0.18, 0.22)
+            p.drawCentredString(width / 2, y, "Reporte de Cuotas Atrasadas")
+
+            p.setFont("Helvetica-Bold", 10)
+            p.setFillColorRGB(0.2, 0.2, 0.2)
+            p.drawCentredString(width / 2, y - 14, "ddmaxmotoimport")
+
+            p.setFont("Helvetica", 9)
+            p.setFillColorRGB(0.35, 0.35, 0.35)
+            p.drawCentredString(width / 2, y - 27, f"Realizado por: {usuario_reporte}")
+
+            p.setFont("Helvetica", 9)
+            p.setFillColorRGB(0.35, 0.35, 0.35)
+            p.drawCentredString(
+                width / 2,
+                y - 40,
+                f"Generado el {datetime.now().strftime('%d/%m/%Y %I:%M %p')}"
+            )
+
+            y_line = y - 47
+            p.setStrokeColorRGB(0.85, 0.85, 0.85)
+            p.setLineWidth(1)
+            p.line(left, y_line, right, y_line)
+            y = y_line - 18
+
+        def draw_summary_box():
+            nonlocal y
+            box_h = 66
+            p.setFillColorRGB(0.97, 0.97, 0.97)
+            p.setStrokeColorRGB(0.9, 0.9, 0.9)
+            p.rect(left, y - box_h, right - left, box_h, fill=1, stroke=1)
+
+            p.setFillColorRGB(0.15, 0.15, 0.15)
+            p.setFont("Helvetica-Bold", 10)
+            p.drawString(left + 10, y - 16, f"Cuotas con atraso de 15+ dias: {resumen.get('overdueCount', 0)}")
+            p.drawString(left + 295, y - 16, f"Cuotas en alerta (5 a 14 dias): {resumen.get('alertCount', 0)}")
+            p.drawString(left + 10, y - 34, f"Clientes contactados: {resumen.get('contactedCount', 0)}")
+            p.drawString(left + 295, y - 34, f"Monto total atrasado: {money(resumen.get('totalAmount', 0))}")
+
+            p.setFont("Helvetica", 8)
+            p.setFillColorRGB(0.35, 0.35, 0.35)
+            p.drawString(left + 10, y - 50, "Leyenda: 15+ dias = vencido | 5 a 14 dias = alerta")
+
+            y -= (box_h + 14)
+
+        def draw_table_header():
+            nonlocal y
+            p.setFillColorRGB(0.86, 0.18, 0.22)
+            p.rect(left, y - 16, right - left, 18, fill=1, stroke=0)
+
+            p.setFillColorRGB(1, 1, 1)
+            p.setFont("Helvetica-Bold", 8)
+            p.drawString(left + 6, y - 11, "Cliente")
+            p.drawString(left + 170, y - 11, "Factura")
+            p.drawString(left + 260, y - 11, "Tel.")
+            p.drawString(left + 342, y - 11, "Monto atrasado")
+            p.drawString(left + 435, y - 11, "Dias")
+            p.drawString(left + 468, y - 11, "Estado")
+            y -= 23
+
+        draw_header()
+        draw_summary_box()
+
+        if not items:
+            p.setFillColorRGB(0.3, 0.3, 0.3)
+            p.setFont("Helvetica", 11)
+            p.drawString(left, y, "No hay cuotas atrasadas para mostrar.")
+            p.showPage()
+            p.save()
+            return response
+
+        draw_table_header()
+
+        for index, item in enumerate(items):
+            # Cada bloque consume aprox 64 puntos (fila + 3 lineas + separador)
+            if y < 130:
+                p.showPage()
+                y = height - 45
+                draw_header()
+                draw_table_header()
+
+            # Fondo alternado para separar visualmente cada cuenta
+            if index % 2 == 0:
+                p.setFillColorRGB(0.99, 0.99, 0.99)
+                p.rect(left, y - 54, right - left, 56, fill=1, stroke=0)
+
+            client_name = str(item.get('clientName') or 'N/A')[:34]
+            invoice_number = str(item.get('invoiceNumber') or 'N/A')[:16]
+            client_phone = str(item.get('clientPhone') or 'N/A')[:16]
+            overdue_amount = item.get('overdueAmount', 0)
+            days_overdue = int(item.get('daysOverdue', 0) or 0)
+            contact_status = str(item.get('contactStatus') or 'no_contacted')
+            status_text = 'Contactado' if contact_status == 'contacted' else ('Vencido' if days_overdue > 14 else 'Alerta')
+
+            p.setFillColorRGB(0.12, 0.12, 0.12)
+            p.setFont("Helvetica", 8)
+            p.drawString(left + 6, y, client_name)
+            p.drawString(left + 170, y, invoice_number)
+            p.drawString(left + 260, y, client_phone)
+            p.setFont("Helvetica-Bold", 8)
+            p.drawString(left + 342, y, money(overdue_amount))
+            p.setFont("Helvetica", 8)
+            p.drawString(left + 435, y, f"{days_overdue}")
+            p.drawString(left + 468, y, status_text)
+
+            y -= 14
+
+            total_cuotas = int(item.get('totalCuotas', 0) or 0)
+            cuotas_atrasadas = int(item.get('overdueInstallments', 0) or 0)
+            cuotas_pagadas = int(item.get('cuotasPagadas', 0) or 0)
+            monto_por_cuota = Decimal(str(item.get('montoPorCuota', 0) or 0))
+
+            total_plazo = monto_por_cuota * Decimal(total_cuotas)
+            total_atrasadas = monto_por_cuota * Decimal(cuotas_atrasadas)
+            total_pagadas = monto_por_cuota * Decimal(cuotas_pagadas)
+
+            p.setFillColorRGB(0.3, 0.3, 0.3)
+            p.setFont("Helvetica", 7.2)
+            cuotas_text = (
+                f"Cuotas Totales (Plazo): {total_cuotas} cuotas - {money(total_plazo)} | "
+                f"Cuotas Atrasadas: {cuotas_atrasadas} cuotas - {money(total_atrasadas)} | "
+                f"Cuotas Pagadas: {cuotas_pagadas} cuotas - {money(total_pagadas)}"
+            )
+            p.drawString(left + 16, y, cuotas_text)
+            y -= 15
+
+            p.setStrokeColorRGB(0.85, 0.85, 0.85)
+            p.setLineWidth(0.6)
+            p.line(left, y, right, y)
+            y -= 9
+
+        p.showPage()
+        p.save()
+        return response
+
+    except Exception as e:
+        return HttpResponse(f"Error al generar el reporte de cuotas atrasadas: {str(e)}", status=500)
 
 
 def calcular_fecha_cuota(fecha_factura, numero_cuota):
@@ -5626,6 +6415,153 @@ def calcular_fecha_cuota(fecha_factura, numero_cuota):
         # Si el día no existe, usar el último día del mes
         ultimo_dia = calendar.monthrange(año, mes)[1]
         return date(año, mes, ultimo_dia)
+
+
+# ============================================================
+# HELPER — calcular días de atraso SIN N+1
+# ============================================================
+
+def calcular_dias_atraso_bulk(cuotas_prefetchadas):
+    """
+    Recibe una lista/queryset de cuotas YA en memoria (prefetch_related).
+    Calcula los días de atraso REALES sin ejecutar ninguna query adicional.
+
+    Regla de negocio:
+        Los días de atraso se cuentan desde la cuota MÁS ANTIGUA no pagada
+        de cada venta, no desde cada cuota individual.
+
+    Retorna:
+        dict {venta_id: dias_atraso}
+
+    Uso correcto en la vista:
+        cuentas = (
+            CuentaPorCobrar.objects
+            .filter(anulada=False, eliminada=False, estado__in=['pendiente','parcial'])
+            .select_related('cliente', 'venta')
+            .prefetch_related('venta__cuotas')   # ← UNA query extra, no N
+        )
+        todas_cuotas = []
+        for cuenta in cuentas:
+            todas_cuotas.extend(cuenta.venta.cuotas.all())
+
+        dias_por_venta = calcular_dias_atraso_bulk(todas_cuotas)
+
+        for cuenta in cuentas:
+            cuenta._dias_atraso = dias_por_venta.get(cuenta.venta_id, 0)
+    """
+    from collections import defaultdict
+
+    hoy = date.today()
+
+    # Agrupar en memoria por venta — cero queries
+    por_venta = defaultdict(list)
+    for cuota in cuotas_prefetchadas:
+        if cuota.estado in ('pendiente', 'parcial'):
+            por_venta[cuota.venta_id].append(cuota)
+
+    resultado = {}
+    for venta_id, cuotas in por_venta.items():
+        # Ordenar en memoria — sin query adicional
+        cuotas_ordenadas = sorted(cuotas, key=lambda c: c.fecha_vencimiento)
+        cuota_critica = cuotas_ordenadas[0]  # la más antigua manda
+
+        if cuota_critica.fecha_vencimiento < hoy:
+            resultado[venta_id] = (hoy - cuota_critica.fecha_vencimiento).days
+        else:
+            resultado[venta_id] = 0
+
+    return resultado
+
+
+# ============================================================
+# HELPER — cuotas atrasadas para el reporte PDF
+# ============================================================
+
+def get_cuotas_atrasadas():
+    """
+    Devuelve lista de dicts con las cuentas que tienen atraso real.
+    El atraso se mide desde la cuota MÁS ANTIGUA no pagada (la que manda).
+
+    Queries ejecutadas: 2 fijas + 3 por cuenta en mora.
+    Para volúmenes altos (>500 cuentas) considerar migrar a MoraVenta
+    como tabla materializada.
+
+    Uso:
+        items = get_cuotas_atrasadas()
+        # Pasar items al template / lógica del PDF existente
+    """
+    hoy = date.today()
+
+    # Query 1: cuentas activas con al menos una cuota vencida
+    cuentas_con_atraso = (
+        CuentaPorCobrar.objects
+        .filter(
+            estado__in=['pendiente', 'parcial'],
+            anulada=False,
+            eliminada=False,
+            venta__cuotas__estado__in=['pendiente', 'parcial'],
+            venta__cuotas__fecha_vencimiento__lt=hoy,
+        )
+        .select_related('venta', 'cliente')
+        .prefetch_related('venta__cuotas')  # Query 2: todas las cuotas de golpe
+        .distinct()
+        .order_by('cliente__full_name')
+    )
+
+    items = []
+
+    for cuenta in cuentas_con_atraso:
+        # Operar sobre cuotas ya en memoria — cero queries adicionales
+        cuotas_venta = list(cuenta.venta.cuotas.all())
+
+        cuotas_activas = sorted(
+            [c for c in cuotas_venta if c.estado in ('pendiente', 'parcial')],
+            key=lambda c: c.fecha_vencimiento
+        )
+
+        if not cuotas_activas:
+            continue
+
+        # La más antigua manda para el cálculo de días
+        cuota_critica = cuotas_activas[0]
+        if cuota_critica.fecha_vencimiento >= hoy:
+            continue  # no hay atraso real todavía
+
+        dias_atraso = (hoy - cuota_critica.fecha_vencimiento).days
+
+        # Monto vencido = suma de pendiente de cuotas con fecha pasada
+        monto_vencido = sum(
+            c.monto_pendiente
+            for c in cuotas_venta
+            if c.estado in ('pendiente', 'parcial') and c.fecha_vencimiento < hoy
+        )
+
+        total_cuotas          = len(cuotas_venta)
+        cuotas_pagadas_count  = sum(1 for c in cuotas_venta if c.estado == 'pagada')
+        cuotas_atrasadas_count = sum(
+            1 for c in cuotas_venta
+            if c.estado in ('pendiente', 'parcial') and c.fecha_vencimiento < hoy
+        )
+
+        items.append({
+            'id'                      : cuenta.id,
+            'clientName'              : cuenta.cliente.full_name,
+            'clientPhone'             : cuenta.cliente.primary_phone or 'N/A',
+            'invoiceNumber'           : cuenta.venta.numero_factura,
+            'originalAmount'          : float(cuenta.monto_total),
+            'overdueAmount'           : float(monto_vencido),
+            'daysOverdue'             : dias_atraso,
+            'dueDate'                 : cuota_critica.fecha_vencimiento.strftime('%Y-%m-%d'),
+            'totalCuotas'             : total_cuotas,
+            'cuotasPagadas'           : cuotas_pagadas_count,
+            'overdueInstallments'     : cuotas_atrasadas_count,
+            'montoPorCuota'           : float(cuota_critica.monto_original),
+            'fechaVencimientoCritica' : cuota_critica.fecha_vencimiento.strftime('%Y-%m-%d'),
+            # contactStatus lo maneja tu lógica existente de cobranza
+            'contactStatus'           : 'no_contacted',
+        })
+
+    return items
 
 
 def calcular_proximo_vencimiento(fecha_factura, plazo_meses):
