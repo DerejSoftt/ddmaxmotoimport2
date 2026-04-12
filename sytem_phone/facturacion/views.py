@@ -3461,12 +3461,12 @@ def cuentaporcobrar(request):
                     fecha_vencimiento__lt=hoy
                 ).count()
                 
-                # Monto total atrasado
-                monto_atrasado_qs = cuotas_qs.filter(
-                    estado__in=['pendiente', 'parcial'],
-                    fecha_vencimiento__lt=hoy
-                ).aggregate(total=Sum('monto_pendiente'))['total'] or Decimal('0.00')
-                monto_total_cuotas_atrasadas = monto_atrasado_qs
+                # Monto total atrasado = cuotas_atrasadas × cuota_mensual
+                # (Esto es correcto porque todas las cuotas de una venta tienen el mismo monto)
+                if cuota_critica:
+                    monto_total_cuotas_atrasadas = Decimal(str(cuota_critica.monto_original)) * Decimal(cuotas_atrasadas)
+                else:
+                    monto_total_cuotas_atrasadas = Decimal('0.00')
                 
                 # Monto total de cuotas pagadas
                 monto_pagado_qs = cuotas_qs.filter(
@@ -6123,108 +6123,94 @@ def ultimo_comprobante(request):
 
 def cuentasAtrasada(request):
     """
-    Vista para mostrar cuentas con atraso REAL basado en la tabla Cuota.
-    Solo devuelve cuentas que tienen cuotas pendientes/parciales vencidas.
+    Vista para mostrar cuotas ATRASADAS individuales (no cuentas).
+    Cada cuota atrasada es una entrada separada con su fecha específica.
     """
     hoy = date.today()
 
     try:
-        # Obtener solo cuentas que tienen cuotas pendientes/parciales con fecha vencida
-        cuentas_con_atraso = (
-            CuentaPorCobrar.objects
+        # Obtener todas las cuotas pendientes/parciales que están vencidas
+        cuotas_atrasadas_qs = (
+            Cuota.objects
             .filter(
-                Q(estado='pendiente') | Q(estado='vencida') | Q(estado='parcial'),
-                anulada=False,
-                eliminada=False,
-                venta__cuotas__estado__in=['pendiente', 'parcial'],
-                venta__cuotas__fecha_vencimiento__lt=hoy,
+                estado__in=['pendiente', 'parcial'],
+                fecha_vencimiento__lt=hoy,
+                venta__cuenta_por_cobrar__anulada=False,
+                venta__cuenta_por_cobrar__eliminada=False,
             )
-            .select_related('cliente', 'venta')
-            .prefetch_related('venta__cuotas')
-            .distinct()
-            .order_by('-venta__cuotas__fecha_vencimiento')
+            .select_related('venta', 'cliente')
+            .order_by('fecha_vencimiento')  # Más antiguas primero
         )
 
         overdue_data = []
 
-        for cuenta in cuentas_con_atraso:
-            # Trabajo con cuotas ya en memoria
-            cuotas_lista = list(cuenta.venta.cuotas.all())
+        for cuota in cuotas_atrasadas_qs:
+            # Información de la cuota específica
+            venta = cuota.venta
+            cliente = cuota.cliente or venta.cliente if venta else None
+            cuenta = venta.cuenta_por_cobrar if venta else None
             
-            # Separar cuotas por estado
-            cuotas_pagadas = [c for c in cuotas_lista if c.estado == 'pagada']
-            cuotas_activas = [c for c in cuotas_lista if c.estado in ['pendiente', 'parcial']]
-            
-            # Obtener la cuota crítica (más antigua no pagada)
-            cuota_critica = None
-            if cuotas_activas:
-                cuota_critica = min(cuotas_activas, key=lambda c: c.fecha_vencimiento)
-                
-                # Si la cuota crítica no está vencida aún, saltar
-                if cuota_critica.fecha_vencimiento >= hoy:
-                    continue
-            else:
-                # Si no hay cuotas activas, no hay atraso
+            if not venta or not cliente or not cuenta:
                 continue
+
+            # Datos de la cuota
+            nombre_cliente = cliente.full_name
+            telefono_cliente = cliente.primary_phone or 'No disponible'
+            numero_factura = venta.numero_factura
+            fecha_vencimiento_cuota = cuota.fecha_vencimiento
             
-            # Calcular métricas
-            dias_atraso = (hoy - cuota_critica.fecha_vencimiento).days
-            total_cuotas = len(cuotas_lista)
-            cuotas_pagadas_count = len(cuotas_pagadas)
+            # Días de atraso de esta cuota específica
+            dias_atraso = (hoy - fecha_vencimiento_cuota).days
             
-            # Cuotas vencidas (tanto pendientes como parciales)
-            cuotas_vencidas = [c for c in cuotas_activas if c.fecha_vencimiento < hoy]
-            cuotas_atrasadas_count = len(cuotas_vencidas)
-            
-            # Monto atrasado: suma del monto_pendiente de cuotas vencidas
-            monto_atrasado = sum(Decimal(c.monto_pendiente or 0) for c in cuotas_vencidas)
-            
-            # Monto por cuota (de la cuota crítica)
-            monto_por_cuota = float(cuota_critica.monto_original)
-            
-            # Información del cliente y factura
-            cliente = cuenta.cliente
-            nombre_cliente = cliente.full_name if cliente else 'Cliente'
-            telefono_cliente = cliente.primary_phone or 'No disponible' if cliente else 'Sin teléfono'
-            numero_factura = cuenta.venta.numero_factura if cuenta.venta else 'N/A'
-            fecha_factura = cuenta.venta.fecha_venta.date() if cuenta.venta and cuenta.venta.fecha_venta else hoy
-            
-            # Calcular monto total REAL (puede haber rebajas)
-            monto_total = Decimal(cuenta.monto_total or 0)
-            monto_pagado = Decimal(cuenta.monto_pagado or 0)
-            
-            # Determinar estado de contacto
+            # Determinar estado de contacto desde la cuenta
             contact_status = 'no_contacted'
             if hasattr(cuenta, 'contact_status'):
                 contact_status = cuenta.contact_status
 
-            cuenta_data = {
-                'id': cuenta.id,
+            # Dato del monto: usar el monto_pendiente de la cuota específica
+            monto_atrasado = float(cuota.monto_pendiente or cuota.monto_original)
+            monto_original_cuota = float(cuota.monto_original)
+            
+            # Información adicional de la venta
+            fecha_factura = venta.fecha_venta.date() if venta.fecha_venta else hoy
+            monto_total_venta = Decimal(cuenta.monto_total or 0)
+            
+            # Contar cuotas de esta venta para contexto
+            total_cuotas_venta = cuota.venta.cuotas.count()
+            cuotas_pagadas_venta = cuota.venta.cuotas.filter(estado='pagada').count()
+            cuotas_atrasadas_venta = cuota.venta.cuotas.filter(
+                estado__in=['pendiente', 'parcial'],
+                fecha_vencimiento__lt=hoy
+            ).count()
+
+            cuota_data = {
+                'id': cuenta.id,  # ID de la cuenta (para tracking)
+                'cuotaId': cuota.id,  # ID de la cuota específica
+                'numeroCuota': cuota.numero_cuota,
                 'clientName': nombre_cliente,
                 'clientPhone': telefono_cliente,
                 'invoiceNumber': numero_factura,
-                'dueDate': cuota_critica.fecha_vencimiento.strftime('%Y-%m-%d'),
-                'originalAmount': float(monto_total),
-                'overdueAmount': float(monto_atrasado),
+                'dueDate': fecha_vencimiento_cuota.strftime('%Y-%m-%d'),
+                'originalAmount': float(monto_total_venta),  # Monto total de la venta
+                'overdueAmount': monto_atrasado,  # Monto pendiente de ESTA cuota
+                'montoCuota': monto_original_cuota,  # Monto original de la cuota
                 'daysOverdue': dias_atraso,
-                'status': 'vencida',  # Solo aparecen cuentas vencidas aquí
+                'status': 'vencida',
                 'contactStatus': contact_status,
                 'saleDate': fecha_factura.strftime('%Y-%m-%d'),
-                'plazoMeses': total_cuotas,
-                'cuotaActual': cuotas_pagadas_count + 1,
-                'totalCuotas': total_cuotas,
-                'overdueInstallments': cuotas_atrasadas_count,
-                'montoPorCuota': monto_por_cuota,
-                'cuotasPagadas': cuotas_pagadas_count,
+                'totalCuotas': total_cuotas_venta,
+                'cuotasPagadas': cuotas_pagadas_venta,
+                'overdueInstallments': cuotas_atrasadas_venta,
+                'montoPorCuota': monto_original_cuota,
             }
 
-            overdue_data.append(cuenta_data)
+            overdue_data.append(cuota_data)
 
-        # Ordenar por días de atraso (mayor primero)
-        overdue_data.sort(key=lambda x: x['daysOverdue'], reverse=True)
+        # Ordenar por días de atraso (mayor primero) y por fecha (más antiguas primero)
+        overdue_data.sort(key=lambda x: (-x['daysOverdue'], x['dueDate']))
 
     except Exception as e:
-        print(f"Error al obtener cuentas atrasadas: {e}")
+        print(f"Error al obtener cuotas atrasadas: {e}")
         import traceback
         traceback.print_exc()
         overdue_data = []

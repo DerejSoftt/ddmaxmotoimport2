@@ -831,6 +831,7 @@
                                     <th>Cliente</th>
                                     <th>Teléfono</th>
                                     <th>Factura</th>
+                                    <th>Fecha Vencimiento</th>
                                     <th>Monto Atrasado</th>
                                     <th>Días Atrasado</th>
                                     <th>Estado</th>
@@ -1016,6 +1017,7 @@
                     <td><strong>${escapeHtml(item.clientName || 'N/A')}</strong></td>
                     <td>${escapeHtml(item.clientPhone || 'No disponible')}</td>
                     <td>${escapeHtml(item.invoiceNumber || 'N/A')}</td>
+                    <td>${formatDate(item.dueDate)}</td>
                     <td class="currency">RD$ ${formatCurrency(item.overdueAmount || 0)}</td>
                     <td class="days-overdue">${item.daysOverdue || 0} días</td>
                     <td>
@@ -1104,6 +1106,24 @@
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                // Si la fecha viene en formato YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    return new Date(year, month - 1, day).toLocaleDateString('es-DO', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                }
+                return dateString;
+            } catch (error) {
+                return 'Fecha inválida';
+            }
         }
 
         function formatInstallmentSummary(count, amountPerInstallment) {
@@ -1219,11 +1239,12 @@
 
         function exportData() {
             const csv = [
-                ['Cliente', 'Teléfono', 'Factura', 'Monto Atrasado', 'Días Atrasado', 'Estado'],
+                ['Cliente', 'Teléfono', 'Factura', 'Fecha Vencimiento', 'Monto Atrasado', 'Días Atrasado', 'Estado'],
                 ...overdueData.map(item => [
                     item.clientName || 'N/A',
                     item.clientPhone || 'No disponible',
                     item.invoiceNumber || 'N/A',
+                    formatDate(item.dueDate),
                     `RD$ ${item.overdueAmount || 0}`,
                     item.daysOverdue || 0,
                     item.contactStatus === 'contacted' ? 'Contactado' : (item.daysOverdue > 14 ? 'Vencido' : 'Alerta')
