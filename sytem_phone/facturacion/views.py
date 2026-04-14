@@ -2,14 +2,24 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import letter
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import (
-    EntradaProducto, Proveedor,  Cliente, Caja, Venta, DetalleVenta,
-    MovimientoStock, CuentaPorCobrar, PagoCuentaPorCobrar, CierreCaja,
-    ComprobantePago, RebajaDeuda,
+    EntradaProducto,
+    Proveedor,
+    Cliente,
+    Caja,
+    Venta,
+    DetalleVenta,
+    MovimientoStock,
+    CuentaPorCobrar,
+    PagoCuentaPorCobrar,
+    CierreCaja,
+    ComprobantePago,
+    RebajaDeuda,
     # NUEVOS MODELOS
-    Cuota, DetalleDevolucion, MovimientoFinanciero,
+    Cuota,
+    DetalleDevolucion,
+    MovimientoFinanciero,
 )
 from django.contrib import messages
-
 from django.http import JsonResponse
 from django.db import models
 from django.core.validators import ValidationError
@@ -57,32 +67,29 @@ from django.db.models.functions import TruncDate
 import calendar
 
 
-
-
-
 # Create your views her
 def index(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
 
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
             login(request, user)
             # Asegúrate de tener esta URL configurada
-            return redirect('iniciocaja')
+            return redirect("iniciocaja")
         else:
-            messages.error(request, 'Usuario o contraseña incorrectos')
+            messages.error(request, "Usuario o contraseña incorrectos")
 
     return render(request, "facturacion/index.html")
 
 
 def convert_to_native(obj):
     """Convierte tipos de pandas/numpy a tipos nativos de Python"""
-    if hasattr(obj, 'item'):
+    if hasattr(obj, "item"):
         return obj.item()
-    elif hasattr(obj, 'tolist'):
+    elif hasattr(obj, "tolist"):
         return obj.tolist()
     elif pd.isna(obj):
         return None
@@ -94,6 +101,7 @@ def convert_to_native(obj):
         return [convert_to_native(item) for item in obj]
     else:
         return str(obj)
+
 
 # ------------------------------
 # DASHBOARD PRINCIPAL (HTML)
@@ -117,9 +125,7 @@ def dashboard(request):
 
         # 2. Ver cuentas por cobrar de hoy
         cuentas_hoy = CuentaPorCobrar.objects.filter(
-            venta__fecha_venta__date=hoy,
-            anulada=False,
-            eliminada=False
+            venta__fecha_venta__date=hoy, anulada=False, eliminada=False
         )
         print(f"Cuentas hoy: {cuentas_hoy.count()}")
         for c in cuentas_hoy:
@@ -128,14 +134,14 @@ def dashboard(request):
 
         # CÁLCULO SIMPLIFICADO Y DIRECTO
         # Ventas contado hoy
-        ventas_contado_hoy = ventas_hoy.filter(tipo_venta='contado').aggregate(
-            total=Sum('total_a_pagar')
-        )['total'] or Decimal('0.00')
+        ventas_contado_hoy = ventas_hoy.filter(tipo_venta="contado").aggregate(
+            total=Sum("total_a_pagar")
+        )["total"] or Decimal("0.00")
 
         # Ventas crédito hoy (usando el total de la venta, no solo lo pagado)
-        ventas_credito_hoy = ventas_hoy.filter(tipo_venta='credito').aggregate(
-            total=Sum('total')
-        )['total'] or Decimal('0.00')
+        ventas_credito_hoy = ventas_hoy.filter(tipo_venta="credito").aggregate(
+            total=Sum("total")
+        )["total"] or Decimal("0.00")
 
         ventas_hoy_total = ventas_contado_hoy + ventas_credito_hoy
 
@@ -145,107 +151,113 @@ def dashboard(request):
 
         # Ventas del mes
         ventas_mes = Venta.objects.filter(
-            fecha_venta__date__gte=inicio_mes,
-            anulada=False
+            fecha_venta__date__gte=inicio_mes, anulada=False
         )
 
-        ventas_contado_mes = ventas_mes.filter(tipo_venta='contado').aggregate(
-            total=Sum('total_a_pagar')
-        )['total'] or Decimal('0.00')
+        ventas_contado_mes = ventas_mes.filter(tipo_venta="contado").aggregate(
+            total=Sum("total_a_pagar")
+        )["total"] or Decimal("0.00")
 
-        ventas_credito_mes = ventas_mes.filter(tipo_venta='credito').aggregate(
-            total=Sum('total')
-        )['total'] or Decimal('0.00')
+        ventas_credito_mes = ventas_mes.filter(tipo_venta="credito").aggregate(
+            total=Sum("total")
+        )["total"] or Decimal("0.00")
 
         ventas_mes_total = ventas_contado_mes + ventas_credito_mes
 
         # Ventas de la semana (simplificado)
         ventas_semana = []
-        dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+        dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
         inicio_semana = hoy - timedelta(days=hoy.weekday())
 
         for i in range(7):
             dia = inicio_semana + timedelta(days=i)
             ventas_dia = Venta.objects.filter(
-                fecha_venta__date=dia,
-                anulada=False
-            )
+                fecha_venta__date=dia, anulada=False)
 
-            ventas_contado_dia = ventas_dia.filter(tipo_venta='contado').aggregate(
-                total=Sum('total_a_pagar')
-            )['total'] or Decimal('0.00')
+            ventas_contado_dia = ventas_dia.filter(tipo_venta="contado").aggregate(
+                total=Sum("total_a_pagar")
+            )["total"] or Decimal("0.00")
 
-            ventas_credito_dia = ventas_dia.filter(tipo_venta='credito').aggregate(
-                total=Sum('total')
-            )['total'] or Decimal('0.00')
+            ventas_credito_dia = ventas_dia.filter(tipo_venta="credito").aggregate(
+                total=Sum("total")
+            )["total"] or Decimal("0.00")
 
             total_dia = float(ventas_contado_dia + ventas_credito_dia)
             ventas_semana.append(total_dia)
 
         # Resto de datos...
-        total_stock = EntradaProducto.objects.filter(activo=True).aggregate(
-            total=Sum('cantidad')
-        )['total'] or 0
+        total_stock = (
+            EntradaProducto.objects.filter(activo=True).aggregate(
+                total=Sum("cantidad")
+            )["total"]
+            or 0
+        )
 
         productos_bajo_stock = EntradaProducto.objects.filter(
-            activo=True,
-            cantidad__lte=F('cantidad_minima')
+            activo=True, cantidad__lte=F("cantidad_minima")
         ).count()
 
         # Top productos
         fecha_30_dias = hoy - timedelta(days=30)
-        top_productos = DetalleVenta.objects.filter(
-            venta__anulada=False,
-            venta__fecha_venta__date__gte=fecha_30_dias
-        ).values('producto__nombre_producto').annotate(
-            total_vendido=Sum('cantidad')
-        ).order_by('-total_vendido')[:5]
+        top_productos = (
+            DetalleVenta.objects.filter(
+                venta__anulada=False, venta__fecha_venta__date__gte=fecha_30_dias
+            )
+            .values("producto__nombre_producto")
+            .annotate(total_vendido=Sum("cantidad"))
+            .order_by("-total_vendido")[:5]
+        )
 
-        top_productos_list = [{
-            'nombre_producto': item['producto__nombre_producto'],
-            'total_vendido': item['total_vendido']
-        } for item in top_productos]
+        top_productos_list = [
+            {
+                "nombre_producto": item["producto__nombre_producto"],
+                "total_vendido": item["total_vendido"],
+            }
+            for item in top_productos
+        ]
 
         # Últimas ventas
-        ultimas_ventas = Venta.objects.filter(
-            anulada=False
-        ).select_related('cliente').order_by('-fecha_venta')[:8]
+        ultimas_ventas = (
+            Venta.objects.filter(anulada=False)
+            .select_related("cliente")
+            .order_by("-fecha_venta")[:8]
+        )
 
         # Productos inventario
         productos_inventario = list(
-            EntradaProducto.objects.filter(activo=True)
-            .values('nombre_producto', 'marca', 'cantidad', 'costo_venta')[:10]
+            EntradaProducto.objects.filter(activo=True).values(
+                "nombre_producto", "marca", "cantidad", "costo_venta"
+            )[:10]
         )
 
         # Alertas
         alertas = [
             f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
             for p in EntradaProducto.objects.filter(
-                activo=True,
-                cantidad__lte=F('cantidad_minima')
-            ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+                activo=True, cantidad__lte=F("cantidad_minima")
+            ).values("nombre_producto", "cantidad", "cantidad_minima")
         ]
 
         # Cuentas vencidas
         cuentas_vencidas = CuentaPorCobrar.objects.filter(
             fecha_vencimiento__lt=hoy,
-            estado__in=['pendiente', 'parcial'],
+            estado__in=["pendiente", "parcial"],
             anulada=False,
-            eliminada=False
+            eliminada=False,
         ).count()
 
         context = {
-            'ventas_hoy': float(ventas_hoy_total),
-            'ventas_mes': float(ventas_mes_total),
-            'total_stock': total_stock,
-            'productos_bajo_stock': productos_bajo_stock,
-            'cuentas_vencidas': cuentas_vencidas,
-            'ventas_semana': json.dumps(ventas_semana),
-            'dias_semana': json.dumps(dias_semana),
-            'top_productos': json.dumps(top_productos_list),
-            'ultimas_ventas': ultimas_ventas,
-            'productos_inventario': productos_inventario,
-            'alertas': json.dumps(alertas[:5]),
+            "ventas_hoy": float(ventas_hoy_total),
+            "ventas_mes": float(ventas_mes_total),
+            "total_stock": total_stock,
+            "productos_bajo_stock": productos_bajo_stock,
+            "cuentas_vencidas": cuentas_vencidas,
+            "ventas_semana": json.dumps(ventas_semana),
+            "dias_semana": json.dumps(dias_semana),
+            "top_productos": json.dumps(top_productos_list),
+            "ultimas_ventas": ultimas_ventas,
+            "productos_inventario": productos_inventario,
+            "alertas": json.dumps(alertas[:5]),
         }
 
         print(f"=== CONTEXT ENVIADO ===")
@@ -257,8 +269,10 @@ def dashboard(request):
     except Exception as e:
         print(f"Error en dashboard: {str(e)}")
         import traceback
+
         print(traceback.format_exc())
         return dashboard_tradicional(request)
+
 
 # ------------------------------
 # DASHBOARD DATA (JSON)
@@ -288,36 +302,47 @@ def dashboard_data(request):
         with connection.cursor() as cursor:
             # === COBROS DE HOY ===
             # 1. Ventas al contado de hoy
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COALESCE(SUM(total), 0) as total
                 FROM ventas 
                 WHERE DATE(fecha_venta) = %s 
                 AND anulada = 0
                 AND tipo_venta = 'contado'
-            """, [hoy])
+            """,
+                [hoy],
+            )
             total_contado_hoy = Decimal(str(cursor.fetchone()[0]))
 
             # 2. Monto inicial de créditos de hoy
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COALESCE(SUM(montoinicial), 0) as total
                 FROM ventas 
                 WHERE DATE(fecha_venta) = %s 
                 AND anulada = 0
                 AND tipo_venta = 'credito'
-            """, [hoy])
+            """,
+                [hoy],
+            )
             total_inicial_hoy = Decimal(str(cursor.fetchone()[0]))
 
             # 3. Pagos CxC de hoy
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COALESCE(SUM(monto), 0) as total
                 FROM pagos_cuentas_por_cobrar
                 WHERE DATE(fecha_pago) = %s 
                 AND anulado = 0
-            """, [hoy])
+            """,
+                [hoy],
+            )
             total_pagos_hoy = Decimal(str(cursor.fetchone()[0]))
 
             # Total cobrado hoy
-            ventas_hoy_total_real = total_contado_hoy + total_inicial_hoy + total_pagos_hoy
+            ventas_hoy_total_real = (
+                total_contado_hoy + total_inicial_hoy + total_pagos_hoy
+            )
 
             print(f"\n=== COBROS DE HOY ({hoy}) ===")
             print(f"Ventas al contado: ${total_contado_hoy}")
@@ -327,39 +352,50 @@ def dashboard_data(request):
 
             # === COBROS DEL MES ===
             # 1. Ventas al contado del mes
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COALESCE(SUM(total), 0) as total
                 FROM ventas 
                 WHERE DATE(fecha_venta) >= %s 
                 AND DATE(fecha_venta) <= %s
                 AND anulada = 0
                 AND tipo_venta = 'contado'
-            """, [inicio_mes, hoy])
+            """,
+                [inicio_mes, hoy],
+            )
             total_contado_mes = Decimal(str(cursor.fetchone()[0]))
 
             # 2. Monto inicial de créditos del mes
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COALESCE(SUM(montoinicial), 0) as total
                 FROM ventas 
                 WHERE DATE(fecha_venta) >= %s 
                 AND DATE(fecha_venta) <= %s
                 AND anulada = 0
                 AND tipo_venta = 'credito'
-            """, [inicio_mes, hoy])
+            """,
+                [inicio_mes, hoy],
+            )
             total_inicial_mes = Decimal(str(cursor.fetchone()[0]))
 
             # 3. Pagos CxC del mes
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COALESCE(SUM(monto), 0) as total
                 FROM pagos_cuentas_por_cobrar
                 WHERE DATE(fecha_pago) >= %s 
                 AND DATE(fecha_pago) <= %s
                 AND anulado = 0
-            """, [inicio_mes, hoy])
+            """,
+                [inicio_mes, hoy],
+            )
             total_pagos_mes = Decimal(str(cursor.fetchone()[0]))
 
             # Total cobrado en el mes
-            ventas_mes_total_real = total_contado_mes + total_inicial_mes + total_pagos_mes
+            ventas_mes_total_real = (
+                total_contado_mes + total_inicial_mes + total_pagos_mes
+            )
 
             print(f"\n=== COBROS DEL MES ({inicio_mes} a {hoy}) ===")
             print(f"Ventas al contado: ${total_contado_mes}")
@@ -373,38 +409,48 @@ def dashboard_data(request):
                 dia = inicio_semana + timedelta(days=i)
 
                 # Ventas al contado del día
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COALESCE(SUM(total), 0) as total
                     FROM ventas 
                     WHERE DATE(fecha_venta) = %s 
                     AND anulada = 0
                     AND tipo_venta = 'contado'
-                """, [dia])
+                """,
+                    [dia],
+                )
                 contado_dia = Decimal(str(cursor.fetchone()[0]))
 
                 # Monto inicial de créditos del día
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COALESCE(SUM(montoinicial), 0) as total
                     FROM ventas 
                     WHERE DATE(fecha_venta) = %s 
                     AND anulada = 0
                     AND tipo_venta = 'credito'
-                """, [dia])
+                """,
+                    [dia],
+                )
                 inicial_dia = Decimal(str(cursor.fetchone()[0]))
 
                 # Pagos CxC del día
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COALESCE(SUM(monto), 0) as total
                     FROM pagos_cuentas_por_cobrar
                     WHERE DATE(fecha_pago) = %s 
                     AND anulado = 0
-                """, [dia])
+                """,
+                    [dia],
+                )
                 pagos_dia = Decimal(str(cursor.fetchone()[0]))
 
                 total_dia = float(contado_dia + inicial_dia + pagos_dia)
                 ventas_semana.append(total_dia)
                 print(
-                    f"Día {dia}: Contado ${contado_dia} + Inicial ${inicial_dia} + Pagos ${pagos_dia} = ${total_dia}")
+                    f"Día {dia}: Contado ${contado_dia} + Inicial ${inicial_dia} + Pagos ${pagos_dia} = ${total_dia}"
+                )
 
         # PRODUCTOS MÁS VENDIDOS (usando ORM)
         print("\n=== PRODUCTOS MÁS VENDIDOS ===")
@@ -417,28 +463,28 @@ def dashboard_data(request):
         # Intentar obtener productos más vendidos (últimos 30 días)
         fecha_30_dias = hoy - timedelta(days=30)
 
-        top_productos = DetalleVenta.objects.filter(
-            venta__anulada=False,
-            venta__fecha_venta__date__gte=fecha_30_dias
-        ).values(
-            'producto__nombre_producto'
-        ).annotate(
-            total_vendido=Sum('cantidad')
-        ).order_by('-total_vendido')[:5]
+        top_productos = (
+            DetalleVenta.objects.filter(
+                venta__anulada=False, venta__fecha_venta__date__gte=fecha_30_dias
+            )
+            .values("producto__nombre_producto")
+            .annotate(total_vendido=Sum("cantidad"))
+            .order_by("-total_vendido")[:5]
+        )
 
         print(f"Top productos (últimos 30 días): {top_productos.count()}")
 
         # Si no hay productos en los últimos 30 días, buscar en todo el historial
         if top_productos.count() == 0:
             print(
-                "No hay productos en los últimos 30 días, buscando en todo el historial...")
-            top_productos = DetalleVenta.objects.filter(
-                venta__anulada=False
-            ).values(
-                'producto__nombre_producto'
-            ).annotate(
-                total_vendido=Sum('cantidad')
-            ).order_by('-total_vendido')[:5]
+                "No hay productos en los últimos 30 días, buscando en todo el historial..."
+            )
+            top_productos = (
+                DetalleVenta.objects.filter(venta__anulada=False)
+                .values("producto__nombre_producto")
+                .annotate(total_vendido=Sum("cantidad"))
+                .order_by("-total_vendido")[:5]
+            )
 
             print(
                 f"Top productos (todo el historial): {top_productos.count()}")
@@ -448,31 +494,35 @@ def dashboard_data(request):
                 f"  - {prod['producto__nombre_producto']}: {prod['total_vendido']}")
 
         # INVENTARIO
-        total_stock = EntradaProducto.objects.filter(activo=True).aggregate(
-            total=Sum('cantidad')
-        )['total'] or 0
+        total_stock = (
+            EntradaProducto.objects.filter(activo=True).aggregate(
+                total=Sum("cantidad")
+            )["total"]
+            or 0
+        )
 
         productos_bajo_stock = EntradaProducto.objects.filter(
-            activo=True,
-            cantidad__lte=F('cantidad_minima')
+            activo=True, cantidad__lte=F("cantidad_minima")
         ).count()
 
         # Últimas ventas
-        ultimas_ventas = Venta.objects.filter(
-            anulada=False
-        ).select_related('cliente').order_by('-fecha_venta')[:8]
+        ultimas_ventas = (
+            Venta.objects.filter(anulada=False)
+            .select_related("cliente")
+            .order_by("-fecha_venta")[:8]
+        )
 
         # Inventario detalle
         productos_inventario = list(
-            EntradaProducto.objects.filter(activo=True)
-            .values('nombre_producto', 'marca', 'cantidad', 'costo_venta', 'cantidad_minima')[:10]
+            EntradaProducto.objects.filter(activo=True).values(
+                "nombre_producto", "marca", "cantidad", "costo_venta", "cantidad_minima"
+            )[:10]
         )
 
         # Alertas de stock
         alertas_stock = EntradaProducto.objects.filter(
-            activo=True,
-            cantidad__lte=F('cantidad_minima')
-        ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+            activo=True, cantidad__lte=F("cantidad_minima")
+        ).values("nombre_producto", "cantidad", "cantidad_minima")
 
         alertas = [
             f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
@@ -482,84 +532,98 @@ def dashboard_data(request):
         # Cuentas vencidas
         cuentas_vencidas = CuentaPorCobrar.objects.filter(
             fecha_vencimiento__lt=hoy,
-            estado__in=['pendiente', 'parcial'],
+            estado__in=["pendiente", "parcial"],
             anulada=False,
-            eliminada=False
+            eliminada=False,
         ).count()
 
         # CALCULAR TENDENCIA MENSUAL (últimos 12 meses)
         monthly_trend = []
         with connection.cursor() as cursor:
             for i in range(11, -1, -1):
-                mes_inicio = (hoy.replace(day=1) -
-                              timedelta(days=i*30)).replace(day=1)
+                mes_inicio = (hoy.replace(day=1) - timedelta(days=i * 30)).replace(
+                    day=1
+                )
                 if i == 0:
                     mes_fin = hoy
                 else:
-                    mes_fin = (mes_inicio.replace(
-                        day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+                    mes_fin = (mes_inicio.replace(day=28) + timedelta(days=4)).replace(
+                        day=1
+                    ) - timedelta(days=1)
 
                 # Ventas del mes
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COALESCE(SUM(total), 0)
                     FROM ventas 
                     WHERE DATE(fecha_venta) >= %s 
                     AND DATE(fecha_venta) <= %s
                     AND anulada = 0
-                """, [mes_inicio, mes_fin])
+                """,
+                    [mes_inicio, mes_fin],
+                )
 
                 ventas = Decimal(str(cursor.fetchone()[0]))
 
                 # Pagos CxC del mes
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COALESCE(SUM(monto), 0)
                     FROM pagos_cuentas_por_cobrar
                     WHERE DATE(fecha_pago) >= %s 
                     AND DATE(fecha_pago) <= %s
                     AND anulado = 0
-                """, [mes_inicio, mes_fin])
+                """,
+                    [mes_inicio, mes_fin],
+                )
 
                 pagos = Decimal(str(cursor.fetchone()[0]))
                 monthly_trend.append(float(ventas + pagos))
 
         # DATOS PARA EL FRONTEND
         data = {
-            'sales': {
-                'daily': float(ventas_hoy_total_real),  # Total con pagos CxC
-                'monthly': float(ventas_mes_total_real),  # Total con pagos CxC
-                'dailyCobros': float(ventas_hoy_total_real),
-                'monthlyCobros': float(ventas_mes_total_real),
-                'weekly': ventas_semana,  # Ya incluye pagos CxC
-                'weekLabels': ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                'monthlyTrend': monthly_trend  # Ya incluye pagos CxC
+            "sales": {
+                "daily": float(ventas_hoy_total_real),  # Total con pagos CxC
+                "monthly": float(ventas_mes_total_real),  # Total con pagos CxC
+                "dailyCobros": float(ventas_hoy_total_real),
+                "monthlyCobros": float(ventas_mes_total_real),
+                "weekly": ventas_semana,  # Ya incluye pagos CxC
+                "weekLabels": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+                "monthlyTrend": monthly_trend,  # Ya incluye pagos CxC
             },
-            'inventory': {
-                'totalStock': total_stock,
-                'totalSold': 0,
-                'lowStockItems': productos_bajo_stock,
-                'categories': [
-                    {'name': 'Honda', 'count': 75},
-                    {'name': 'Yamaha', 'count': 45},
-                    {'name': 'Suzuki', 'count': 25},
-                    {'name': 'Kawasaki', 'count': 11}
-                ]
+            "inventory": {
+                "totalStock": total_stock,
+                "totalSold": 0,
+                "lowStockItems": productos_bajo_stock,
+                "categories": [
+                    {"name": "Honda", "count": 75},
+                    {"name": "Yamaha", "count": 45},
+                    {"name": "Suzuki", "count": 25},
+                    {"name": "Kawasaki", "count": 11},
+                ],
             },
-            'topProducts': [{
-                'nombre_producto': item['producto__nombre_producto'],
-                'total_vendido': item['total_vendido'] or 0
-            } for item in top_productos],
-            'recentSales': [{
-                'id': venta.id,
-                'producto': f"{venta.cliente_nombre} - {venta.numero_factura}",
-                'monto': float(venta.total),
-                'fecha': venta.fecha_venta.strftime('%d-%m-%Y'),
-                'hora': venta.fecha_venta.strftime('%I:%M '),
-                'estado': 'Completada',
-                'cantidad': 1
-            } for venta in ultimas_ventas],
-            'inventoryItems': productos_inventario,
-            'lowStockAlerts': alertas[:5],
-            'overdueAccounts': cuentas_vencidas
+            "topProducts": [
+                {
+                    "nombre_producto": item["producto__nombre_producto"],
+                    "total_vendido": item["total_vendido"] or 0,
+                }
+                for item in top_productos
+            ],
+            "recentSales": [
+                {
+                    "id": venta.id,
+                    "producto": f"{venta.cliente_nombre} - {venta.numero_factura}",
+                    "monto": float(venta.total),
+                    "fecha": venta.fecha_venta.strftime("%d-%m-%Y"),
+                    "hora": venta.fecha_venta.strftime("%I:%M "),
+                    "estado": "Completada",
+                    "cantidad": 1,
+                }
+                for venta in ultimas_ventas
+            ],
+            "inventoryItems": productos_inventario,
+            "lowStockAlerts": alertas[:5],
+            "overdueAccounts": cuentas_vencidas,
         }
 
         print(f"\n=== DATOS FINALES ENVIADOS ===")
@@ -573,8 +637,9 @@ def dashboard_data(request):
     except Exception as e:
         print(f"Error en dashboard_data: {e}")
         import traceback
+
         print(traceback.format_exc())
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # ------------------------------
@@ -589,106 +654,106 @@ def dashboard_tradicional(request):
     # CÁLCULO DE VENTAS CON LA NUEVA LÓGICA
     # Ventas al contado (total_a_pagar de ventas contado)
     ventas_contado_hoy = Venta.objects.filter(
-        fecha_venta__date=hoy,
-        anulada=False,
-        tipo_venta='contado'
-    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        fecha_venta__date=hoy, anulada=False, tipo_venta="contado"
+    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
     # Ventas a crédito (solo monto_pagado)
     ventas_credito_hoy = CuentaPorCobrar.objects.filter(
         venta__fecha_venta__date=hoy,
         venta__anulada=False,
-        venta__tipo_venta='credito',
-        anulada=False
-    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+        venta__tipo_venta="credito",
+        anulada=False,
+    ).aggregate(total=Sum("monto_pagado"))["total"] or Decimal("0.00")
 
     # Total ventas hoy
     ventas_hoy = ventas_contado_hoy + ventas_credito_hoy
 
     # Cálculo similar para el mes
     ventas_contado_mes = Venta.objects.filter(
-        fecha_venta__date__gte=inicio_mes,
-        anulada=False,
-        tipo_venta='contado'
-    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        fecha_venta__date__gte=inicio_mes, anulada=False, tipo_venta="contado"
+    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
     ventas_credito_mes = CuentaPorCobrar.objects.filter(
         venta__fecha_venta__date__gte=inicio_mes,
         venta__anulada=False,
-        venta__tipo_venta='credito',
-        anulada=False
-    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+        venta__tipo_venta="credito",
+        anulada=False,
+    ).aggregate(total=Sum("monto_pagado"))["total"] or Decimal("0.00")
 
     ventas_mes = ventas_contado_mes + ventas_credito_mes
 
     # Ventas de la semana con la nueva lógica
     ventas_semana = []
-    dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
     for i in range(7):
         dia = inicio_semana + timedelta(days=i)
 
         # Ventas contado del día (total_a_pagar)
         ventas_contado_dia = Venta.objects.filter(
-            fecha_venta__date=dia,
-            anulada=False,
-            tipo_venta='contado'
-        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+            fecha_venta__date=dia, anulada=False, tipo_venta="contado"
+        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
         # Ventas crédito del día (solo monto_pagado)
         ventas_credito_dia = CuentaPorCobrar.objects.filter(
             venta__fecha_venta__date=dia,
             venta__anulada=False,
-            venta__tipo_venta='credito',
-            anulada=False
-        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+            venta__tipo_venta="credito",
+            anulada=False,
+        ).aggregate(total=Sum("monto_pagado"))["total"] or Decimal("0.00")
 
         # Total del día
         total_dia = float(ventas_contado_dia + ventas_credito_dia)
         ventas_semana.append(total_dia)
 
     # El resto del código permanece igual...
-    total_stock = EntradaProducto.objects.filter(activo=True).aggregate(
-        total=Sum('cantidad')
-    )['total'] or 0
+    total_stock = (
+        EntradaProducto.objects.filter(activo=True).aggregate(total=Sum("cantidad"))[
+            "total"
+        ]
+        or 0
+    )
 
     productos_bajo_stock = EntradaProducto.objects.filter(
-        activo=True,
-        cantidad__lte=F('cantidad_minima')
+        activo=True, cantidad__lte=F("cantidad_minima")
     ).count()
 
     # Top productos últimos 30 días
     fecha_30_dias = hoy - timedelta(days=30)
-    top_productos = DetalleVenta.objects.filter(
-        venta__anulada=False,
-        venta__fecha_venta__date__gte=fecha_30_dias
-    ).values(
-        'producto__nombre_producto'
-    ).annotate(
-        total_vendido=Sum('cantidad')
-    ).order_by('-total_vendido')[:5]
+    top_productos = (
+        DetalleVenta.objects.filter(
+            venta__anulada=False, venta__fecha_venta__date__gte=fecha_30_dias
+        )
+        .values("producto__nombre_producto")
+        .annotate(total_vendido=Sum("cantidad"))
+        .order_by("-total_vendido")[:5]
+    )
 
     # Convertir a la estructura correcta
-    top_productos_list = [{
-        'nombre_producto': item['producto__nombre_producto'],
-        'total_vendido': item['total_vendido']
-    } for item in top_productos]
+    top_productos_list = [
+        {
+            "nombre_producto": item["producto__nombre_producto"],
+            "total_vendido": item["total_vendido"],
+        }
+        for item in top_productos
+    ]
 
     # Últimas ventas
-    ultimas_ventas = Venta.objects.filter(
-        anulada=False
-    ).select_related('cliente').order_by('-fecha_venta')[:8]
+    ultimas_ventas = (
+        Venta.objects.filter(anulada=False)
+        .select_related("cliente")
+        .order_by("-fecha_venta")[:8]
+    )
 
     # Productos en inventario
-    productos_inventario = EntradaProducto.objects.filter(
-        activo=True
-    ).values('nombre_producto', 'marca', 'cantidad', 'costo_venta')[:10]
+    productos_inventario = EntradaProducto.objects.filter(activo=True).values(
+        "nombre_producto", "marca", "cantidad", "costo_venta"
+    )[:10]
 
     # Alertas de stock bajo
     alertas_stock = EntradaProducto.objects.filter(
-        activo=True,
-        cantidad__lte=F('cantidad_minima')
-    ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+        activo=True, cantidad__lte=F("cantidad_minima")
+    ).values("nombre_producto", "cantidad", "cantidad_minima")
 
     alertas = [
         f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
@@ -697,23 +762,21 @@ def dashboard_tradicional(request):
 
     # Cuentas por cobrar vencidas
     cuentas_vencidas = CuentaPorCobrar.objects.filter(
-        fecha_vencimiento__lt=hoy,
-        estado__in=['pendiente', 'parcial'],
-        anulada=False
+        fecha_vencimiento__lt=hoy, estado__in=["pendiente", "parcial"], anulada=False
     ).count()
 
     context = {
-        'ventas_hoy': float(ventas_hoy),
-        'ventas_mes': float(ventas_mes),
-        'total_stock': total_stock,
-        'productos_bajo_stock': productos_bajo_stock,
-        'cuentas_vencidas': cuentas_vencidas,
-        'ventas_semana': json.dumps(ventas_semana),
-        'dias_semana': json.dumps(dias_semana),
-        'top_productos': json.dumps(top_productos_list),
-        'ultimas_ventas': ultimas_ventas,
-        'productos_inventario': productos_inventario,
-        'alertas': json.dumps(alertas[:5]),
+        "ventas_hoy": float(ventas_hoy),
+        "ventas_mes": float(ventas_mes),
+        "total_stock": total_stock,
+        "productos_bajo_stock": productos_bajo_stock,
+        "cuentas_vencidas": cuentas_vencidas,
+        "ventas_semana": json.dumps(ventas_semana),
+        "dias_semana": json.dumps(dias_semana),
+        "top_productos": json.dumps(top_productos_list),
+        "ultimas_ventas": ultimas_ventas,
+        "productos_inventario": productos_inventario,
+        "alertas": json.dumps(alertas[:5]),
     }
 
     return render(request, "facturacion/dashboard.html", context)
@@ -731,100 +794,99 @@ def dashboard_data_tradicional(request):
     # CÁLCULO DE VENTAS CON LA NUEVA LÓGICA
     # Ventas al contado (total_a_pagar de ventas contado)
     ventas_contado_hoy = Venta.objects.filter(
-        fecha_venta__date=hoy,
-        anulada=False,
-        tipo_venta='contado'
-    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        fecha_venta__date=hoy, anulada=False, tipo_venta="contado"
+    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
     # Ventas a crédito (solo monto_pagado)
     ventas_credito_hoy = CuentaPorCobrar.objects.filter(
         venta__fecha_venta__date=hoy,
         venta__anulada=False,
-        venta__tipo_venta='credito',
-        anulada=False
-    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+        venta__tipo_venta="credito",
+        anulada=False,
+    ).aggregate(total=Sum("monto_pagado"))["total"] or Decimal("0.00")
 
     # Total ventas hoy
     ventas_hoy = ventas_contado_hoy + ventas_credito_hoy
 
     # Cálculo similar para el mes
     ventas_contado_mes = Venta.objects.filter(
-        fecha_venta__date__gte=inicio_mes,
-        anulada=False,
-        tipo_venta='contado'
-    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        fecha_venta__date__gte=inicio_mes, anulada=False, tipo_venta="contado"
+    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
     ventas_credito_mes = CuentaPorCobrar.objects.filter(
         venta__fecha_venta__date__gte=inicio_mes,
         venta__anulada=False,
-        venta__tipo_venta='credito',
-        anulada=False
-    ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+        venta__tipo_venta="credito",
+        anulada=False,
+    ).aggregate(total=Sum("monto_pagado"))["total"] or Decimal("0.00")
 
     ventas_mes = ventas_contado_mes + ventas_credito_mes
 
     # Ventas de la semana con la nueva lógica
     ventas_semana = []
-    dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
     for i in range(7):
         dia = inicio_semana + timedelta(days=i)
 
         # Ventas contado del día (total_a_pagar)
         ventas_contado_dia = Venta.objects.filter(
-            fecha_venta__date=dia,
-            anulada=False,
-            tipo_venta='contado'
-        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+            fecha_venta__date=dia, anulada=False, tipo_venta="contado"
+        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
         # Ventas crédito del día (solo monto_pagado)
         ventas_credito_dia = CuentaPorCobrar.objects.filter(
             venta__fecha_venta__date=dia,
             venta__anulada=False,
-            venta__tipo_venta='credito',
-            anulada=False
-        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0.00')
+            venta__tipo_venta="credito",
+            anulada=False,
+        ).aggregate(total=Sum("monto_pagado"))["total"] or Decimal("0.00")
 
         # Total del día
         total_dia = float(ventas_contado_dia + ventas_credito_dia)
         ventas_semana.append(total_dia)
 
     # El resto del código permanece igual...
-    total_stock = EntradaProducto.objects.filter(activo=True).aggregate(
-        total=Sum('cantidad')
-    )['total'] or 0
+    total_stock = (
+        EntradaProducto.objects.filter(activo=True).aggregate(total=Sum("cantidad"))[
+            "total"
+        ]
+        or 0
+    )
 
     productos_bajo_stock = EntradaProducto.objects.filter(
-        activo=True,
-        cantidad__lte=F('cantidad_minima')
+        activo=True, cantidad__lte=F("cantidad_minima")
     ).count()
 
     # Top productos últimos 30 días
     fecha_30_dias = hoy - timedelta(days=30)
-    top_productos = DetalleVenta.objects.filter(
-        venta__anulada=False,
-        venta__fecha_venta__date__gte=fecha_30_dias
-    ).values(
-        'producto__nombre_producto'
-    ).annotate(
-        total_vendido=Sum('cantidad')
-    ).order_by('-total_vendido')[:5]
+    top_productos = (
+        DetalleVenta.objects.filter(
+            venta__anulada=False, venta__fecha_venta__date__gte=fecha_30_dias
+        )
+        .values("producto__nombre_producto")
+        .annotate(total_vendido=Sum("cantidad"))
+        .order_by("-total_vendido")[:5]
+    )
 
     # Últimas ventas
-    ultimas_ventas = Venta.objects.filter(
-        anulada=False
-    ).select_related('cliente').order_by('-fecha_venta')[:8]
+    ultimas_ventas = (
+        Venta.objects.filter(anulada=False)
+        .select_related("cliente")
+        .order_by("-fecha_venta")[:8]
+    )
 
     # Inventario
-    productos_inventario = list(EntradaProducto.objects.filter(
-        activo=True
-    ).values('nombre_producto', 'marca', 'cantidad', 'costo_venta', 'cantidad_minima')[:10])
+    productos_inventario = list(
+        EntradaProducto.objects.filter(activo=True).values(
+            "nombre_producto", "marca", "cantidad", "costo_venta", "cantidad_minima"
+        )[:10]
+    )
 
     # Alertas
     alertas_stock = EntradaProducto.objects.filter(
-        activo=True,
-        cantidad__lte=F('cantidad_minima')
-    ).values('nombre_producto', 'cantidad', 'cantidad_minima')
+        activo=True, cantidad__lte=F("cantidad_minima")
+    ).values("nombre_producto", "cantidad", "cantidad_minima")
 
     alertas = [
         f"{p['nombre_producto']} - Solo {p['cantidad']} unidades restantes (mínimo: {p['cantidad_minima']})"
@@ -833,49 +895,55 @@ def dashboard_data_tradicional(request):
 
     # Cuentas por cobrar vencidas
     cuentas_vencidas = CuentaPorCobrar.objects.filter(
-        fecha_vencimiento__lt=hoy,
-        estado__in=['pendiente', 'parcial'],
-        anulada=False
+        fecha_vencimiento__lt=hoy, estado__in=["pendiente", "parcial"], anulada=False
     ).count()
 
     data = {
-        'sales': {
-            'daily': float(ventas_hoy),
-            'monthly': float(ventas_mes),
-            'weekly': ventas_semana,
-            'weekLabels': dias_semana,
-            'monthlyTrend': [float(ventas_mes)] * 12
+        "sales": {
+            "daily": float(ventas_hoy),
+            "monthly": float(ventas_mes),
+            "weekly": ventas_semana,
+            "weekLabels": dias_semana,
+            "monthlyTrend": [float(ventas_mes)] * 12,
         },
-        'inventory': {
-            'totalStock': total_stock,
-            'totalSold': 0,
-            'lowStockItems': productos_bajo_stock,
-            'categories': [
-                {'name': 'Supergato', 'count': 75},
-                {'name': 'Accesorios', 'count': 45},
-                {'name': 'Repuestos', 'count': 25},
-                {'name': 'Tablets', 'count': 11}
-            ]
+        "inventory": {
+            "totalStock": total_stock,
+            "totalSold": 0,
+            "lowStockItems": productos_bajo_stock,
+            "categories": [
+                {"name": "Supergato", "count": 75},
+                {"name": "Accesorios", "count": 45},
+                {"name": "Repuestos", "count": 25},
+                {"name": "Tablets", "count": 11},
+            ],
         },
-        'topProducts': [{
-            'nombre_producto': item['producto__nombre_producto'],
-            'total_vendido': item['total_vendido']
-        } for item in top_productos],
-        'recentSales': [{
-            'id': venta.id,
-            'producto': f"{venta.cliente_nombre} - {venta.numero_factura}",
-            'monto': float(venta.total),
-            'fecha': venta.fecha_venta.strftime('%d-%M-%Y'),
-            'hora': venta.fecha_venta.strftime('%H:%M'),
-            'estado': 'completada',
-            'cantidad': 1
-        } for venta in ultimas_ventas],
-        'inventoryItems': productos_inventario,
-        'lowStockAlerts': alertas[:5],
-        'overdueAccounts': cuentas_vencidas
+        "topProducts": [
+            {
+                "nombre_producto": item["producto__nombre_producto"],
+                "total_vendido": item["total_vendido"],
+            }
+            for item in top_productos
+        ],
+        "recentSales": [
+            {
+                "id": venta.id,
+                "producto": f"{venta.cliente_nombre} - {venta.numero_factura}",
+                "monto": float(venta.total),
+                "fecha": venta.fecha_venta.strftime("%d-%M-%Y"),
+                "hora": venta.fecha_venta.strftime("%H:%M"),
+                "estado": "completada",
+                "cantidad": 1,
+            }
+            for venta in ultimas_ventas
+        ],
+        "inventoryItems": productos_inventario,
+        "lowStockAlerts": alertas[:5],
+        "overdueAccounts": cuentas_vencidas,
     }
 
     return JsonResponse(data)
+
+
 # ------------------------------
 # inventario
 # ------------------------------
@@ -891,10 +959,15 @@ def superuser_required(view_func):
         print(f"Usuario: {request.user}")  # Debug
 
         if not request.user.is_authenticated:
-            return JsonResponse({'error': 'Authentication required', 'status': 401}, status=401)
+            return JsonResponse(
+                {"error": "Authentication required", "status": 401}, status=401
+            )
         if not request.user.is_superuser:
-            return JsonResponse({'error': 'Superuser privileges required', 'status': 403}, status=403)
+            return JsonResponse(
+                {"error": "Superuser privileges required", "status": 403}, status=403
+            )
         return view_func(request, *args, **kwargs)
+
     return _wrapped_view
 
 
@@ -904,28 +977,44 @@ def superuser_required(view_func):
 def inventario(request):
     return render(request, "facturacion/inventario.html")
 
+
 # En la vista inventario_datos
 
 
 def inventario_datos(request):
     try:
-        productos = list(EntradaProducto.objects.all().values(
-            'id', 'codigo_producto', 'nombre_producto', 'marca',
-            'imei_serial', 'numero_maquina', 'estado', 'color', 'cantidad',
-            'costo_compra', 'costo_venta', 'observaciones'
-        ))
+        productos = list(
+            EntradaProducto.objects.all().values(
+                "id",
+                "codigo_producto",
+                "nombre_producto",
+                "marca",
+                "imei_serial",
+                "numero_maquina",
+                "estado",
+                "color",
+                "cantidad",
+                "costo_compra",
+                "costo_venta",
+                "observaciones",
+            )
+        )
         proveedores = list(Proveedor.objects.all().values())
 
-        return JsonResponse({
-            'productos': productos,
-            'proveedores': proveedores,
-            'user': {
-                'is_superuser': request.user.is_superuser,
-                'username': request.user.username
+        return JsonResponse(
+            {
+                "productos": productos,
+                "proveedores": proveedores,
+                "user": {
+                    "is_superuser": request.user.is_superuser,
+                    "username": request.user.username,
+                },
             }
-        })
+        )
     except Exception as e:
-        return JsonResponse({'error': 'Error interno del servidor: ' + str(e)}, status=500)
+        return JsonResponse(
+            {"error": "Error interno del servidor: " + str(e)}, status=500
+        )
 
 
 # Vista para editar producto
@@ -939,40 +1028,41 @@ def inventario_editar(request, id):
         data = json.loads(request.body)
 
         producto.nombre_producto = data.get(
-            'nombre_producto', producto.nombre_producto)
-        producto.marca = data.get('marca', producto.marca)
-        producto.imei_serial = data.get('imei_serial', producto.imei_serial)
+            "nombre_producto", producto.nombre_producto)
+        producto.marca = data.get("marca", producto.marca)
+        producto.imei_serial = data.get("imei_serial", producto.imei_serial)
         producto.numero_maquina = data.get(
-            'numero_maquina', producto.numero_maquina)  # Nuevo campo
-        producto.estado = data.get('estado', producto.estado)
-        producto.color = data.get('color', producto.color)
-        producto.costo_compra = data.get('costo_compra', producto.costo_compra)
-        producto.costo_venta = data.get('costo_venta', producto.costo_venta)
+            "numero_maquina", producto.numero_maquina
+        )  # Nuevo campo
+        producto.estado = data.get("estado", producto.estado)
+        producto.color = data.get("color", producto.color)
+        producto.costo_compra = data.get("costo_compra", producto.costo_compra)
+        producto.costo_venta = data.get("costo_venta", producto.costo_venta)
         producto.observaciones = data.get(
-            'observaciones', producto.observaciones)
+            "observaciones", producto.observaciones)
 
         producto.save()
 
         producto_actualizado = {
-            'id': producto.id,
-            'codigo_producto': producto.codigo_producto,
-            'nombre_producto': producto.nombre_producto,
-            'marca': producto.marca,
-            'imei_serial': producto.imei_serial,
-            'numero_maquina': producto.numero_maquina,  # Nuevo campo
-            'estado': producto.estado,
-            'color': producto.color,
-            'cantidad': producto.cantidad,
-            'costo_compra': float(producto.costo_compra),
-            'costo_venta': float(producto.costo_venta),
-            'observaciones': producto.observaciones,
+            "id": producto.id,
+            "codigo_producto": producto.codigo_producto,
+            "nombre_producto": producto.nombre_producto,
+            "marca": producto.marca,
+            "imei_serial": producto.imei_serial,
+            "numero_maquina": producto.numero_maquina,  # Nuevo campo
+            "estado": producto.estado,
+            "color": producto.color,
+            "cantidad": producto.cantidad,
+            "costo_compra": float(producto.costo_compra),
+            "costo_venta": float(producto.costo_venta),
+            "observaciones": producto.observaciones,
         }
 
         return JsonResponse(producto_actualizado)
     except EntradaProducto.DoesNotExist:
-        return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+        return JsonResponse({"error": "Producto no encontrado"}, status=404)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @require_http_methods(["DELETE"])
@@ -982,57 +1072,62 @@ def inventario_eliminar(request, id):
     try:
         producto = EntradaProducto.objects.get(id=id)
         producto.delete()
-        return JsonResponse({'success': True, 'message': 'Producto eliminado correctamente'})
+        return JsonResponse(
+            {"success": True, "message": "Producto eliminado correctamente"}
+        )
     except EntradaProducto.DoesNotExist:
-        return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+        return JsonResponse({"error": "Producto no encontrado"}, status=404)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required
 def iniciocaja(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         # Obtener datos del formulario
-        monto_inicial = request.POST.get('monto_inicial')
+        monto_inicial = request.POST.get("monto_inicial")
 
         # Validar el monto
         try:
             monto_inicial = float(monto_inicial)
             if monto_inicial < 0:
                 messages.error(
-                    request, 'El monto inicial debe ser mayor o igual a cero.')
+                    request, "El monto inicial debe ser mayor o igual a cero."
+                )
                 return render(request, "facturacion/iniciocaja.html")
         except (ValueError, TypeError):
-            messages.error(request, 'Por favor ingrese un monto válido.')
+            messages.error(request, "Por favor ingrese un monto válido.")
             return render(request, "facturacion/iniciocaja.html")
 
         # Verificar si el usuario ya tiene una caja abierta
         caja_abierta = Caja.objects.filter(
-            usuario=request.user, estado='abierta').first()
+            usuario=request.user, estado="abierta"
+        ).first()
         if caja_abierta:
             messages.error(
-                request, 'Ya tienes una caja abierta. Debes cerrarla antes de abrir una nueva.')
+                request,
+                "Ya tienes una caja abierta. Debes cerrarla antes de abrir una nueva.",
+            )
             return render(request, "facturacion/iniciocaja.html")
 
         # Crear nueva caja
         try:
             nueva_caja = Caja(
-                usuario=request.user,
-                monto_inicial=monto_inicial,
-                estado='abierta'
+                usuario=request.user, monto_inicial=monto_inicial, estado="abierta"
             )
             nueva_caja.save()
 
             messages.success(
-                request, 'Caja iniciada correctamente. Redirigiendo a ventas...')
+                request, "Caja iniciada correctamente. Redirigiendo a ventas..."
+            )
             # Redirigir a ventas después de un breve retraso para mostrar el mensaje
             # Asegúrate de tener una URL llamada 'ventas'
-            return redirect('ventas')
+            return redirect("ventas")
 
         except Exception as e:
-            messages.error(request, f'Error al iniciar la caja: {str(e)}')
+            messages.error(request, f"Error al iniciar la caja: {str(e)}")
 
-    return render(request, "facturacion/iniciocaja.html", {'user': request.user})
+    return render(request, "facturacion/iniciocaja.html", {"user": request.user})
 
 
 # @login_required
@@ -1208,30 +1303,36 @@ def ventas(request):
     # Verificar que el usuario tenga una caja abierta
     try:
         caja_abierta = Caja.objects.filter(
-            usuario=request.user, estado='abierta').first()
+            usuario=request.user, estado="abierta"
+        ).first()
         if not caja_abierta:
             messages.error(
-                request, 'Debes abrir una caja antes de realizar ventas.')
-            return redirect('iniciocaja')
+                request, "Debes abrir una caja antes de realizar ventas.")
+            return redirect("iniciocaja")
 
-        if request.method == 'POST':
+        if request.method == "POST":
             return procesar_venta(request)
 
         # Obtener clientes y productos activos
         clientes = Cliente.objects.filter(status=True)
         productos = EntradaProducto.objects.filter(activo=True, cantidad__gt=0)
 
-        return render(request, "facturacion/ventas.html", {
-            'user': request.user,
-            'caja_abierta': caja_abierta,
-            'clientes': clientes,
-            'productos': productos
-        })
+        return render(
+            request,
+            "facturacion/ventas.html",
+            {
+                "user": request.user,
+                "caja_abierta": caja_abierta,
+                "clientes": clientes,
+                "productos": productos,
+            },
+        )
 
     except Exception as e:
         messages.error(
-            request, f'Error al cargar la página de ventas: {str(e)}')
-        return redirect('inicio')
+            request, f"Error al cargar la página de ventas: {str(e)}")
+        return redirect("inicio")
+
 
 # @csrf_exempt
 # @require_POST
@@ -1386,15 +1487,15 @@ def safe_decimal(value, default=0):
     Convierte de forma segura un valor a Decimal.
     Maneja strings, números, y valores nulos/vacíos.
     """
-    if value is None or value == '':
+    if value is None or value == "":
         return Decimal(default)
 
     try:
         # Convertir a string y reemplazar comas por puntos
-        value_str = str(value).strip().replace(',', '.')
+        value_str = str(value).strip().replace(",", ".")
         # Eliminar caracteres no numéricos excepto punto y signo negativo
-        value_str = ''.join(
-            c for c in value_str if c.isdigit() or c in ['.', '-'])
+        value_str = "".join(
+            c for c in value_str if c.isdigit() or c in [".", "-"])
         return Decimal(value_str)
     except (InvalidOperation, ValueError, TypeError):
         return Decimal(default)
@@ -1420,8 +1521,8 @@ def safe_int(value, default=0):
 
     try:
         # Eliminar caracteres no numéricos excepto signo negativo
-        cleaned_str = ''.join(c for c in value_str if c.isdigit() or c == '-')
-        if cleaned_str and cleaned_str != '-':
+        cleaned_str = "".join(c for c in value_str if c.isdigit() or c == "-")
+        if cleaned_str and cleaned_str != "-":
             return int(cleaned_str)
         return default
     except (ValueError, TypeError):
@@ -1433,15 +1534,15 @@ def safe_decimal(value, default=0):
     Convierte de forma segura un valor a Decimal.
     Maneja strings, números, y valores nulos/vacíos.
     """
-    if value is None or value == '':
+    if value is None or value == "":
         return Decimal(default)
 
     try:
         # Convertir a string y reemplazar comas por puntos
-        value_str = str(value).strip().replace(',', '.')
+        value_str = str(value).strip().replace(",", ".")
         # Eliminar caracteres no numéricos excepto punto y signo negativo
-        value_str = ''.join(
-            c for c in value_str if c.isdigit() or c in ['.', '-'])
+        value_str = "".join(
+            c for c in value_str if c.isdigit() or c in [".", "-"])
         return Decimal(value_str)
     except (InvalidOperation, ValueError, TypeError):
         return Decimal(default)
@@ -1467,8 +1568,8 @@ def safe_int(value, default=0):
 
     try:
         # Eliminar caracteres no numéricos excepto signo negativo
-        cleaned_str = ''.join(c for c in value_str if c.isdigit() or c == '-')
-        if cleaned_str and cleaned_str != '-':
+        cleaned_str = "".join(c for c in value_str if c.isdigit() or c == "-")
+        if cleaned_str and cleaned_str != "-":
             return int(cleaned_str)
         return default
     except (ValueError, TypeError):
@@ -1489,30 +1590,30 @@ def procesar_venta(request):
 
         # Validar que hay datos
         if not data:
-            return JsonResponse({'success': False, 'message': 'No se recibieron datos'})
+            return JsonResponse({"success": False, "message": "No se recibieron datos"})
 
         # Convertir valores usando safe_decimal y safe_int
-        payment_type = data.get('payment_type', 'contado')
-        payment_method = data.get('payment_method', 'efectivo')
-        subtotal = safe_decimal(data.get('subtotal', 0))
-        discount_amount = safe_decimal(data.get('discount_amount', 0))
-        total = safe_decimal(data.get('total', 0))
-        cash_received = safe_decimal(data.get('cash_received', 0))
-        change_amount = safe_decimal(data.get('change_amount', 0))
+        payment_type = data.get("payment_type", "contado")
+        payment_method = data.get("payment_method", "efectivo")
+        subtotal = safe_decimal(data.get("subtotal", 0))
+        discount_amount = safe_decimal(data.get("discount_amount", 0))
+        total = safe_decimal(data.get("total", 0))
+        cash_received = safe_decimal(data.get("cash_received", 0))
+        change_amount = safe_decimal(data.get("change_amount", 0))
 
         # Campos de financiamiento - usar safe_int para enteros
-        plazo_meses = safe_int(data.get('plazo_meses', 0))
-        monto_inicial = safe_decimal(data.get('monto_inicial', 0))
-        tasa_interes = safe_decimal(data.get('tasa_interes', 0))
-        monto_financiado = safe_decimal(data.get('monto_financiado', 0))
-        interes_mensual = safe_decimal(data.get('interes_mensual', 0))
-        cuota_mensual = safe_decimal(data.get('cuota_mensual', 0))
-        ganancia_interes = safe_decimal(data.get('ganancia_interes', 0))
-        total_con_interes = safe_decimal(data.get('total_con_interes', 0))
-        total_a_pagar = safe_decimal(data.get('total_a_pagar', 0))
+        plazo_meses = safe_int(data.get("plazo_meses", 0))
+        monto_inicial = safe_decimal(data.get("monto_inicial", 0))
+        tasa_interes = safe_decimal(data.get("tasa_interes", 0))
+        monto_financiado = safe_decimal(data.get("monto_financiado", 0))
+        interes_mensual = safe_decimal(data.get("interes_mensual", 0))
+        cuota_mensual = safe_decimal(data.get("cuota_mensual", 0))
+        ganancia_interes = safe_decimal(data.get("ganancia_interes", 0))
+        total_con_interes = safe_decimal(data.get("total_con_interes", 0))
+        total_a_pagar = safe_decimal(data.get("total_a_pagar", 0))
 
         # Para ventas a contado, resetear campos de crédito
-        if payment_type != 'credito':
+        if payment_type != "credito":
             plazo_meses = 0
             monto_inicial = 0
             tasa_interes = 0
@@ -1524,87 +1625,138 @@ def procesar_venta(request):
             total_a_pagar = total  # Usar el total normal
 
         # Validaciones
-        if payment_type not in ['contado', 'credito']:
-            return JsonResponse({'success': False, 'message': 'Tipo de pago inválido'})
+        if payment_type not in ["contado", "credito"]:
+            return JsonResponse({"success": False, "message": "Tipo de pago inválido"})
 
-        if payment_method not in ['efectivo', 'tarjeta', 'transferencia']:
-            return JsonResponse({'success': False, 'message': 'Método de pago inválido'})
+        if payment_method not in ["efectivo", "tarjeta", "transferencia"]:
+            return JsonResponse(
+                {"success": False, "message": "Método de pago inválido"}
+            )
 
         if subtotal <= 0:
-            return JsonResponse({'success': False, 'message': 'El subtotal debe ser mayor a 0'})
+            return JsonResponse(
+                {"success": False, "message": "El subtotal debe ser mayor a 0"}
+            )
 
         if total <= 0:
-            return JsonResponse({'success': False, 'message': 'El total debe ser mayor a 0'})
+            return JsonResponse(
+                {"success": False, "message": "El total debe ser mayor a 0"}
+            )
 
         # Validar que el descuento no supere el subtotal
         if discount_amount > subtotal:
-            return JsonResponse({'success': False, 'message': 'El descuento no puede ser mayor que el subtotal'})
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "El descuento no puede ser mayor que el subtotal",
+                }
+            )
 
         # Validaciones específicas para crédito
-        if payment_type == 'credito':
+        if payment_type == "credito":
             if plazo_meses <= 0:
-                return JsonResponse({'success': False, 'message': 'El plazo debe ser mayor a 0'})
+                return JsonResponse(
+                    {"success": False, "message": "El plazo debe ser mayor a 0"}
+                )
 
             if tasa_interes < 0:
-                return JsonResponse({'success': False, 'message': 'La tasa de interés no puede ser negativa'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "La tasa de interés no puede ser negativa",
+                    }
+                )
 
             if monto_inicial < 0:
-                return JsonResponse({'success': False, 'message': 'El monto inicial no puede ser negativo'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "El monto inicial no puede ser negativo",
+                    }
+                )
 
         # Procesar información del cliente
-        client_id = data.get('client_id')
-        client_name = data.get('client_name', '').strip()
-        client_document = data.get('client_document', '').strip()
+        client_id = data.get("client_id")
+        client_name = data.get("client_name", "").strip()
+        client_document = data.get("client_document", "").strip()
 
         cliente = None
-        if payment_type == 'credito':
+        if payment_type == "credito":
             if not client_id:
-                return JsonResponse({'success': False, 'message': 'Debe seleccionar un cliente para ventas a crédito'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Debe seleccionar un cliente para ventas a crédito",
+                    }
+                )
 
             try:
                 from .models import Cliente
+
                 cliente = Cliente.objects.get(id=client_id, status=True)
             except Cliente.DoesNotExist:
-                return JsonResponse({'success': False, 'message': 'Cliente no válido'})
+                return JsonResponse({"success": False, "message": "Cliente no válido"})
         else:
             if not client_name:
-                return JsonResponse({'success': False, 'message': 'Debe ingresar el nombre del cliente'})
+                return JsonResponse(
+                    {"success": False, "message": "Debe ingresar el nombre del cliente"}
+                )
 
         # Procesar items de la venta
-        sale_items_json = data.get('sale_items')
+        sale_items_json = data.get("sale_items")
         if not sale_items_json:
-            return JsonResponse({'success': False, 'message': 'No hay productos en la venta'})
+            return JsonResponse(
+                {"success": False, "message": "No hay productos en la venta"}
+            )
 
         sale_items = json.loads(sale_items_json)
         if not sale_items:
-            return JsonResponse({'success': False, 'message': 'No hay productos en la venta'})
+            return JsonResponse(
+                {"success": False, "message": "No hay productos en la venta"}
+            )
 
         # Verificar stock antes de procesar la venta
         for item in sale_items:
             try:
                 from .models import EntradaProducto
+
                 producto = EntradaProducto.objects.get(
-                    id=item['id'], activo=True)
-                cantidad_solicitada = int(item['quantity'])
+                    id=item["id"], activo=True)
+                cantidad_solicitada = int(item["quantity"])
 
                 if producto.cantidad < cantidad_solicitada:
-                    return JsonResponse({
-                        'success': False,
-                        'message': f'Stock insuficiente para {producto.nombre_producto}. Disponible: {producto.cantidad}'
-                    })
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "message": f"Stock insuficiente para {producto.nombre_producto}. Disponible: {producto.cantidad}",
+                        }
+                    )
             except EntradaProducto.DoesNotExist:
-                return JsonResponse({'success': False, 'message': f'Producto no encontrado: {item.get("name", "Desconocido")}'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f'Producto no encontrado: {item.get("name", "Desconocido")}',
+                    }
+                )
             except (ValueError, KeyError):
-                return JsonResponse({'success': False, 'message': f'Cantidad inválida para producto: {item.get("name", "Desconocido")}'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f'Cantidad inválida para producto: {item.get("name", "Desconocido")}',
+                    }
+                )
 
         # Determinar si es financiada
-        es_financiada = payment_type == 'credito' and monto_financiado > 0
+        es_financiada = payment_type == "credito" and monto_financiado > 0
 
         # Usar el total con interés si es financiada, de lo contrario usar el total normal
-        total_final = total_con_interes if es_financiada and total_con_interes > 0 else total
+        total_final = (
+            total_con_interes if es_financiada and total_con_interes > 0 else total
+        )
 
         # Crear la venta con todos los campos
         from .models import Venta
+
         venta = Venta(
             vendedor=user,
             cliente=cliente,
@@ -1629,7 +1781,7 @@ def procesar_venta(request):
             interes_total=ganancia_interes,
             cuota_mensual=cuota_mensual,
             total_con_interes=total_con_interes,
-            total_a_pagar=total_a_pagar if payment_type == 'credito' else total_final
+            total_a_pagar=total_a_pagar if payment_type == "credito" else total_final,
         )
 
         # Guardar para generar número de factura
@@ -1662,20 +1814,19 @@ def procesar_venta(request):
         # Registra el movimiento financiero de la venta (contado o inicial de crédito)
         try:
             monto_movimiento = (
-                venta.montoinicial if payment_type == 'credito'
-                else venta.total
+                venta.montoinicial if payment_type == "credito" else venta.total
             )
 
             MovimientoFinanciero.objects.create(
-                tipo            = 'INGRESO',
-                origen          = 'VENTA',
-                estado          = 'ACTIVO',
-                monto           = monto_movimiento,
-                fecha_operacion = venta.fecha_venta,
-                factura         = venta,
-                cliente         = cliente,           # None para ventas contado sin cliente FK
-                metodo_pago     = payment_method,
-                descripcion     = (
+                tipo="INGRESO",
+                origen="VENTA",
+                estado="ACTIVO",
+                monto=monto_movimiento,
+                fecha_operacion=venta.fecha_venta,
+                factura=venta,
+                cliente=cliente,  # None para ventas contado sin cliente FK
+                metodo_pago=payment_method,
+                descripcion=(
                     f"Venta {'a crédito' if payment_type == 'credito' else 'al contado'} — "
                     f"Factura {venta.numero_factura} — "
                     f"Cliente: {venta.cliente_nombre}"
@@ -1683,71 +1834,91 @@ def procesar_venta(request):
                         f" — Inicial: RD${monto_inicial:,.2f} | "
                         f"Plazo: {plazo_meses} meses | "
                         f"Cuota: RD${cuota_mensual:,.2f}"
-                        if payment_type == 'credito' and monto_inicial > 0 else ""
+                        if payment_type == "credito" and monto_inicial > 0
+                        else ""
                     )
                 ),
-                referencia  = venta.numero_factura,
-                creado_por  = request.user,
+                referencia=venta.numero_factura,
+                creado_por=request.user,
             )
-            print(f"MovimientoFinanciero creado: INGRESO | VENTA | RD${monto_movimiento:,.2f}")
+            print(
+                f"MovimientoFinanciero creado: INGRESO | VENTA | RD${monto_movimiento:,.2f}"
+            )
         except Exception as e:
-            print(f"Advertencia: Error al crear MovimientoFinanciero: {str(e)}")
+            print(
+                f"Advertencia: Error al crear MovimientoFinanciero: {str(e)}")
         # ── FIN BLOQUE A ─────────────────────────────────────────────────────────────
 
         # Procesar detalles de venta y descontar stock
         productos_para_cuenta = []
         for item in sale_items:
             try:
-                producto = EntradaProducto.objects.get(id=item['id'])
-                cantidad = int(item['quantity'])
-                precio_unitario = safe_decimal(item['price'])
-                subtotal_item = safe_decimal(item['subtotal'])
+                producto = EntradaProducto.objects.get(id=item["id"])
+                cantidad = int(item["quantity"])
+                precio_unitario = safe_decimal(item["price"])
+                subtotal_item = safe_decimal(item["subtotal"])
 
                 # Validar que los cálculos sean consistentes
                 calculated_subtotal = precio_unitario * cantidad
-                if abs(calculated_subtotal - subtotal_item) > Decimal('0.01'):
+                if abs(calculated_subtotal - subtotal_item) > Decimal("0.01"):
                     print(
-                        f"Advertencia: Subtotal inconsistente para {producto.nombre_producto}")
+                        f"Advertencia: Subtotal inconsistente para {producto.nombre_producto}"
+                    )
                     print(
-                        f"Calculado: {calculated_subtotal}, Recibido: {subtotal_item}")
+                        f"Calculado: {calculated_subtotal}, Recibido: {subtotal_item}"
+                    )
                     # Usar el valor calculado para consistencia
                     subtotal_item = calculated_subtotal
 
                 # Descontar stock
                 cantidad_anterior = producto.cantidad
                 producto.cantidad -= cantidad
-                producto.save(update_fields=['cantidad'])
+                producto.save(update_fields=["cantidad"])
 
                 print(
-                    f"Stock actualizado: {producto.nombre_producto} -{cantidad} unidades ({cantidad_anterior} -> {producto.cantidad})")
+                    f"Stock actualizado: {producto.nombre_producto} -{cantidad} unidades ({cantidad_anterior} -> {producto.cantidad})"
+                )
 
                 # Crear detalle de venta
                 from .models import DetalleVenta
+
                 detalle = DetalleVenta(
                     venta=venta,
                     producto=producto,
                     cantidad=cantidad,
                     precio_unitario=precio_unitario,
-                    subtotal=subtotal_item
+                    subtotal=subtotal_item,
                 )
                 detalle.save()
 
                 # Agregar a lista para cuenta por cobrar
                 productos_para_cuenta.append(
-                    f"{producto.nombre_producto} x{cantidad} - RD${precio_unitario:.2f}")
+                    f"{producto.nombre_producto} x{cantidad} - RD${precio_unitario:.2f}"
+                )
 
             except EntradaProducto.DoesNotExist:
                 transaction.set_rollback(True)
-                return JsonResponse({'success': False, 'message': f'Producto no encontrado: ID {item.get("id", "Desconocido")}'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f'Producto no encontrado: ID {item.get("id", "Desconocido")}',
+                    }
+                )
             except Exception as e:
                 transaction.set_rollback(True)
-                return JsonResponse({'success': False, 'message': f'Error al procesar producto: {str(e)}'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f"Error al procesar producto: {str(e)}",
+                    }
+                )
 
         # Crear cuenta por cobrar si es venta a crédito
-        if payment_type == 'credito' and cliente:
+        if payment_type == "credito" and cliente:
             try:
                 from .models import CuentaPorCobrar
                 from datetime import timedelta
+
                 fecha_vencimiento = timezone.now().date() + timedelta(days=30)
 
                 # Crear string con los productos
@@ -1776,12 +1947,12 @@ FINANCIAMIENTO:
                     monto_pagado=monto_inicial,  # El pago inicial ya se hizo
                     fecha_vencimiento=fecha_vencimiento,
                     productos=productos_str,
-                    estado='pendiente',
+                    estado="pendiente",
                     observaciones=f"""Venta a crédito - Factura: {venta.numero_factura}
 Cliente: {cliente.full_name}
 Productos:
 {productos_str}
-{info_financiamiento}"""
+{info_financiamiento}""",
                 )
                 cuenta_por_cobrar.save()
 
@@ -1797,79 +1968,99 @@ Productos:
                 # Crear cuotas solo si la venta es financiada
                 try:
                     if es_financiada and plazo_meses > 0 and cuota_mensual > 0:
-                        fecha_base     = venta.fecha_venta.date()
+                        fecha_base = venta.fecha_venta.date()
                         cuotas_a_crear = []
 
                         for numero in range(1, plazo_meses + 1):
-                            fecha_vcto = calcular_fecha_cuota(fecha_base, numero)
-                            cuotas_a_crear.append(Cuota(
-                                venta             = venta,
-                                cliente           = cliente,
-                                numero_cuota      = numero,
-                                monto_original    = cuota_mensual,
-                                monto_pendiente   = cuota_mensual,
-                                fecha_vencimiento = fecha_vcto,
-                                estado            = 'pendiente',
-                            ))
+                            fecha_vcto = calcular_fecha_cuota(
+                                fecha_base, numero)
+                            cuotas_a_crear.append(
+                                Cuota(
+                                    venta=venta,
+                                    cliente=cliente,
+                                    numero_cuota=numero,
+                                    monto_original=cuota_mensual,
+                                    monto_pendiente=cuota_mensual,
+                                    fecha_vencimiento=fecha_vcto,
+                                    estado="pendiente",
+                                )
+                            )
 
                         Cuota.objects.bulk_create(cuotas_a_crear)
-                        print(f"{len(cuotas_a_crear)} cuotas creadas para venta {venta.numero_factura}")
+                        print(
+                            f"{len(cuotas_a_crear)} cuotas creadas para venta {venta.numero_factura}"
+                        )
                 except Exception as e:
                     print(f"Advertencia: Error al crear cuotas: {str(e)}")
                 # ── FIN BLOQUE B ─────────────────────────────────────────────────────────
 
             except Exception as e:
                 transaction.set_rollback(True)
-                return JsonResponse({'success': False, 'message': f'Error al crear cuenta por cobrar: {str(e)}'})
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f"Error al crear cuenta por cobrar: {str(e)}",
+                    }
+                )
 
         # Validar que los totales sean consistentes
         venta_refreshed = Venta.objects.get(id=venta.id)
         detalles_total = sum(
-            detalle.subtotal for detalle in venta_refreshed.detalles.all())
+            detalle.subtotal for detalle in venta_refreshed.detalles.all()
+        )
         calculated_total = detalles_total - venta_refreshed.descuento_monto
-        if abs(venta_refreshed.total - calculated_total) > Decimal('0.01') and not es_financiada:
+        if (
+            abs(venta_refreshed.total - calculated_total) > Decimal("0.01")
+            and not es_financiada
+        ):
             print(
                 f"Advertencia: Total inconsistente en venta {venta.numero_factura}")
             print(f"Total guardado: RD${venta_refreshed.total}")
             print(f"Total calculado: RD${calculated_total}")
             # Corregir automáticamente solo si no es financiada
             venta_refreshed.total = calculated_total
-            venta_refreshed.save(update_fields=['total'])
+            venta_refreshed.save(update_fields=["total"])
             print(f"Total corregido: RD${venta_refreshed.total}")
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Venta procesada correctamente',
-            'venta_id': venta.id,
-            'numero_factura': venta.numero_factura,
-            'detalles': {
-                'subtotal': float(venta.subtotal),
-                'descuento_monto': float(venta.descuento_monto),
-                'total': float(venta.total),
-                'efectivo_recibido': float(venta.efectivo_recibido),
-                'cambio': float(venta.cambio),
-                'items_count': len(sale_items),
-                'es_financiada': venta.es_financiada,
-                'monto_inicial': float(venta.montoinicial),
-                'tasa_interes': float(venta.tasa_interes),
-                'plazo_meses': venta.plazo_meses,
-                'monto_financiado': float(venta.monto_financiado),
-                'interes_mensual': float(venta.interes_mensual),
-                'interes_total': float(venta.interes_total),
-                'cuota_mensual': float(venta.cuota_mensual),
-                'total_con_interes': float(venta.total_con_interes)
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Venta procesada correctamente",
+                "venta_id": venta.id,
+                "numero_factura": venta.numero_factura,
+                "detalles": {
+                    "subtotal": float(venta.subtotal),
+                    "descuento_monto": float(venta.descuento_monto),
+                    "total": float(venta.total),
+                    "efectivo_recibido": float(venta.efectivo_recibido),
+                    "cambio": float(venta.cambio),
+                    "items_count": len(sale_items),
+                    "es_financiada": venta.es_financiada,
+                    "monto_inicial": float(venta.montoinicial),
+                    "tasa_interes": float(venta.tasa_interes),
+                    "plazo_meses": venta.plazo_meses,
+                    "monto_financiado": float(venta.monto_financiado),
+                    "interes_mensual": float(venta.interes_mensual),
+                    "interes_total": float(venta.interes_total),
+                    "cuota_mensual": float(venta.cuota_mensual),
+                    "total_con_interes": float(venta.total_con_interes),
+                },
             }
-        })
+        )
 
     except Exception as e:
         transaction.set_rollback(True)
         print(f"Error completo: {traceback.format_exc()}")
-        return JsonResponse({'success': False, 'message': f'Error al procesar la venta: {str(e)}'})
+        return JsonResponse(
+            {"success": False,
+                "message": f"Error al procesar la venta: {str(e)}"}
+        )
 
 
 # ============================================================
 # REGISTRAR PAGO CXC — vista completa atómica con select_for_update
 # ============================================================
+
 
 @csrf_exempt
 @require_POST
@@ -1888,41 +2079,44 @@ def registrar_pago_cxc(request):
         6. Crea ComprobantePago
     """
     try:
-        data       = json.loads(request.body)
-        cuenta_id  = data.get('cuenta_id')
-        monto      = safe_decimal(data.get('monto', 0))
-        metodo     = data.get('metodo_pago', 'efectivo')
-        referencia = data.get('referencia', '')
-        notas      = data.get('observaciones', '')
+        data = json.loads(request.body)
+        cuenta_id = data.get("cuenta_id")
+        monto = safe_decimal(data.get("monto", 0))
+        metodo = data.get("metodo_pago", "efectivo")
+        referencia = data.get("referencia", "")
+        notas = data.get("observaciones", "")
 
         if monto <= 0:
-            return JsonResponse({'success': False, 'message': 'El monto debe ser mayor a 0'})
+            return JsonResponse(
+                {"success": False, "message": "El monto debe ser mayor a 0"}
+            )
 
         cuenta = get_object_or_404(
-            CuentaPorCobrar,
-            id=cuenta_id,
-            anulada=False,
-            eliminada=False
+            CuentaPorCobrar, id=cuenta_id, anulada=False, eliminada=False
         )
 
-        if cuenta.estado == 'pagada':
-            return JsonResponse({'success': False, 'message': 'Esta cuenta ya está pagada'})
+        if cuenta.estado == "pagada":
+            return JsonResponse(
+                {"success": False, "message": "Esta cuenta ya está pagada"}
+            )
 
         saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
         if monto > saldo_pendiente:
-            return JsonResponse({
-                'success': False,
-                'message': f'El monto excede el saldo pendiente: RD${saldo_pendiente:,.2f}'
-            })
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": f"El monto excede el saldo pendiente: RD${saldo_pendiente:,.2f}",
+                }
+            )
 
         # ── 1. GUARDAR EL PAGO ───────────────────────────────────────────
         pago = PagoCuentaPorCobrar.objects.create(
-            cuenta      = cuenta,
-            monto       = monto,
-            metodo_pago = metodo,
-            referencia  = referencia,
-            observaciones = notas,
-            fecha_pago  = timezone.now(),
+            cuenta=cuenta,
+            monto=monto,
+            metodo_pago=metodo,
+            referencia=referencia,
+            observaciones=notas,
+            fecha_pago=timezone.now(),
         )
 
         # ── 2. ACTUALIZAR CUENTA POR COBRAR ─────────────────────────────
@@ -1930,35 +2124,32 @@ def registrar_pago_cxc(request):
         nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
 
         if nuevo_saldo <= 0:
-            cuenta.estado = 'pagada'
+            cuenta.estado = "pagada"
         elif cuenta.monto_pagado > 0:
-            cuenta.estado = 'parcial'
+            cuenta.estado = "parcial"
 
-        cuenta.save(update_fields=['monto_pagado', 'estado', 'fecha_actualizacion'])
+        cuenta.save(update_fields=["monto_pagado",
+                    "estado", "fecha_actualizacion"])
 
         # ── 3. ACTUALIZAR CUOTAS (la más antigua primero) ────────────────
         # select_for_update() bloquea las filas hasta que termine
         # la transacción. Evita que dos pagos simultáneos corrompan
         # el mismo registro (race condition).
-        monto_restante     = monto
+        monto_restante = monto
         cuotas_actualizadas = []
 
         cuotas_pendientes = (
-            Cuota.objects
-            .select_for_update()
-            .filter(
-                venta=cuenta.venta,
-                estado__in=['pendiente', 'parcial']
-            )
-            .order_by('fecha_vencimiento')  # la más antigua manda
+            Cuota.objects.select_for_update()
+            .filter(venta=cuenta.venta, estado__in=["pendiente", "parcial"])
+            .order_by("fecha_vencimiento")  # la más antigua manda
         )
 
         for cuota in cuotas_pendientes:
             if monto_restante <= 0:
                 break
 
-            aplicar         = min(monto_restante, cuota.monto_pendiente)
-            cuota.aplicar_pago(aplicar)     # muta en memoria, sin save()
+            aplicar = min(monto_restante, cuota.monto_pendiente)
+            cuota.aplicar_pago(aplicar)  # muta en memoria, sin save()
             monto_restante -= aplicar
             cuotas_actualizadas.append(cuota)
 
@@ -1966,49 +2157,53 @@ def registrar_pago_cxc(request):
         if cuotas_actualizadas:
             Cuota.objects.bulk_update(
                 cuotas_actualizadas,
-                ['monto_pendiente', 'estado', 'fecha_pago_completo', 'actualizada_en']
+                ["monto_pendiente", "estado", "fecha_pago_completo", "actualizada_en"],
             )
 
         # ── 4. MOVIMIENTO FINANCIERO ─────────────────────────────────────
         MovimientoFinanciero.objects.create(
-            tipo            = 'INGRESO',
-            origen          = 'PAGO_CXC',
-            estado          = 'ACTIVO',
-            monto           = monto,
-            fecha_operacion = timezone.now(),
-            factura         = cuenta.venta,
-            pago_cxc        = pago,
-            cliente         = cuenta.cliente,
-            metodo_pago     = metodo,
-            descripcion     = (
+            tipo="INGRESO",
+            origen="PAGO_CXC",
+            estado="ACTIVO",
+            monto=monto,
+            fecha_operacion=timezone.now(),
+            factura=cuenta.venta,
+            pago_cxc=pago,
+            cliente=cuenta.cliente,
+            metodo_pago=metodo,
+            descripcion=(
                 f"Pago CxC — Factura {cuenta.venta.numero_factura} — "
                 f"Cliente: {cuenta.cliente.full_name} — "
                 f"Saldo anterior: RD${saldo_pendiente:,.2f} — "
                 f"Saldo nuevo: RD${nuevo_saldo:,.2f}"
             ),
-            referencia  = referencia or f"PAGO-{pago.id}",
-            creado_por  = request.user,
+            referencia=referencia or f"PAGO-{pago.id}",
+            creado_por=request.user,
         )
 
         # ── 5. COMPROBANTE ───────────────────────────────────────────────
         ComprobantePago.objects.create(
-            pago             = pago,
-            cuenta           = cuenta,
-            cliente          = cuenta.cliente,
-            tipo_comprobante = 'recibo',
+            pago=pago,
+            cuenta=cuenta,
+            cliente=cuenta.cliente,
+            tipo_comprobante="recibo",
         )
 
-        return JsonResponse({
-            'success'            : True,
-            'message'            : 'Pago registrado correctamente',
-            'nuevo_saldo'        : float(nuevo_saldo),
-            'estado_cuenta'      : cuenta.estado,
-            'cuotas_actualizadas': len(cuotas_actualizadas),
-            'pago_id'            : pago.id,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Pago registrado correctamente",
+                "nuevo_saldo": float(nuevo_saldo),
+                "estado_cuenta": cuenta.estado,
+                "cuotas_actualizadas": len(cuotas_actualizadas),
+                "pago_id": pago.id,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error al registrar pago: {str(e)}'})
+        return JsonResponse(
+            {"success": False, "message": f"Error al registrar pago: {str(e)}"}
+        )
 
 
 def safe_decimal(value, default=0):
@@ -2016,15 +2211,15 @@ def safe_decimal(value, default=0):
     Convierte de forma segura un valor a Decimal.
     Maneja strings, números, y valores nulos/vacíos.
     """
-    if value is None or value == '':
+    if value is None or value == "":
         return Decimal(default)
 
     try:
         # Convertir a string y reemplazar comas por puntos
-        value_str = str(value).strip().replace(',', '.')
+        value_str = str(value).strip().replace(",", ".")
         # Eliminar caracteres no numéricos excepto punto y signo negativo
-        value_str = ''.join(
-            c for c in value_str if c.isdigit() or c in ['.', '-'])
+        value_str = "".join(
+            c for c in value_str if c.isdigit() or c in [".", "-"])
         return Decimal(value_str)
     except (InvalidOperation, ValueError, TypeError):
         return Decimal(default)
@@ -2050,8 +2245,8 @@ def safe_int(value, default=0):
 
     try:
         # Eliminar caracteres no numéricos excepto signo negativo
-        cleaned_str = ''.join(c for c in value_str if c.isdigit() or c == '-')
-        if cleaned_str and cleaned_str != '-':
+        cleaned_str = "".join(c for c in value_str if c.isdigit() or c == "-")
+        if cleaned_str and cleaned_str != "-":
             return int(cleaned_str)
         return default
     except (ValueError, TypeError):
@@ -2382,39 +2577,45 @@ def safe_int(value, default=0):
 #               BUSCAR PRODUCTOS
 # ========================================================
 def buscar_productos(request):
-    query = request.GET.get('q', '').strip()
+    query = request.GET.get("q", "").strip()
 
     if len(query) < 2:
-        return JsonResponse({'success': True, 'productos': []})
+        return JsonResponse({"success": True, "productos": []})
 
     try:
         # Buscar por nombre, código o IMEI
         productos = EntradaProducto.objects.filter(
-            Q(nombre_producto__icontains=query) |
-            Q(codigo_producto__icontains=query) |
-            Q(imei_serial__icontains=query) |
-            Q(modelo__icontains=query),
+            Q(nombre_producto__icontains=query)
+            | Q(codigo_producto__icontains=query)
+            | Q(imei_serial__icontains=query)
+            | Q(modelo__icontains=query),
             activo=True,
-            cantidad__gt=0
-        )[:10]  # Limitar a 10 resultados
+            cantidad__gt=0,
+        )[
+            :10
+        ]  # Limitar a 10 resultados
 
         resultados = []
         for producto in productos:
-            resultados.append({
-                'id': producto.id,
-                'nombre': producto.nombre_producto,
-                'codigo': producto.codigo_producto,
-                'precio': float(producto.costo_venta),
-                'stock': producto.cantidad,
-                'marca': producto.get_marca_display(),
-                'modelo': producto.modelo,
-                'imei': producto.imei_serial
-            })
+            resultados.append(
+                {
+                    "id": producto.id,
+                    "nombre": producto.nombre_producto,
+                    "codigo": producto.codigo_producto,
+                    "precio": float(producto.costo_venta),
+                    "stock": producto.cantidad,
+                    "marca": producto.get_marca_display(),
+                    "modelo": producto.modelo,
+                    "imei": producto.imei_serial,
+                }
+            )
 
-        return JsonResponse({'success': True, 'productos': resultados})
+        return JsonResponse({"success": True, "productos": resultados})
 
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error en la búsqueda: {str(e)}'})
+        return JsonResponse(
+            {"success": False, "message": f"Error en la búsqueda: {str(e)}"}
+        )
 
 
 # def comprobante_venta(request, venta_id):
@@ -2613,12 +2814,18 @@ def comprobante_venta(request, venta_id):
     total_articulos = sum(detalle.cantidad for detalle in detalles)
 
     # Renderizar el template HTML
-    return render(request, 'facturacion/comprobante_venta.html', {
-        'venta': venta,
-        'detalles': detalles,
-        'total_articulos': total_articulos,
-        'now': timezone.now().strftime('%d/%m/%Y')  # Fecha actual formateada
-    })
+    return render(
+        request,
+        "facturacion/comprobante_venta.html",
+        {
+            "venta": venta,
+            "detalles": detalles,
+            "total_articulos": total_articulos,
+            "now": timezone.now().strftime("%d/%m/%Y"),  # Fecha actual formateada
+        },
+    )
+
+
 # Vista para ver el historial de ventas
 # @login_required
 # def historial_ventas(request):
@@ -2647,13 +2854,14 @@ def detalle_venta(request, venta_id):
 
     # Verificar que la venta pertenece al usuario actual
     if venta.caja.usuario != request.user:
-        messages.error(request, 'No tienes permisos para ver esta venta.')
-        return redirect('historial_ventas')
+        messages.error(request, "No tienes permisos para ver esta venta.")
+        return redirect("historial_ventas")
 
-    return render(request, "facturacion/detalle_venta.html", {
-        'venta': venta,
-        'detalles': venta.detalles.all()
-    })
+    return render(
+        request,
+        "facturacion/detalle_venta.html",
+        {"venta": venta, "detalles": venta.detalles.all()},
+    )
 
 
 def listadecliente(request):
@@ -2668,26 +2876,28 @@ def obtener_clientes(request):
     try:
         # Obtener todos los clientes activos
         clientes = Cliente.objects.filter(status=True).values(
-            'id', 'full_name', 'identification_number',
-            'address', 'primary_phone', 'secondary_phone',
-            'credit_limit', 'fecha_registro'   # 👈 corregido
+            "id",
+            "full_name",
+            "identification_number",
+            "address",
+            "primary_phone",
+            "secondary_phone",
+            "credit_limit",
+            "fecha_registro",  # 👈 corregido
         )
 
         # Convertir a lista y formatear fechas
         clientes_list = list(clientes)
         for cliente in clientes_list:
-            cliente['fecha_registro'] = cliente['fecha_registro'].isoformat()
+            cliente["fecha_registro"] = cliente["fecha_registro"].isoformat()
 
-        return JsonResponse({
-            'success': True,
-            'clientes': clientes_list
-        })
+        return JsonResponse({"success": True, "clientes": clientes_list})
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error al obtener clientes: {str(e)}'
-        })
+        return JsonResponse(
+            {"success": False,
+                "message": f"Error al obtener clientes: {str(e)}"}
+        )
 
 
 # ========================================================
@@ -2703,16 +2913,15 @@ def eliminar_cliente(request, cliente_id):
         cliente.status = False
         cliente.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Cliente eliminado exitosamente'
-        })
+        return JsonResponse(
+            {"success": True, "message": "Cliente eliminado exitosamente"}
+        )
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error al eliminar cliente: {str(e)}'
-        })
+        return JsonResponse(
+            {"success": False,
+                "message": f"Error al eliminar cliente: {str(e)}"}
+        )
 
 
 @csrf_exempt
@@ -2723,40 +2932,48 @@ def editar_cliente(request, cliente_id):
         data = json.loads(request.body)
 
         # Validar campos requeridos
-        campos_requeridos = ['fullName',
-                             'identificationNumber', 'address', 'primaryPhone']
+        campos_requeridos = [
+            "fullName",
+            "identificationNumber",
+            "address",
+            "primaryPhone",
+        ]
         for campo in campos_requeridos:
             if campo not in data or not data[campo].strip():
-                return JsonResponse({
-                    'success': False,
-                    'message': f'El campo {campo} es requerido'
-                })
+                return JsonResponse(
+                    {"success": False, "message": f"El campo {campo} es requerido"}
+                )
 
         # Verificar si ya existe otro cliente con el mismo número de identificación
-        if Cliente.objects.filter(identification_number=data['identificationNumber']).exclude(id=cliente_id).exists():
-            return JsonResponse({
-                'success': False,
-                'message': 'Ya existe otro cliente con este número de identificación'
-            })
+        if (
+            Cliente.objects.filter(
+                identification_number=data["identificationNumber"])
+            .exclude(id=cliente_id)
+            .exists()
+        ):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Ya existe otro cliente con este número de identificación",
+                }
+            )
 
         # Actualizar los datos del cliente
-        cliente.full_name = data['fullName']
-        cliente.identification_number = data['identificationNumber']
-        cliente.address = data['address']
-        cliente.primary_phone = data['primaryPhone']
-        cliente.secondary_phone = data.get('secondaryPhone', '')
+        cliente.full_name = data["fullName"]
+        cliente.identification_number = data["identificationNumber"]
+        cliente.address = data["address"]
+        cliente.primary_phone = data["primaryPhone"]
+        cliente.secondary_phone = data.get("secondaryPhone", "")
         cliente.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Cliente actualizado exitosamente'
-        })
+        return JsonResponse(
+            {"success": True, "message": "Cliente actualizado exitosamente"}
+        )
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error al editar cliente: {str(e)}'
-        })
+        return JsonResponse(
+            {"success": False, "message": f"Error al editar cliente: {str(e)}"}
+        )
 
 
 def registrodecliente(request):
@@ -2771,109 +2988,123 @@ def guardar_cliente(request):
         data = json.loads(request.body)
 
         # Validar campos requeridos
-        campos_requeridos = ['fullName',
-                             'identificationNumber', 'address', 'primaryPhone']
+        campos_requeridos = [
+            "fullName",
+            "identificationNumber",
+            "address",
+            "primaryPhone",
+        ]
         for campo in campos_requeridos:
             if campo not in data or not data[campo].strip():
-                return JsonResponse({
-                    'success': False,
-                    'message': f'El campo {campo} es requerido'
-                })
+                return JsonResponse(
+                    {"success": False, "message": f"El campo {campo} es requerido"}
+                )
 
         # Verificar si ya existe un cliente con el mismo número de identificación
-        if Cliente.objects.filter(identification_number=data['identificationNumber']).exists():
-            return JsonResponse({
-                'success': False,
-                'message': 'Ya existe un cliente con este número de identificación'
-            })
+        if Cliente.objects.filter(
+            identification_number=data["identificationNumber"]
+        ).exists():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Ya existe un cliente con este número de identificación",
+                }
+            )
 
         # Procesar el límite de crédito (valor por defecto 0 si no se proporciona)
-        credit_limit = data.get('creditLimit', '0')
+        credit_limit = data.get("creditLimit", "0")
         try:
             credit_limit = Decimal(credit_limit)
         except (InvalidOperation, ValueError):
-            credit_limit = Decimal('0')
+            credit_limit = Decimal("0")
 
         # Crear y guardar el nuevo cliente
         cliente = Cliente(
-            full_name=data['fullName'],
-            identification_number=data['identificationNumber'],
-            address=data['address'],
-            primary_phone=data['primaryPhone'],
-            secondary_phone=data.get('secondaryPhone', ''),
-            credit_limit=credit_limit
+            full_name=data["fullName"],
+            identification_number=data["identificationNumber"],
+            address=data["address"],
+            primary_phone=data["primaryPhone"],
+            secondary_phone=data.get("secondaryPhone", ""),
+            credit_limit=credit_limit,
         )
         cliente.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Cliente registrado exitosamente',
-            'client_id': cliente.id
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Cliente registrado exitosamente",
+                "client_id": cliente.id,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error en el servidor: {str(e)}'
-        })
+        return JsonResponse(
+            {"success": False, "message": f"Error en el servidor: {str(e)}"}
+        )
 
 
 @csrf_exempt
 def obtener_datos_entrada(request, entrada_id):
     """Obtiene datos de una entrada existente para autocompletar el formulario"""
-    if request.method == 'GET':
+    if request.method == "GET":
         try:
             entrada = EntradaProducto.objects.get(id=entrada_id)
             data = {
-                'success': True,
-                'entrada': {
-                    'marca': entrada.marca,
-                    'modelo': entrada.modelo,
-                    'capacidad': entrada.capacidad or '',
-                    'costo_compra': float(entrada.costo_compra),
-                    'costo_venta': float(entrada.costo_venta),
-                    'color': entrada.color or '',
-                    'estado': entrada.estado or '',
-                    'porcentaje_itbis': float(entrada.porcentaje_itbis),
-                    'nombre_producto': entrada.nombre_producto
-                }
+                "success": True,
+                "entrada": {
+                    "marca": entrada.marca,
+                    "modelo": entrada.modelo,
+                    "capacidad": entrada.capacidad or "",
+                    "costo_compra": float(entrada.costo_compra),
+                    "costo_venta": float(entrada.costo_venta),
+                    "color": entrada.color or "",
+                    "estado": entrada.estado or "",
+                    "porcentaje_itbis": float(entrada.porcentaje_itbis),
+                    "nombre_producto": entrada.nombre_producto,
+                },
             }
             return JsonResponse(data)
         except EntradaProducto.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Entrada no encontrada'})
+            return JsonResponse({"success": False, "error": "Entrada no encontrada"})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+            return JsonResponse({"success": False, "error": str(e)})
+    return JsonResponse({"success": False, "error": "Método no permitido"})
 
 
 @require_POST
 @csrf_exempt
 def agregar_nuevo_producto(request):
     """Crea una nueva plantilla de producto con datos mínimos para el modal"""
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
-            nombre = request.POST.get('newProductName', '').strip()
-            marca = request.POST.get('newProductBrand', '').strip()
+            nombre = request.POST.get("newProductName", "").strip()
+            marca = request.POST.get("newProductBrand", "").strip()
 
             if not nombre:
-                return JsonResponse({'success': False, 'error': 'El nombre del producto es requerido'})
+                return JsonResponse(
+                    {"success": False, "error": "El nombre del producto es requerido"}
+                )
 
             if not marca:
-                return JsonResponse({'success': False, 'error': 'La marca es requerida'})
+                return JsonResponse(
+                    {"success": False, "error": "La marca es requerida"}
+                )
 
             # Verificar si ya existe una plantilla similar
             existe = EntradaProducto.objects.filter(
                 nombre_producto__iexact=nombre,
                 marca=marca,
                 es_producto_base=True,
-                activo=True
+                activo=True,
             ).exists()
 
             if existe:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Ya existe una plantilla con este nombre y marca'
-                })
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": "Ya existe una plantilla con este nombre y marca",
+                    }
+                )
 
             # Obtener un proveedor por defecto para plantillas
             try:
@@ -2884,14 +3115,14 @@ def agregar_nuevo_producto(request):
                         nombre_empresa="Proveedor General",
                         contacto="Contacto general",
                         telefono="000-000-0000",
-                        activo=True
+                        activo=True,
                     )
             except Exception:
                 proveedor_default = Proveedor.objects.create(
                     nombre_empresa="Proveedor General",
                     contacto="Contacto general",
                     telefono="000-000-0000",
-                    activo=True
+                    activo=True,
                 )
 
             # Crear la plantilla de producto (solo datos base)
@@ -2913,24 +3144,29 @@ def agregar_nuevo_producto(request):
                 costo_venta=0.00,
                 observaciones="Plantilla creada mediante modal rápido",
                 activo=True,
-                es_producto_base=True  # Marcar como plantilla
+                es_producto_base=True,  # Marcar como plantilla
             )
 
             nueva_plantilla.save()
 
-            return JsonResponse({
-                'success': True,
-                'plantilla_id': nueva_plantilla.id,
-                'nombre_producto': nueva_plantilla.nombre_producto,
-                'marca': nueva_plantilla.get_marca_display(),
-                'marca_valor': nueva_plantilla.marca,
-                'mensaje': 'Plantilla creada exitosamente. Complete los detalles en el formulario.'
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "plantilla_id": nueva_plantilla.id,
+                    "nombre_producto": nueva_plantilla.nombre_producto,
+                    "marca": nueva_plantilla.get_marca_display(),
+                    "marca_valor": nueva_plantilla.marca,
+                    "mensaje": "Plantilla creada exitosamente. Complete los detalles en el formulario.",
+                }
+            )
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Error al crear la plantilla: {str(e)}'})
+            return JsonResponse(
+                {"success": False,
+                    "error": f"Error al crear la plantilla: {str(e)}"}
+            )
 
-    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+    return JsonResponse({"success": False, "error": "Método no permitido"})
 
 
 def obtener_productos_disponibles(request):
@@ -2938,160 +3174,162 @@ def obtener_productos_disponibles(request):
     try:
         # Obtener solo plantillas (productos base)
         plantillas = EntradaProducto.objects.filter(
-            es_producto_base=True,
-            activo=True
-        ).order_by('nombre_producto', 'marca', 'modelo')
+            es_producto_base=True, activo=True
+        ).order_by("nombre_producto", "marca", "modelo")
 
         plantillas_data = []
 
         for plantilla in plantillas:
-            plantillas_data.append({
-                'id': plantilla.id,
-                'texto_completo': f"{plantilla.nombre_producto} - {plantilla.get_marca_display()} - {plantilla.modelo}",
-                'nombre_producto': plantilla.nombre_producto,
-                'marca': plantilla.marca,
-                'marca_display': plantilla.get_marca_display(),
-                'modelo': plantilla.modelo,
-                'capacidad': plantilla.capacidad or '128',
-                'estado': plantilla.estado or 'nuevo',
-                'color': plantilla.color or 'negro',
-                'costo_compra': float(plantilla.costo_compra),
-                'costo_venta': float(plantilla.costo_venta)
-            })
+            plantillas_data.append(
+                {
+                    "id": plantilla.id,
+                    "texto_completo": f"{plantilla.nombre_producto} - {plantilla.get_marca_display()} - {plantilla.modelo}",
+                    "nombre_producto": plantilla.nombre_producto,
+                    "marca": plantilla.marca,
+                    "marca_display": plantilla.get_marca_display(),
+                    "modelo": plantilla.modelo,
+                    "capacidad": plantilla.capacidad or "128",
+                    "estado": plantilla.estado or "nuevo",
+                    "color": plantilla.color or "negro",
+                    "costo_compra": float(plantilla.costo_compra),
+                    "costo_venta": float(plantilla.costo_venta),
+                }
+            )
 
-        return JsonResponse({'success': True, 'plantillas': plantillas_data})
+        return JsonResponse({"success": True, "plantillas": plantillas_data})
 
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 @csrf_exempt
 def obtener_datos_plantilla(request, plantilla_id):
     """Obtiene datos de una plantilla para autocompletar campos"""
-    if request.method == 'GET':
+    if request.method == "GET":
         try:
             plantilla = EntradaProducto.objects.get(
-                id=plantilla_id, es_producto_base=True, activo=True)
+                id=plantilla_id, es_producto_base=True, activo=True
+            )
             data = {
-                'success': True,
-                'data': {
-                    'marca': plantilla.marca,
-                    'modelo': plantilla.modelo,
-                    'capacidad': plantilla.capacidad or '',
-                    'estado': plantilla.estado or '',
-                    'color': plantilla.color or '',
-                    'costo_compra': float(plantilla.costo_compra),
-                    'costo_venta': float(plantilla.costo_venta)
-                }
+                "success": True,
+                "data": {
+                    "marca": plantilla.marca,
+                    "modelo": plantilla.modelo,
+                    "capacidad": plantilla.capacidad or "",
+                    "estado": plantilla.estado or "",
+                    "color": plantilla.color or "",
+                    "costo_compra": float(plantilla.costo_compra),
+                    "costo_venta": float(plantilla.costo_venta),
+                },
             }
             return JsonResponse(data)
         except EntradaProducto.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Plantilla no encontrada'})
+            return JsonResponse({"success": False, "error": "Plantilla no encontrada"})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+            return JsonResponse({"success": False, "error": str(e)})
+    return JsonResponse({"success": False, "error": "Método no permitido"})
 
 
 def entrada(request):
     """Vista principal para registro de entradas de productos"""
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             # Obtener datos del formulario
-            numero_factura = request.POST.get('numero_factura', '').strip()
-            fecha_entrada = request.POST.get('fecha_entrada', '')
-            proveedor_id = request.POST.get('proveedor', '')
-            ncf = request.POST.get('ncf', '').strip()
-            nombre_producto = request.POST.get('nombre_producto', '').strip()
-            marca = request.POST.get('marca', '').strip()
-            modelo = request.POST.get('modelo', '').strip()
-            capacidad = request.POST.get('capacidad', '')
-            imei_serial = request.POST.get('imei_serial', '').strip()
-            estado = request.POST.get('estado', '')
-            color = request.POST.get('color', '')
+            numero_factura = request.POST.get("numero_factura", "").strip()
+            fecha_entrada = request.POST.get("fecha_entrada", "")
+            proveedor_id = request.POST.get("proveedor", "")
+            ncf = request.POST.get("ncf", "").strip()
+            nombre_producto = request.POST.get("nombre_producto", "").strip()
+            marca = request.POST.get("marca", "").strip()
+            modelo = request.POST.get("modelo", "").strip()
+            capacidad = request.POST.get("capacidad", "")
+            imei_serial = request.POST.get("imei_serial", "").strip()
+            estado = request.POST.get("estado", "")
+            color = request.POST.get("color", "")
             numero_maquina = request.POST.get(
-                'numero_maquina', '').strip()  # Nuevo campo
+                "numero_maquina", ""
+            ).strip()  # Nuevo campo
 
             # Manejar valores numéricos
             try:
-                cantidad = int(request.POST.get('cantidad', 1))
+                cantidad = int(request.POST.get("cantidad", 1))
             except (ValueError, TypeError):
                 cantidad = 1
 
             try:
-                costo_compra = float(request.POST.get('costo_compra', 0))
+                costo_compra = float(request.POST.get("costo_compra", 0))
             except (ValueError, TypeError):
                 costo_compra = 0.0
 
             try:
                 porcentaje_itbis = float(
-                    request.POST.get('porcentaje_itbis', 18))
+                    request.POST.get("porcentaje_itbis", 18))
             except (ValueError, TypeError):
                 porcentaje_itbis = 18.0
 
             try:
-                costo_venta = float(request.POST.get('costo_venta', 0))
+                costo_venta = float(request.POST.get("costo_venta", 0))
             except (ValueError, TypeError):
                 costo_venta = 0.0
 
-            observaciones = request.POST.get('observaciones', '').strip()
+            observaciones = request.POST.get("observaciones", "").strip()
 
             # Validaciones básicas
             required_fields = [
-                ('numero_factura', numero_factura, 'Número de factura'),
-                ('fecha_entrada', fecha_entrada, 'Fecha de entrada'),
-                ('proveedor', proveedor_id, 'Proveedor'),
-                ('nombre_producto', nombre_producto, 'Nombre del producto'),
-                ('marca', marca, 'Marca'),
-                ('modelo', modelo, 'Modelo'),
-                ('imei_serial', imei_serial, 'IMEI/Serial'),
-                ('estado', estado, 'Estado'),
-                ('cantidad', cantidad, 'Cantidad'),
-                ('costo_compra', costo_compra, 'Costo de compra'),
-                ('costo_venta', costo_venta, 'Costo de venta')
+                ("numero_factura", numero_factura, "Número de factura"),
+                ("fecha_entrada", fecha_entrada, "Fecha de entrada"),
+                ("proveedor", proveedor_id, "Proveedor"),
+                ("nombre_producto", nombre_producto, "Nombre del producto"),
+                ("marca", marca, "Marca"),
+                ("modelo", modelo, "Modelo"),
+                ("imei_serial", imei_serial, "IMEI/Serial"),
+                ("estado", estado, "Estado"),
+                ("cantidad", cantidad, "Cantidad"),
+                ("costo_compra", costo_compra, "Costo de compra"),
+                ("costo_venta", costo_venta, "Costo de venta"),
             ]
 
             for field_name, field_value, field_display in required_fields:
                 if not field_value:
-                    messages.error(request, f'{field_display} es requerido')
-                    return redirect('entrada')
+                    messages.error(request, f"{field_display} es requerido")
+                    return redirect("entrada")
 
             if cantidad <= 0:
-                messages.error(request, 'La cantidad debe ser mayor a 0')
-                return redirect('entrada')
+                messages.error(request, "La cantidad debe ser mayor a 0")
+                return redirect("entrada")
 
             if costo_compra <= 0:
                 messages.error(
-                    request, 'El costo de compra debe ser mayor a 0')
-                return redirect('entrada')
+                    request, "El costo de compra debe ser mayor a 0")
+                return redirect("entrada")
 
             if costo_venta <= 0:
-                messages.error(request, 'El costo de venta debe ser mayor a 0')
-                return redirect('entrada')
+                messages.error(request, "El costo de venta debe ser mayor a 0")
+                return redirect("entrada")
 
             # Verificar si el IMEI ya existe
             if EntradaProducto.objects.filter(
-                imei_serial=imei_serial,
-                activo=True
+                imei_serial=imei_serial, activo=True
             ).exists():
                 messages.error(
-                    request, 'El IMEI/Serial ya existe en la base de datos')
-                return redirect('entrada')
+                    request, "El IMEI/Serial ya existe en la base de datos")
+                return redirect("entrada")
 
             # Verificar si el número de factura ya existe
             if EntradaProducto.objects.filter(
-                numero_factura=numero_factura,
-                activo=True
+                numero_factura=numero_factura, activo=True
             ).exists():
                 messages.error(
-                    request, 'El número de factura ya existe en la base de datos')
-                return redirect('entrada')
+                    request, "El número de factura ya existe en la base de datos"
+                )
+                return redirect("entrada")
 
             # Obtener el proveedor
             try:
                 proveedor = Proveedor.objects.get(id=proveedor_id, activo=True)
             except Proveedor.DoesNotExist:
-                messages.error(request, 'Proveedor no válido')
-                return redirect('entrada')
+                messages.error(request, "Proveedor no válido")
+                return redirect("entrada")
 
             # Calcular montos automáticamente
             monto_itbis = (costo_compra * porcentaje_itbis) / 100
@@ -3119,22 +3357,23 @@ def entrada(request):
                 costo_total=costo_total,
                 costo_venta=costo_venta,
                 observaciones=observaciones,
-                activo=True
+                activo=True,
             )
 
             entrada_producto.save()
 
             messages.success(
-                request, '✅ Producto registrado exitosamente en el inventario')
-            return redirect('entrada')
+                request, "✅ Producto registrado exitosamente en el inventario"
+            )
+            return redirect("entrada")
 
         except ValueError as e:
-            messages.error(request, f'Error en los datos numéricos: {str(e)}')
-            return redirect('entrada')
+            messages.error(request, f"Error en los datos numéricos: {str(e)}")
+            return redirect("entrada")
         except Exception as e:
             messages.error(
-                request, f'Error al registrar el producto: {str(e)}')
-            return redirect('entrada')
+                request, f"Error al registrar el producto: {str(e)}")
+            return redirect("entrada")
 
     # GET request - mostrar el formulario
     proveedores = Proveedor.objects.filter(activo=True)
@@ -3142,74 +3381,89 @@ def entrada(request):
     # Establecer fecha actual por defecto
     fecha_actual = timezone.now().date().isoformat()
 
-    return render(request, 'facturacion/entrada.html', {
-        'proveedores': proveedores,
-        'fecha_actual': fecha_actual
-    })
+    return render(
+        request,
+        "facturacion/entrada.html",
+        {"proveedores": proveedores, "fecha_actual": fecha_actual},
+    )
 
 
 @csrf_exempt
 def buscar_productos_similares(request):
     """Busca productos similares para autocompletar"""
-    if request.method == 'GET':
-        query = request.GET.get('q', '').strip()
+    if request.method == "GET":
+        query = request.GET.get("q", "").strip()
 
         if not query or len(query) < 2:
-            return JsonResponse({'success': True, 'productos': []})
+            return JsonResponse({"success": True, "productos": []})
 
         try:
             # Buscar productos similares por NOMBRE o marca
-            productos = EntradaProducto.objects.filter(
-                Q(nombre_producto__icontains=query) | Q(marca__icontains=query),
-                activo=True
-            ).distinct().order_by('marca', 'nombre_producto')[:10]
+            productos = (
+                EntradaProducto.objects.filter(
+                    Q(nombre_producto__icontains=query) | Q(
+                        marca__icontains=query),
+                    activo=True,
+                )
+                .distinct()
+                .order_by("marca", "nombre_producto")[:10]
+            )
 
             resultados = []
             for producto in productos:
-                resultados.append({
-                    'marca': producto.marca,
-                    'marca_display': producto.get_marca_display(),
-                    'modelo': producto.modelo,
-                    'nombre_producto': producto.nombre_producto,  # ✅ AÑADIR ESTA LÍNEA
-                    'capacidad': producto.capacidad or '',
-                    'estado': producto.estado or '',
-                    'color': producto.color or '',
-                    'costo_compra': float(producto.costo_compra),
-                    'costo_venta': float(producto.costo_venta)
-                })
+                resultados.append(
+                    {
+                        "marca": producto.marca,
+                        "marca_display": producto.get_marca_display(),
+                        "modelo": producto.modelo,
+                        "nombre_producto": producto.nombre_producto,  # ✅ AÑADIR ESTA LÍNEA
+                        "capacidad": producto.capacidad or "",
+                        "estado": producto.estado or "",
+                        "color": producto.color or "",
+                        "costo_compra": float(producto.costo_compra),
+                        "costo_venta": float(producto.costo_venta),
+                    }
+                )
 
-            return JsonResponse({'success': True, 'productos': resultados})
+            return JsonResponse({"success": True, "productos": resultados})
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({"success": False, "error": str(e)})
 
-    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+    return JsonResponse({"success": False, "error": "Método no permitido"})
 
 
 def _get_effective_paid_amount(cuenta):
     """Devuelve el monto pagado real considerando monto inicial + pagos registrados."""
-    pagos_total = cuenta.pagos.filter(anulado=False).aggregate(
-        total=Sum('monto')
-    )['total'] or Decimal('0.00')
-    monto_inicial = Decimal(getattr(cuenta.venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00'))
-    monto_pagado_registrado = Decimal(cuenta.monto_pagado or Decimal('0.00'))
+    pagos_total = cuenta.pagos.filter(anulado=False).aggregate(total=Sum("monto"))[
+        "total"
+    ] or Decimal("0.00")
+    monto_inicial = Decimal(
+        getattr(cuenta.venta, "montoinicial",
+                Decimal("0.00")) or Decimal("0.00")
+    )
+    monto_pagado_registrado = Decimal(cuenta.monto_pagado or Decimal("0.00"))
     monto_pagado_calculado = Decimal(pagos_total) + monto_inicial
     return max(monto_pagado_registrado, monto_pagado_calculado)
 
 
 def _get_effective_total_amount(cuenta):
     """Obtiene el total base correcto para calcular saldo pendiente sin duplicar el inicial."""
-    monto_total_cuenta = Decimal(cuenta.monto_total or Decimal('0.00'))
-    venta = getattr(cuenta, 'venta', None)
+    monto_total_cuenta = Decimal(cuenta.monto_total or Decimal("0.00"))
+    venta = getattr(cuenta, "venta", None)
     if not venta:
         return monto_total_cuenta
 
-    monto_inicial = Decimal(getattr(venta, 'montoinicial', Decimal('0.00')) or Decimal('0.00'))
-    total_a_pagar = Decimal(getattr(venta, 'total_a_pagar', Decimal('0.00')) or Decimal('0.00'))
+    monto_inicial = Decimal(
+        getattr(venta, "montoinicial", Decimal("0.00")) or Decimal("0.00")
+    )
+    total_a_pagar = Decimal(
+        getattr(venta, "total_a_pagar", Decimal("0.00")) or Decimal("0.00")
+    )
 
     # Caso común de este proyecto: cuenta.monto_total guarda el saldo financiado
     # y total_a_pagar incluye inicial + financiado.
-    if total_a_pagar > Decimal('0.00') and monto_inicial > Decimal('0.00'):
+    if total_a_pagar > Decimal("0.00") and monto_inicial > Decimal("0.00"):
         if monto_total_cuenta < total_a_pagar:
             return monto_total_cuenta + monto_inicial
 
@@ -3218,22 +3472,21 @@ def _get_effective_total_amount(cuenta):
 
 def cuentaporcobrar(request):
     # Obtener parámetros de filtrado
-    search = request.GET.get('search', '')
-    status_filter = request.GET.get('status', '')
-    date_from = request.GET.get('date_from', '')
-    date_to = request.GET.get('date_to', '')
+    search = request.GET.get("search", "")
+    status_filter = request.GET.get("status", "")
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
 
     # Filtrar cuentas por cobrar (excluir anuladas y eliminadas)
-    cuentas_qs = CuentaPorCobrar.objects.select_related('venta', 'cliente').filter(
-        anulada=False,
-        eliminada=False
+    cuentas_qs = CuentaPorCobrar.objects.select_related("venta", "cliente").filter(
+        anulada=False, eliminada=False
     )
 
     if search:
         cuentas_qs = cuentas_qs.filter(
-            Q(cliente__full_name__icontains=search) |
-            Q(venta__numero_factura__icontains=search) |
-            Q(cliente__identification_number__icontains=search)
+            Q(cliente__full_name__icontains=search)
+            | Q(venta__numero_factura__icontains=search)
+            | Q(cliente__identification_number__icontains=search)
         )
 
     if date_from:
@@ -3250,54 +3503,56 @@ def cuentaporcobrar(request):
         monto_pagado_efectivo = _get_effective_paid_amount(cuenta)
         saldo_pendiente = monto_total_actual - monto_pagado_efectivo
         if saldo_pendiente < 0:
-            saldo_pendiente = Decimal('0.00')
+            saldo_pendiente = Decimal("0.00")
 
         if saldo_pendiente <= 0:
-            estado_esperado = 'pagada'
+            estado_esperado = "pagada"
             monto_pagado_efectivo = monto_total_actual
         elif cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < hoy:
-            estado_esperado = 'vencida'
+            estado_esperado = "vencida"
         elif monto_pagado_efectivo > 0:
-            estado_esperado = 'parcial'
+            estado_esperado = "parcial"
         else:
-            estado_esperado = 'pendiente'
+            estado_esperado = "pendiente"
 
         campos_actualizar = []
         if cuenta.monto_pagado != monto_pagado_efectivo:
             cuenta.monto_pagado = monto_pagado_efectivo
-            campos_actualizar.append('monto_pagado')
-        if estado_esperado == 'pagada' and cuenta.monto_pagado != monto_total_actual:
+            campos_actualizar.append("monto_pagado")
+        if estado_esperado == "pagada" and cuenta.monto_pagado != monto_total_actual:
             cuenta.monto_pagado = monto_total_actual
-            if 'monto_pagado' not in campos_actualizar:
-                campos_actualizar.append('monto_pagado')
+            if "monto_pagado" not in campos_actualizar:
+                campos_actualizar.append("monto_pagado")
         if cuenta.estado != estado_esperado:
             cuenta.estado = estado_esperado
-            campos_actualizar.append('estado')
+            campos_actualizar.append("estado")
 
         if campos_actualizar:
-            campos_actualizar.append('fecha_actualizacion')
+            campos_actualizar.append("fecha_actualizacion")
             cuenta.save(update_fields=campos_actualizar)
 
     if status_filter:
         cuentas = [c for c in cuentas if c.estado == status_filter]
 
     # Calcular estadísticas usando monto_total de CuentaPorCobrar (solo cuentas no anuladas y no eliminadas)
-    total_pendiente = Decimal('0.00')
-    total_vencido = Decimal('0.00')
-    total_por_cobrar = Decimal('0.00')
+    total_pendiente = Decimal("0.00")
+    total_vencido = Decimal("0.00")
+    total_por_cobrar = Decimal("0.00")
 
     for cuenta in cuentas:
         monto_total_actual = _get_effective_total_amount(cuenta)
-        saldo_pendiente = monto_total_actual - Decimal(cuenta.monto_pagado or Decimal('0.00'))
+        saldo_pendiente = monto_total_actual - Decimal(
+            cuenta.monto_pagado or Decimal("0.00")
+        )
         if saldo_pendiente < 0:
-            saldo_pendiente = Decimal('0.00')
+            saldo_pendiente = Decimal("0.00")
 
-        if cuenta.estado in ['pendiente', 'parcial']:
+        if cuenta.estado in ["pendiente", "parcial"]:
             total_pendiente += saldo_pendiente
-        elif cuenta.estado == 'vencida':
+        elif cuenta.estado == "vencida":
             total_vencido += saldo_pendiente
 
-        if cuenta.estado != 'pagada':
+        if cuenta.estado != "pagada":
             total_por_cobrar += saldo_pendiente
 
     # Pagos del mes actual (solo de cuentas no anuladas y no eliminadas)
@@ -3307,8 +3562,8 @@ def cuentaporcobrar(request):
         fecha_pago__month=mes_actual,
         fecha_pago__year=año_actual,
         cuenta__anulada=False,
-        cuenta__eliminada=False
-    ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+        cuenta__eliminada=False,
+    ).aggregate(total=Sum("monto"))["total"] or Decimal("0.00")
 
     # Preparar datos para el template - CORREGIDO
     cuentas_data = []
@@ -3321,97 +3576,108 @@ def cuentaporcobrar(request):
             try:
                 productos_json = json.loads(cuenta.productos)
                 for producto in productos_json:
-                    productos.append({
-                        'nombre': producto.get('nombre', 'Producto'),
-                        'cantidad': producto.get('cantidad', 1),
-                        'precio': float(producto.get('precio', 0))
-                    })
+                    productos.append(
+                        {
+                            "nombre": producto.get("nombre", "Producto"),
+                            "cantidad": producto.get("cantidad", 1),
+                            "precio": float(producto.get("precio", 0)),
+                        }
+                    )
             except json.JSONDecodeError:
                 # Si no es JSON válido, tratar como texto plano
-                productos.append({
-                    'nombre': cuenta.productos,
-                    'cantidad': 1,
-                    'precio': float(cuenta.monto_total)
-                })
+                productos.append(
+                    {
+                        "nombre": cuenta.productos,
+                        "cantidad": 1,
+                        "precio": float(cuenta.monto_total),
+                    }
+                )
         else:
             # Si no hay productos en el campo, intentar obtener de la venta
             try:
-                if cuenta.venta and hasattr(cuenta.venta, 'detalles'):
+                if cuenta.venta and hasattr(cuenta.venta, "detalles"):
                     for detalle in cuenta.venta.detalles.all():
-                        nombre_producto = 'Servicio'
-                        if hasattr(detalle, 'producto') and detalle.producto:
+                        nombre_producto = "Servicio"
+                        if hasattr(detalle, "producto") and detalle.producto:
                             nombre_producto = detalle.producto.nombre
-                        elif hasattr(detalle, 'servicio') and detalle.servicio:
+                        elif hasattr(detalle, "servicio") and detalle.servicio:
                             nombre_producto = detalle.servicio.nombre
-                        elif hasattr(detalle, 'descripcion') and detalle.descripcion:
+                        elif hasattr(detalle, "descripcion") and detalle.descripcion:
                             nombre_producto = detalle.descripcion
 
                         precio = 0
-                        if hasattr(detalle, 'precio'):
+                        if hasattr(detalle, "precio"):
                             precio = float(detalle.precio)
-                        elif hasattr(detalle, 'precio_unitario'):
+                        elif hasattr(detalle, "precio_unitario"):
                             precio = float(detalle.precio_unitario)
 
                         cantidad = 1
-                        if hasattr(detalle, 'cantidad'):
+                        if hasattr(detalle, "cantidad"):
                             cantidad = float(detalle.cantidad)
 
-                        productos.append({
-                            'nombre': nombre_producto,
-                            'cantidad': cantidad,
-                            'precio': precio
-                        })
+                        productos.append(
+                            {
+                                "nombre": nombre_producto,
+                                "cantidad": cantidad,
+                                "precio": precio,
+                            }
+                        )
                 else:
                     # Si no hay venta o detalles
-                    productos.append({
-                        'nombre': 'Producto/Servicio',
-                        'cantidad': 1,
-                        'precio': float(cuenta.monto_total)
-                    })
+                    productos.append(
+                        {
+                            "nombre": "Producto/Servicio",
+                            "cantidad": 1,
+                            "precio": float(cuenta.monto_total),
+                        }
+                    )
             except Exception as e:
                 # En caso de cualquier error
-                productos.append({
-                    'nombre': f'Error: {str(e)}',
-                    'cantidad': 1,
-                    'precio': float(cuenta.monto_total)
-                })
+                productos.append(
+                    {
+                        "nombre": f"Error: {str(e)}",
+                        "cantidad": 1,
+                        "precio": float(cuenta.monto_total),
+                    }
+                )
 
         # Obtener información del cliente de manera segura
-        client_name = 'Cliente no disponible'
-        client_phone = 'N/A'
+        client_name = "Cliente no disponible"
+        client_phone = "N/A"
 
         if cuenta.cliente:
-            client_name = cuenta.cliente.full_name or 'Cliente sin nombre'
-            client_phone = cuenta.cliente.primary_phone or 'N/A'
+            client_name = cuenta.cliente.full_name or "Cliente sin nombre"
+            client_phone = cuenta.cliente.primary_phone or "N/A"
 
         # Obtener información de la factura de manera segura
-        invoice_number = 'N/A'
-        sale_date = ''
+        invoice_number = "N/A"
+        sale_date = ""
 
         if cuenta.venta:
-            invoice_number = cuenta.venta.numero_factura or 'N/A'
+            invoice_number = cuenta.venta.numero_factura or "N/A"
             if cuenta.venta.fecha_venta:
-                sale_date = cuenta.venta.fecha_venta.strftime('%Y-%m-%d')
+                sale_date = cuenta.venta.fecha_venta.strftime("%Y-%m-%d")
 
         # Obtener fecha de vencimiento
-        due_date = ''
+        due_date = ""
         if cuenta.fecha_vencimiento:
-            due_date = cuenta.fecha_vencimiento.strftime('%Y-%m-%d')
+            due_date = cuenta.fecha_vencimiento.strftime("%Y-%m-%d")
 
         monto_total_decimal = _get_effective_total_amount(cuenta)
-        monto_pagado_decimal = Decimal(cuenta.monto_pagado or Decimal('0.00'))
+        monto_pagado_decimal = Decimal(cuenta.monto_pagado or Decimal("0.00"))
         monto_total_actual = float(monto_total_decimal)
         monto_pagado_actual = float(monto_pagado_decimal)
 
         # Calcular saldo pendiente basado en monto_total ACTUAL (después de rebajas)
-        saldo_pendiente_actual = float(monto_total_decimal - monto_pagado_decimal)
+        saldo_pendiente_actual = float(
+            monto_total_decimal - monto_pagado_decimal)
 
         # Asegurarse de que el saldo pendiente no sea negativo
         if saldo_pendiente_actual < 0:
             saldo_pendiente_actual = 0
 
         # Determinar si la cuenta puede ser eliminada (solo cuentas pagadas)
-        puede_eliminar = cuenta.estado == 'pagada'
+        puede_eliminar = cuenta.estado == "pagada"
 
         # ========== USAR TABLA CUOTA PARA CÁLCULOS REALES ==========
         cuota_mensual = 0.0
@@ -3419,8 +3685,8 @@ def cuentaporcobrar(request):
         cuotas_pagadas = 0
         cuotas_pendientes = 0
         cuotas_atrasadas = 0
-        monto_total_cuotas_pagadas = Decimal('0.00')
-        monto_total_cuotas_atrasadas = Decimal('0.00')
+        monto_total_cuotas_pagadas = Decimal("0.00")
+        monto_total_cuotas_atrasadas = Decimal("0.00")
         dias_atraso_real = 0
         fecha_vencimiento_critica = None
         estado_calculado = cuenta.estado  # Fallback al estado de DB
@@ -3428,144 +3694,170 @@ def cuentaporcobrar(request):
         if cuenta.venta:
             # Obtener todas las cuotas de la venta
             cuotas_qs = Cuota.objects.filter(venta=cuenta.venta)
-            
+
             if cuotas_qs.exists():
                 # Conteos reales desde la tabla
                 plazo_meses = cuotas_qs.count()
-                cuotas_pagadas = cuotas_qs.filter(estado='pagada').count()
-                cuotas_pendientes = cuotas_qs.filter(estado__in=['pendiente', 'parcial']).count()
-                
+                cuotas_pagadas = cuotas_qs.filter(estado="pagada").count()
+                cuotas_pendientes = cuotas_qs.filter(
+                    estado__in=["pendiente", "parcial"]
+                ).count()
+
                 # Cuota más antigua (sin importar estado) para obtener la fecha más próxima
-                cuota_proxima = cuotas_qs.order_by('fecha_vencimiento').first()
-                
+                cuota_proxima = cuotas_qs.order_by("fecha_vencimiento").first()
+
                 # Cuota crítica (más antigua no pagada)
-                cuota_critica = cuotas_qs.filter(
-                    estado__in=['pendiente', 'parcial']
-                ).order_by('fecha_vencimiento').first()
-                
+                cuota_critica = (
+                    cuotas_qs.filter(estado__in=["pendiente", "parcial"])
+                    .order_by("fecha_vencimiento")
+                    .first()
+                )
+
                 if cuota_critica:
                     cuota_mensual = float(cuota_critica.monto_original)
-                    fecha_vencimiento_critica = cuota_critica.fecha_vencimiento.strftime('%Y-%m-%d')
-                    
+                    fecha_vencimiento_critica = (
+                        cuota_critica.fecha_vencimiento.strftime("%Y-%m-%d")
+                    )
+
                     # Calcular días de atraso desde la cuota crítica
                     if cuota_critica.fecha_vencimiento < hoy:
-                        dias_atraso_real = (hoy - cuota_critica.fecha_vencimiento).days
+                        dias_atraso_real = (
+                            hoy - cuota_critica.fecha_vencimiento).days
                 elif cuota_proxima:
                     # Si todas las cuotas están pagadas, usar la última
                     cuota_mensual = float(cuota_proxima.monto_original)
-                    fecha_vencimiento_critica = cuota_proxima.fecha_vencimiento.strftime('%Y-%m-%d')
-                
+                    fecha_vencimiento_critica = (
+                        cuota_proxima.fecha_vencimiento.strftime("%Y-%m-%d")
+                    )
+
                 # Cuotas vencidas (atrasadas)
                 cuotas_atrasadas = cuotas_qs.filter(
-                    estado__in=['pendiente', 'parcial'],
-                    fecha_vencimiento__lt=hoy
+                    estado__in=["pendiente", "parcial"], fecha_vencimiento__lt=hoy
                 ).count()
-                
+
                 # Monto total atrasado = cuotas_atrasadas × cuota_mensual
                 # (Esto es correcto porque todas las cuotas de una venta tienen el mismo monto)
                 if cuota_critica:
-                    monto_total_cuotas_atrasadas = Decimal(str(cuota_critica.monto_original)) * Decimal(cuotas_atrasadas)
+                    monto_total_cuotas_atrasadas = Decimal(
+                        str(cuota_critica.monto_original)
+                    ) * Decimal(cuotas_atrasadas)
                 else:
-                    monto_total_cuotas_atrasadas = Decimal('0.00')
-                
+                    monto_total_cuotas_atrasadas = Decimal("0.00")
+
                 # Monto total de cuotas pagadas
-                monto_pagado_qs = cuotas_qs.filter(
-                    estado='pagada'
-                ).aggregate(total=Sum('monto_original'))['total'] or Decimal('0.00')
+                monto_pagado_qs = cuotas_qs.filter(estado="pagada").aggregate(
+                    total=Sum("monto_original")
+                )["total"] or Decimal("0.00")
                 monto_total_cuotas_pagadas = monto_pagado_qs
-                
+
                 # ===== CALCULAR ESTADO CORRECTO BASADO EN CUOTAS =====
                 if cuotas_pagadas == plazo_meses:
                     # Todas las cuotas están pagadas
-                    estado_calculado = 'pagada'
+                    estado_calculado = "pagada"
                 elif cuotas_pendientes == 0:
                     # Sin cuotas pendientes (todas pagadas)
-                    estado_calculado = 'pagada'
+                    estado_calculado = "pagada"
                 elif cuotas_atrasadas > 0:
                     # Hay cuotas vencidas (atrasadas)
-                    estado_calculado = 'vencida'
+                    estado_calculado = "vencida"
                 elif cuotas_pagadas > 0:
                     # Algunas cuotas pagadas, pero ninguna vencida
-                    estado_calculado = 'parcial'
+                    estado_calculado = "parcial"
                 else:
                     # Sin cuotas pagadas aún
-                    estado_calculado = 'pendiente'
-                    
+                    estado_calculado = "pendiente"
+
             else:
                 # Si no hay cuotas registradas, usar el cálculo fallback
                 try:
-                    plazo_meses = int(getattr(cuenta.venta, 'plazo_meses', 0) or 0)
+                    plazo_meses = int(
+                        getattr(cuenta.venta, "plazo_meses", 0) or 0)
                 except (ValueError, TypeError):
                     plazo_meses = 0
-                
+
                 try:
-                    cuota_mensual = float(getattr(cuenta.venta, 'cuota_mensual', 0) or 0)
+                    cuota_mensual = float(
+                        getattr(cuenta.venta, "cuota_mensual", 0) or 0
+                    )
                 except (ValueError, TypeError):
                     cuota_mensual = 0.0
-                
+
                 if cuota_mensual <= 0 and plazo_meses > 0:
-                    cuota_mensual = float(Decimal(str(monto_total_actual)) / Decimal(plazo_meses))
-                
+                    cuota_mensual = float(
+                        Decimal(str(monto_total_actual)) / Decimal(plazo_meses)
+                    )
+
                 # Calcular fecha de vencimiento desde la venta si hay plazo
                 if plazo_meses > 0 and cuenta.venta.fecha_venta:
                     fecha_factura = cuenta.venta.fecha_venta.date()
-                    fecha_primer_vencimiento = calcular_fecha_cuota(fecha_factura, 1)
-                    fecha_vencimiento_critica = fecha_primer_vencimiento.strftime('%Y-%m-%d')
-                    
+                    fecha_primer_vencimiento = calcular_fecha_cuota(
+                        fecha_factura, 1)
+                    fecha_vencimiento_critica = fecha_primer_vencimiento.strftime(
+                        "%Y-%m-%d"
+                    )
+
                     # Calcular días de atraso si es necesario
                     if fecha_primer_vencimiento < hoy:
-                        dias_atraso_real = (hoy - fecha_primer_vencimiento).days
-        
+                        dias_atraso_real = (
+                            hoy - fecha_primer_vencimiento).days
+
         # Asegurar que siempre haya una fecha de vencimiento
         if not fecha_vencimiento_critica and due_date:
             fecha_vencimiento_critica = due_date
         elif not fecha_vencimiento_critica:
             # Último recurso: usar aujourd'hui + 30 días
-            fecha_vencimiento_critica = (hoy + timedelta(days=30)).strftime('%Y-%m-%d')
+            fecha_vencimiento_critica = (
+                hoy + timedelta(days=30)).strftime("%Y-%m-%d")
 
-        cuota_sugerida_pago = min(cuota_mensual, saldo_pendiente_actual) if saldo_pendiente_actual > 0 else 0.0
+        cuota_sugerida_pago = (
+            min(cuota_mensual, saldo_pendiente_actual)
+            if saldo_pendiente_actual > 0
+            else 0.0
+        )
 
-        cuentas_data.append({
-            'id': cuenta.id,
-            'invoiceNumber': invoice_number,
-            'clientName': client_name,
-            'clientPhone': client_phone,
-            'products': productos,
-            'saleDate': sale_date,
-            'dueDate': fecha_vencimiento_critica,
-            # Monto total ACTUAL (incluye rebajas)
-            'totalAmount': monto_total_actual,
-            'paidAmount': monto_pagado_actual,
-            'pendingBalance': saldo_pendiente_actual,  # Saldo pendiente ACTUAL
-            'installmentAmount': cuota_mensual,
-            'suggestedPaymentAmount': cuota_sugerida_pago,
-            'plazoMeses': plazo_meses,
-            'paidInstallments': cuotas_pagadas,
-            'pendingInstallments': cuotas_pendientes,
-            'overdueInstallments': cuotas_atrasadas,
-            'overdueAmount': float(monto_total_cuotas_atrasadas),
-            'daysOverdue': dias_atraso_real,
-            'paidInstallmentsAmount': float(monto_total_cuotas_pagadas),
-            'overdueInstallmentsAmount': float(monto_total_cuotas_atrasadas),
-            'status': estado_calculado,  # ← Usar estado CALCULADO desde Cuotas, no el de DB
-            'observations': cuenta.observaciones or '',
-            'puede_eliminar': puede_eliminar,
-            'fechaVencimientoCritica': fecha_vencimiento_critica
-        })
+        cuentas_data.append(
+            {
+                "id": cuenta.id,
+                "invoiceNumber": invoice_number,
+                "clientName": client_name,
+                "clientPhone": client_phone,
+                "products": productos,
+                "saleDate": sale_date,
+                "dueDate": fecha_vencimiento_critica,
+                # Monto total ACTUAL (incluye rebajas)
+                "totalAmount": monto_total_actual,
+                "paidAmount": monto_pagado_actual,
+                "pendingBalance": saldo_pendiente_actual,  # Saldo pendiente ACTUAL
+                "installmentAmount": cuota_mensual,
+                "suggestedPaymentAmount": cuota_sugerida_pago,
+                "plazoMeses": plazo_meses,
+                "paidInstallments": cuotas_pagadas,
+                "pendingInstallments": cuotas_pendientes,
+                "overdueInstallments": cuotas_atrasadas,
+                "overdueAmount": float(monto_total_cuotas_atrasadas),
+                "daysOverdue": dias_atraso_real,
+                "paidInstallmentsAmount": float(monto_total_cuotas_pagadas),
+                "overdueInstallmentsAmount": float(monto_total_cuotas_atrasadas),
+                "status": estado_calculado,  # ← Usar estado CALCULADO desde Cuotas, no el de DB
+                "observations": cuenta.observaciones or "",
+                "puede_eliminar": puede_eliminar,
+                "fechaVencimientoCritica": fecha_vencimiento_critica,
+            }
+        )
 
     # Convertir a JSON para pasarlo al template
     cuentas_json = json.dumps(cuentas_data)
 
     context = {
-        'cuentas_json': cuentas_json,
-        'total_pendiente': float(total_pendiente),
-        'total_vencido': float(total_vencido),
-        'pagos_mes': float(pagos_mes),
-        'total_por_cobrar': float(total_por_cobrar),
-        'search': search,
-        'status_filter': status_filter,
-        'date_from': date_from,
-        'date_to': date_to,
+        "cuentas_json": cuentas_json,
+        "total_pendiente": float(total_pendiente),
+        "total_vencido": float(total_vencido),
+        "pagos_mes": float(pagos_mes),
+        "total_por_cobrar": float(total_por_cobrar),
+        "search": search,
+        "status_filter": status_filter,
+        "date_from": date_from,
+        "date_to": date_to,
     }
 
     return render(request, "facturacion/cuentaporcobrar.html", context)
@@ -3573,13 +3865,13 @@ def cuentaporcobrar(request):
 
 @csrf_exempt
 def generar_pdf_deudas(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             data = json.loads(request.body)
 
-            response = HttpResponse(content_type='application/pdf')
+            response = HttpResponse(content_type="application/pdf")
             filename = f"deudas_clientes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
             # Crear el objeto PDF
             p = canvas.Canvas(response, pagesize=letter)
@@ -3593,14 +3885,14 @@ def generar_pdf_deudas(request):
             # Título
             p.setFont("Helvetica-Bold", 16)
             p.setFillColorRGB(0.2, 0.2, 0.4)  # Azul oscuro
-            p.drawCentredString(width/2, top_margin,
+            p.drawCentredString(width / 2, top_margin,
                                 "Reporte de Deudas por Cliente")
 
             # Fecha de generación
             p.setFont("Helvetica", 10)
             p.setFillColorRGB(0.4, 0.4, 0.4)  # Gris oscuro
             fecha_gen = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            p.drawCentredString(width/2, top_margin - 25,
+            p.drawCentredString(width / 2, top_margin - 25,
                                 f"Generado el: {fecha_gen}")
 
             # Línea separadora
@@ -3611,12 +3903,18 @@ def generar_pdf_deudas(request):
             # Información de resumen
             p.setFont("Helvetica-Bold", 11)
             p.setFillColorRGB(0, 0, 0)  # Negro
-            total_clientes = data.get('total_clientes', 0)
-            total_general = data.get('total_general', 0)
-            p.drawString(left_margin, top_margin - 65,
-                         f"Total Clientes con Deudas: {total_clientes}")
-            p.drawString(left_margin + 300, top_margin - 65,
-                         f"Deuda Total: RD$ {total_general:,.2f}")
+            total_clientes = data.get("total_clientes", 0)
+            total_general = data.get("total_general", 0)
+            p.drawString(
+                left_margin,
+                top_margin - 65,
+                f"Total Clientes con Deudas: {total_clientes}",
+            )
+            p.drawString(
+                left_margin + 300,
+                top_margin - 65,
+                f"Deuda Total: RD$ {total_general:,.2f}",
+            )
 
             # Posición inicial para la tabla
             y = top_margin - 90
@@ -3628,8 +3926,9 @@ def generar_pdf_deudas(request):
 
             # Dibujar fondo de encabezados (azul)
             p.setFillColorRGB(0.2, 0.4, 0.8)  # Azul
-            p.rect(left_margin, y - 20, right_margin -
-                   left_margin, 25, fill=1, stroke=0)
+            p.rect(
+                left_margin, y - 20, right_margin - left_margin, 25, fill=1, stroke=0
+            )
 
             # Texto de encabezados
             p.setFillColorRGB(1, 1, 1)  # Blanco
@@ -3652,20 +3951,24 @@ def generar_pdf_deudas(request):
             y -= 45  # Mover hacia abajo para los datos
 
             # Alternar colores de filas
-            row_colors = [
-                (1, 1, 1),      # Blanco
-                (0.95, 0.95, 0.95)  # Gris muy claro
-            ]
+            # Blanco  # Gris muy claro
+            row_colors = [(1, 1, 1), (0.95, 0.95, 0.95)]
 
-            clientes = data.get('clientes', [])
+            clientes = data.get("clientes", [])
             for i, cliente in enumerate(clientes):
                 # Cambiar color de fondo cada fila
                 color_index = i % 2
                 p.setFillColorRGB(*row_colors[color_index])
 
                 # Dibujar fondo de la fila
-                p.rect(left_margin, y - 15, right_margin -
-                       left_margin, 20, fill=1, stroke=0)
+                p.rect(
+                    left_margin,
+                    y - 15,
+                    right_margin - left_margin,
+                    20,
+                    fill=1,
+                    stroke=0,
+                )
 
                 # Dibujar bordes de la celda
                 p.setStrokeColorRGB(0.8, 0.8, 0.8)  # Gris claro para bordes
@@ -3675,13 +3978,18 @@ def generar_pdf_deudas(request):
                 # Texto de la fila
                 p.setFillColorRGB(0, 0, 0)  # Negro
                 p.drawString(left_margin + 10, y - 10,
-                             cliente.get('cliente', 'N/A'))
+                             cliente.get("cliente", "N/A"))
                 p.drawString(left_margin + 200, y - 10,
-                             cliente.get('telefono', 'N/A'))
-                p.drawString(left_margin + 300, y - 10,
-                             str(cliente.get('cantidad_facturas', 0)))
-                p.drawString(left_margin + 450, y - 10,
-                             f"RD$ {cliente.get('monto_total_pendiente', 0):,.2f}")
+                             cliente.get("telefono", "N/A"))
+                p.drawString(
+                    left_margin + 300, y -
+                    10, str(cliente.get("cantidad_facturas", 0))
+                )
+                p.drawString(
+                    left_margin + 450,
+                    y - 10,
+                    f"RD$ {cliente.get('monto_total_pendiente', 0):,.2f}",
+                )
 
                 # Mover a la siguiente fila
                 y -= 25
@@ -3695,8 +4003,14 @@ def generar_pdf_deudas(request):
                     # Encabezado de nueva página
                     p.setFont("Helvetica-Bold", 10)
                     p.setFillColorRGB(0.2, 0.4, 0.8)
-                    p.rect(left_margin, y - 20, right_margin -
-                           left_margin, 25, fill=1, stroke=0)
+                    p.rect(
+                        left_margin,
+                        y - 20,
+                        right_margin - left_margin,
+                        25,
+                        fill=1,
+                        stroke=0,
+                    )
 
                     p.setFillColorRGB(1, 1, 1)
                     p.drawString(left_margin + 10, y - 15, "Cliente")
@@ -3728,8 +4042,9 @@ def generar_pdf_deudas(request):
             # Pie de página
             p.setFont("Helvetica-Oblique", 8)
             p.setFillColorRGB(0.4, 0.4, 0.4)
-            p.drawString(left_margin, 30,
-                         f"DDMAX Moto Import - Sistema de Cuentas por Cobrar")
+            p.drawString(
+                left_margin, 30, f"DDMAX Moto Import - Sistema de Cuentas por Cobrar"
+            )
             p.drawString(right_margin - 100, 30, f"Página 1")
 
             # Cerrar el objeto PDF
@@ -3744,147 +4059,162 @@ def generar_pdf_deudas(request):
     return HttpResponse("Método no permitido", status=405)
 
 
+@csrf_exempt
+@require_POST
+@login_required
+@transaction.atomic
 def aplicar_descuento(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            cuenta_id = data.get('cuenta_id')
-            tipo_descuento = data.get('tipo_descuento')
-            valor_descuento = Decimal(data.get('valor_descuento'))
-            monto_descuento = Decimal(data.get('monto_descuento'))
-            motivo = data.get('motivo')
-            autorizado_por = data.get('autorizado_por')
+    try:
+        data = json.loads(request.body)
+        cuenta_id = data.get('cuenta_id')
+        tipo_descuento = data.get('tipo_descuento')
+        valor_descuento = safe_decimal(data.get('valor_descuento', 0))
+        motivo = data.get('motivo', '').strip()
+        autorizado_por = data.get('autorizado_por', '').strip()
 
-            cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
+        if tipo_descuento not in ('porcentaje', 'monto_fijo'):
+            return JsonResponse({'success': False, 'message': 'Tipo de descuento inválido'})
 
-            # Verificar que la cuenta no esté anulada o eliminada
-            if cuenta.anulada:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No se puede aplicar descuento a una cuenta anulada'
-                })
+        if valor_descuento <= 0:
+            return JsonResponse({'success': False, 'message': 'El valor del descuento debe ser mayor a 0'})
 
-            if cuenta.eliminada:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No se puede aplicar descuento a una cuenta eliminada'
-                })
+        if tipo_descuento == 'porcentaje' and valor_descuento > 100:
+            return JsonResponse({'success': False, 'message': 'El porcentaje no puede ser mayor a 100'})
 
-            # VERIFICACIÓN ADICIONAL: Asegurarse de que la cuenta no esté pagada
-            if cuenta.estado == 'pagada':
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No se puede aplicar descuento a una cuenta completamente pagada'
-                })
+        if not motivo:
+            return JsonResponse({'success': False, 'message': 'El motivo es requerido'})
 
-            monto_base = _get_effective_total_amount(cuenta)
-            monto_pagado_actual = _get_effective_paid_amount(cuenta)
+        if not autorizado_por:
+            return JsonResponse({'success': False, 'message': 'El campo "Autorizado por" es requerido'})
 
-            # Calcular el saldo pendiente real con respaldo de monto inicial + pagos
-            saldo_pendiente_real = monto_base - monto_pagado_actual
+        cuenta = (
+            CuentaPorCobrar.objects
+            .select_for_update()
+            .select_related('venta', 'cliente')
+            .filter(id=cuenta_id)
+            .first()
+        )
 
-            # Asegurarse de que el saldo pendiente no sea negativo
-            if saldo_pendiente_real < 0:
-                saldo_pendiente_real = Decimal('0.00')
+        if not cuenta:
+            return JsonResponse({'success': False, 'message': 'Cuenta no encontrada'})
 
-            # **IMPORTANTE**: Validar que haya saldo pendiente
-            if saldo_pendiente_real <= 0:
-                return JsonResponse({
-                    'success': False,
-                    'message': f'No hay saldo pendiente para aplicar descuento. Saldo actual: RD$ {saldo_pendiente_real}'
-                })
+        if cuenta.anulada:
+            return JsonResponse({'success': False, 'message': 'No se puede aplicar descuento a una cuenta anulada'})
 
-            # Validar que el descuento no exceda el saldo pendiente
-            if monto_descuento > saldo_pendiente_real:
-                return JsonResponse({
-                    'success': False,
-                    'message': f'El descuento (RD${monto_descuento}) excede el saldo pendiente real de RD${saldo_pendiente_real}'
-                })
+        if cuenta.eliminada:
+            return JsonResponse({'success': False, 'message': 'No se puede aplicar descuento a una cuenta eliminada'})
 
-            # **NUEVO**: Verificar si el monto_descuento calculado desde el frontend es correcto
-            # Recalcular por seguridad
-            monto_descuento_calculado = monto_descuento
-            if tipo_descuento == 'porcentaje':
-                # Recalcular el porcentaje usando el saldo pendiente real
-                monto_descuento_calculado = (
-                    saldo_pendiente_real * valor_descuento) / 100
+        if cuenta.estado == 'pagada':
+            return JsonResponse({'success': False, 'message': 'No se puede aplicar descuento a una cuenta completamente pagada'})
 
-            # Usar el menor de los dos montos (el del frontend o el recalculado)
-            monto_descuento_final = min(
-                monto_descuento, monto_descuento_calculado)
+        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
 
-            # Validar nuevamente con el monto final
-            if monto_descuento_final > saldo_pendiente_real:
-                return JsonResponse({
-                    'success': False,
-                    'message': f'Error de cálculo: Descuento final (RD${monto_descuento_final}) excede saldo pendiente (RD${saldo_pendiente_real})'
-                })
-
-            # Registrar el descuento como un pago especial
-            pago_descuento = PagoCuentaPorCobrar(
-                cuenta=cuenta,
-                monto=monto_descuento_final,
-                metodo_pago='descuento',
-                referencia=f"DESC-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
-                observaciones=f"DESCUENTO APLICADO: {motivo}. Tipo: {tipo_descuento}, Valor: {valor_descuento}{'%' if tipo_descuento == 'porcentaje' else 'RD$'}. Autorizado por: {autorizado_por}. Monto: RD${monto_descuento_final}"
-            )
-            pago_descuento.save()
-
-            # **IMPORTANTE**: Actualizar el monto pagado en la cuenta
-            cuenta.monto_pagado = monto_pagado_actual + monto_descuento_final
-
-            # **CALCULAR NUEVO SALDO CON EL MONTO BASE CORRECTO**
-            nuevo_saldo = monto_base - cuenta.monto_pagado
-
-            # Actualizar el estado basado en el nuevo saldo
-            if nuevo_saldo <= 0:
-                cuenta.estado = 'pagada'
-                # Asegurar que no haya valores negativos
-                cuenta.monto_pagado = monto_base
-                nuevo_saldo = Decimal('0.00')
-            elif cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < timezone.now().date():
-                cuenta.estado = 'vencida'
-            elif cuenta.monto_pagado > 0:
-                cuenta.estado = 'parcial'
-            else:
-                cuenta.estado = 'pendiente'
-
-            cuenta.save()
-
-            # **CORRECCIÓN**: Crear comprobante SIN el parámetro 'observaciones' que no existe en tu modelo
-            comprobante = ComprobantePago(
-                pago=pago_descuento,
-                cuenta=cuenta,
-                cliente=cuenta.cliente,
-                # Usando 'comprobante' en lugar de 'descuento' que no existe en TIPOS_COMPROBANTE
-                tipo_comprobante='comprobante'
-            )
-            comprobante.save()
-
-            return JsonResponse({
-                'success': True,
-                'message': f'Descuento aplicado exitosamente. Se redujo la deuda en RD${monto_descuento_final}',
-                'monto_descuento': float(monto_descuento_final),
-                'nuevo_saldo_pendiente': float(nuevo_saldo),
-                'saldo_anterior': float(saldo_pendiente_real),
-                'comprobante_numero': comprobante.numero_comprobante,
-                'comprobante_id': comprobante.id,
-                'estado_actual': cuenta.estado,
-                'monto_base_usado': float(monto_base),
-                'monto_pagado_total': float(cuenta.monto_pagado)
-            })
-
-        except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"Error en aplicar_descuento: {error_details}")
+        if saldo_pendiente <= 0:
             return JsonResponse({
                 'success': False,
-                'message': f'Error al aplicar descuento: {str(e)}',
-                'detalles': error_details
+                'message': f'No hay saldo pendiente. Saldo actual: RD$ {saldo_pendiente:,.2f}'
             })
 
-    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+        if tipo_descuento == 'porcentaje':
+            monto_descuento = (saldo_pendiente *
+                               valor_descuento) / Decimal('100')
+        else:
+            monto_descuento = valor_descuento
+
+        monto_descuento = monto_descuento.quantize(Decimal('0.01'))
+
+        if monto_descuento > saldo_pendiente:
+            return JsonResponse({
+                'success': False,
+                'message': f'El descuento (RD${monto_descuento:,.2f}) excede el saldo pendiente (RD${saldo_pendiente:,.2f})'
+            })
+
+        referencia_descuento = f"DESC-{timezone.now().strftime('%Y%m%d-%H%M%S')}"
+
+        pago_descuento = PagoCuentaPorCobrar.objects.create(
+            cuenta=cuenta,
+            monto=monto_descuento,
+            metodo_pago='transferencia',
+            referencia=referencia_descuento,
+            observaciones=(
+                f"DESCUENTO — Tipo: {'Porcentaje' if tipo_descuento == 'porcentaje' else 'Monto Fijo'} | "
+                f"Valor: {valor_descuento}{'%' if tipo_descuento == 'porcentaje' else ' RD$'} | "
+                f"Motivo: {motivo} | "
+                f"Autorizado por: {autorizado_por}"
+            ),
+            fecha_pago=timezone.now(),
+        )
+
+        saldo_anterior = saldo_pendiente
+        cuenta.monto_pagado = cuenta.monto_pagado + monto_descuento
+        nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+
+        if nuevo_saldo < 0:
+            nuevo_saldo = Decimal('0')
+            cuenta.monto_pagado = cuenta.monto_total
+
+        if nuevo_saldo <= 0:
+            cuenta.estado = 'pagada'
+        elif cuenta.monto_pagado > 0:
+            cuenta.estado = 'parcial'
+        else:
+            cuenta.estado = 'pendiente'
+
+        cuenta.save(update_fields=['monto_pagado',
+                    'estado', 'fecha_actualizacion'])
+
+        MovimientoFinanciero.objects.create(
+            tipo='EGRESO',
+            origen='AJUSTE',
+            estado='ACTIVO',
+            monto=monto_descuento,
+            fecha_operacion=timezone.now(),
+            factura=cuenta.venta,
+            pago_cxc=pago_descuento,
+            cliente=cuenta.cliente,
+            metodo_pago=None,
+            descripcion=(
+                f"Descuento aplicado — "
+                f"Factura: {cuenta.venta.numero_factura} — "
+                f"Cliente: {cuenta.cliente.full_name} — "
+                f"Tipo: {'Porcentaje ' + str(valor_descuento) + '%' if tipo_descuento == 'porcentaje' else 'Monto Fijo RD$' + str(valor_descuento)} — "
+                f"Saldo anterior: RD${saldo_anterior:,.2f} → "
+                f"Saldo nuevo: RD${nuevo_saldo:,.2f} — "
+                f"Autorizado por: {autorizado_por} — "
+                f"Motivo: {motivo}"
+            ),
+            referencia=referencia_descuento,
+            creado_por=request.user,
+        )
+
+        comprobante = ComprobantePago.objects.create(
+            pago=pago_descuento,
+            cuenta=cuenta,
+            cliente=cuenta.cliente,
+            tipo_comprobante='descuento',
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Descuento de RD${monto_descuento:,.2f} aplicado exitosamente',
+            'monto_descuento': float(monto_descuento),
+            'saldo_anterior': float(saldo_anterior),
+            'nuevo_saldo_pendiente': float(nuevo_saldo),
+            'estado_actual': cuenta.estado,
+            'comprobante_numero': comprobante.numero_comprobante,
+            'comprobante_id': comprobante.id,
+            'referencia': referencia_descuento,
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"Error en aplicar_descuento:\n{traceback.format_exc()}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al aplicar descuento: {str(e)}'
+        })
+#! ============================================================
+#! hhdcbgvgfvhdbhdv
 
 
 @transaction.atomic
@@ -3892,7 +4222,7 @@ def registrar_pago(request):
     """
     Versión mejorada de registrar_pago que TAMBIÉN actualiza cuotas y crea movimientos.
     Mantiene compatibilidad con código viejo.
-    
+
     Flujo:
     1. Валидает monto y estado de cuenta
     2. Crea PagoCuentaPorCobrar
@@ -3901,34 +4231,37 @@ def registrar_pago(request):
     5. Crea MovimientoFinanciero INGRESO (PAGO_CXC)
     6. Crea ComprobantePago
     """
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             data = json.loads(request.body)
-            cuenta_id = data.get('cuenta_id')
-            monto = safe_decimal(data.get('monto', 0))
-            metodo_pago = data.get('metodo_pago', 'efectivo')
-            referencia = data.get('referencia', '')
-            observaciones = data.get('observaciones', '')
+            cuenta_id = data.get("cuenta_id")
+            monto = safe_decimal(data.get("monto", 0))
+            metodo_pago = data.get("metodo_pago", "efectivo")
+            referencia = data.get("referencia", "")
+            observaciones = data.get("observaciones", "")
 
             if monto <= 0:
-                return JsonResponse({'success': False, 'message': 'El monto debe ser mayor a 0'})
+                return JsonResponse(
+                    {"success": False, "message": "El monto debe ser mayor a 0"}
+                )
 
             cuenta = get_object_or_404(
-                CuentaPorCobrar,
-                id=cuenta_id,
-                anulada=False,
-                eliminada=False
+                CuentaPorCobrar, id=cuenta_id, anulada=False, eliminada=False
             )
 
-            if cuenta.estado == 'pagada':
-                return JsonResponse({'success': False, 'message': 'Esta cuenta ya está pagada'})
+            if cuenta.estado == "pagada":
+                return JsonResponse(
+                    {"success": False, "message": "Esta cuenta ya está pagada"}
+                )
 
             saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
             if monto > saldo_pendiente:
-                return JsonResponse({
-                    'success': False,
-                    'message': f'El monto excede el saldo pendiente: RD${saldo_pendiente:,.2f}'
-                })
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f"El monto excede el saldo pendiente: RD${saldo_pendiente:,.2f}",
+                    }
+                )
 
             # ── 1. GUARDAR EL PAGO ───────────────────────────────────────────
             pago = PagoCuentaPorCobrar.objects.create(
@@ -3945,31 +4278,28 @@ def registrar_pago(request):
             nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
 
             if nuevo_saldo <= 0:
-                cuenta.estado = 'pagada'
+                cuenta.estado = "pagada"
             elif cuenta.monto_pagado > 0:
-                cuenta.estado = 'parcial'
+                cuenta.estado = "parcial"
 
-            cuenta.save(update_fields=['monto_pagado', 'estado', 'fecha_actualizacion'])
+            cuenta.save(update_fields=["monto_pagado",
+                        "estado", "fecha_actualizacion"])
 
             # ── 3. ACTUALIZAR CUOTAS (la más antigua primero) ────────────────
-            monto_restante     = monto
+            monto_restante = monto
             cuotas_actualizadas = []
 
             cuotas_pendientes = (
-                Cuota.objects
-                .select_for_update()
-                .filter(
-                    venta=cuenta.venta,
-                    estado__in=['pendiente', 'parcial']
-                )
-                .order_by('fecha_vencimiento')
+                Cuota.objects.select_for_update()
+                .filter(venta=cuenta.venta, estado__in=["pendiente", "parcial"])
+                .order_by("fecha_vencimiento")
             )
 
             for cuota in cuotas_pendientes:
                 if monto_restante <= 0:
                     break
 
-                aplicar         = min(monto_restante, cuota.monto_pendiente)
+                aplicar = min(monto_restante, cuota.monto_pendiente)
                 cuota.aplicar_pago(aplicar)
                 monto_restante -= aplicar
                 cuotas_actualizadas.append(cuota)
@@ -3978,15 +4308,22 @@ def registrar_pago(request):
             if cuotas_actualizadas:
                 Cuota.objects.bulk_update(
                     cuotas_actualizadas,
-                    ['monto_pendiente', 'estado', 'fecha_pago_completo', 'actualizada_en']
+                    [
+                        "monto_pendiente",
+                        "estado",
+                        "fecha_pago_completo",
+                        "actualizada_en",
+                    ],
                 )
-                print(f"✓ {len(cuotas_actualizadas)} cuotas actualizadas para pago RD${monto:,.2f}")
+                print(
+                    f"✓ {len(cuotas_actualizadas)} cuotas actualizadas para pago RD${monto:,.2f}"
+                )
 
             # ── 4. MOVIMIENTO FINANCIERO ─────────────────────────────────────
             MovimientoFinanciero.objects.create(
-                tipo='INGRESO',
-                origen='PAGO_CXC',
-                estado='ACTIVO',
+                tipo="INGRESO",
+                origen="PAGO_CXC",
+                estado="ACTIVO",
                 monto=monto,
                 fecha_operacion=timezone.now(),
                 factura=cuenta.venta,
@@ -4009,40 +4346,46 @@ def registrar_pago(request):
                 pago=pago,
                 cuenta=cuenta,
                 cliente=cuenta.cliente,
-                tipo_comprobante='recibo',
+                tipo_comprobante="recibo",
             )
-            print(f"✓ ComprobantePago creado: {comprobante.numero_comprobante}")
+            print(
+                f"✓ ComprobantePago creado: {comprobante.numero_comprobante}")
 
-            return JsonResponse({
-                'success': True,
-                'message': f'Pago registrado exitosamente. Comprobante: {comprobante.numero_comprobante}',
-                'comprobante_numero': comprobante.numero_comprobante,
-                'comprobante_id': comprobante.id,
-                'nuevo_saldo_pendiente': float(nuevo_saldo),
-                'monto_total_original': float(cuenta.monto_total),
-                'monto_pagado_total': float(cuenta.monto_pagado),
-                'estado_actual': cuenta.estado,
-                'cuotas_actualizadas': len(cuotas_actualizadas),
-                'pago_id': pago.id,
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Pago registrado exitosamente. Comprobante: {comprobante.numero_comprobante}",
+                    "comprobante_numero": comprobante.numero_comprobante,
+                    "comprobante_id": comprobante.id,
+                    "nuevo_saldo_pendiente": float(nuevo_saldo),
+                    "monto_total_original": float(cuenta.monto_total),
+                    "monto_pagado_total": float(cuenta.monto_pagado),
+                    "estado_actual": cuenta.estado,
+                    "cuotas_actualizadas": len(cuotas_actualizadas),
+                    "pago_id": pago.id,
+                }
+            )
 
         except Exception as e:
             import traceback
-            traceback.print_exc()
-            return JsonResponse({
-                'success': False,
-                'message': f'Error al registrar pago: {str(e)}'
-            })
 
-    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+            traceback.print_exc()
+            return JsonResponse(
+                {"success": False,
+                    "message": f"Error al registrar pago: {str(e)}"}
+            )
+
+    return JsonResponse({"success": False, "message": "Método no permitido"})
 
 
 def generar_comprobante_pdf(request, comprobante_id):
     try:
         comprobante = get_object_or_404(ComprobantePago, id=comprobante_id)
         # Crear respuesta HTTP con tipo PDF
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="comprobante_{comprobante.numero_comprobante}.pdf"'
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="comprobante_{comprobante.numero_comprobante}.pdf"'
+        )
         # Configurar el PDF para 80mm de ancho (aprox. 226 puntos)
         width = 226  # 80mm en puntos (1mm = 2.83 puntos)
         height = 1200  # Alto suficiente para el contenido y firmas
@@ -4054,11 +4397,12 @@ def generar_comprobante_pdf(request, comprobante_id):
         line_height = 14
         small_line_height = 10
         # Obtener información de totales usando el monto real de la cuenta
-        monto_original = Decimal(comprobante.cuenta.monto_total or Decimal('0.00'))
+        monto_original = Decimal(
+            comprobante.cuenta.monto_total or Decimal("0.00"))
         monto_pagado_acumulado = _get_effective_paid_amount(comprobante.cuenta)
         saldo_pendiente = monto_original - monto_pagado_acumulado
         if saldo_pendiente < 0:
-            saldo_pendiente = Decimal('0.00')
+            saldo_pendiente = Decimal("0.00")
         # Función para centrar texto
 
         def draw_centered_text(text, y, font_size=12, bold=False):
@@ -4070,6 +4414,7 @@ def generar_comprobante_pdf(request, comprobante_id):
             x = (width - text_width) / 2
             p.drawString(x, y, text)
             return y - line_height
+
         # Función para texto normal alineado a la izquierda
 
         def draw_left_text(text, y, font_size=10, bold=False):
@@ -4079,9 +4424,11 @@ def generar_comprobante_pdf(request, comprobante_id):
                 p.setFont("Helvetica", font_size)
             p.drawString(margin_left, y, text)
             return y - line_height
+
         # Encabezado del comprobante
         y_position = draw_centered_text(
-            "DDMAX - MOTO IMPORT", y_position, 8, True)  # Tamaño reducido
+            "DDMAX - MOTO IMPORT", y_position, 8, True
+        )  # Tamaño reducido
         y_position = draw_centered_text(
             "COMPROBANTE DE PAGO", y_position, 10, True)
         y_position -= line_height / 2  # Espacio adicional
@@ -4090,15 +4437,21 @@ def generar_comprobante_pdf(request, comprobante_id):
         y_position -= line_height
         # Información del comprobante
         y_position = draw_left_text(
-            f"Comprobante: {comprobante.numero_comprobante}", y_position, 9)
+            f"Comprobante: {comprobante.numero_comprobante}", y_position, 9
+        )
         y_position = draw_left_text(
-            f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}", y_position, 9)
+            f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}",
+            y_position,
+            9,
+        )
         y_position = draw_left_text(
-            f"Cliente: {comprobante.cliente.full_name}", y_position, 9)
+            f"Cliente: {comprobante.cliente.full_name}", y_position, 9
+        )
         # Información de la factura si existe
         if comprobante.cuenta.venta:
             y_position = draw_left_text(
-                f"Factura: {comprobante.cuenta.venta.numero_factura}", y_position, 9)
+                f"Factura: {comprobante.cuenta.venta.numero_factura}", y_position, 9
+            )
         y_position -= line_height / 2
         # Línea separadora
         p.line(margin_left, y_position, width - margin_left, y_position)
@@ -4108,12 +4461,15 @@ def generar_comprobante_pdf(request, comprobante_id):
             "DETALLE DEL PAGO", y_position, 10, True)
         y_position -= small_line_height
         y_position = draw_left_text(
-            f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}", y_position, 9, True)
+            f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}", y_position, 9, True
+        )
         y_position = draw_left_text(
-            f"Método: {comprobante.pago.get_metodo_pago_display()}", y_position, 9)
+            f"Método: {comprobante.pago.get_metodo_pago_display()}", y_position, 9
+        )
         if comprobante.pago.referencia:
             y_position = draw_left_text(
-                f"Referencia: {comprobante.pago.referencia}", y_position, 8)
+                f"Referencia: {comprobante.pago.referencia}", y_position, 8
+            )
         y_position -= line_height / 2
         # Línea separadora
         p.line(margin_left, y_position, width - margin_left, y_position)
@@ -4123,11 +4479,14 @@ def generar_comprobante_pdf(request, comprobante_id):
             "RESUMEN DE CUENTA", y_position, 10, True)
         y_position -= small_line_height
         y_position = draw_left_text(
-            f"Monto Original: RD$ {monto_original:,.2f}", y_position, 9)
+            f"Monto Original: RD$ {monto_original:,.2f}", y_position, 9
+        )
         y_position = draw_left_text(
-            f"Pagado Acumulado: RD$ {monto_pagado_acumulado:,.2f}", y_position, 9)
+            f"Pagado Acumulado: RD$ {monto_pagado_acumulado:,.2f}", y_position, 9
+        )
         y_position = draw_left_text(
-            f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}", y_position, 9, True)
+            f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}", y_position, 9, True
+        )
         y_position -= line_height
         # Línea separadora final
         p.line(margin_left, y_position, width - margin_left, y_position)
@@ -4141,7 +4500,7 @@ def generar_comprobante_pdf(request, comprobante_id):
                width - margin_left - 40, y_position)
         y_position -= line_height
         # Espacio para firma y cédula del cliente
-    #
+        #
         y_position -= line_height * 1.2  # Espacio adicional antes de la cédula
         y_position = draw_left_text(
             "Cédula: _________________________", y_position, 8)
@@ -4174,49 +4533,52 @@ def generar_comprobante_pdf(request, comprobante_id):
         p.save()
         return response
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error al generar comprobante: {str(e)}'
-        })
+        return JsonResponse(
+            {"success": False,
+                "message": f"Error al generar comprobante: {str(e)}"}
+        )
 
 
 # =====================================================================================================
 # En tu views.py, agrega esta nueva función
 # =====================================================================================================
 def eliminar_cuenta_pagada(request, cuenta_id):
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
 
             # Verificar que la cuenta esté pagada
-            if cuenta.estado != 'pagada':
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Solo se pueden eliminar cuentas que estén completamente pagadas'
-                })
+            if cuenta.estado != "pagada":
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Solo se pueden eliminar cuentas que estén completamente pagadas",
+                    }
+                )
 
             # Verificar que no esté ya eliminada
             if cuenta.eliminada:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Esta cuenta ya ha sido eliminada'
-                })
+                return JsonResponse(
+                    {"success": False, "message": "Esta cuenta ya ha sido eliminada"}
+                )
 
             # Realizar soft delete
             cuenta.eliminar_cuenta()
 
-            return JsonResponse({
-                'success': True,
-                'message': f'Cuenta #{cuenta.id} - Factura {cuenta.venta.numero_factura} eliminada exitosamente'
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Cuenta #{cuenta.id} - Factura {cuenta.venta.numero_factura} eliminada exitosamente",
+                }
+            )
 
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'Error al eliminar cuenta: {str(e)}'
-            })
+            return JsonResponse(
+                {"success": False,
+                    "message": f"Error al eliminar cuenta: {str(e)}"}
+            )
 
-    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+    return JsonResponse({"success": False, "message": "Método no permitido"})
 
 
 # =========================================================================================
@@ -4224,24 +4586,24 @@ def eliminar_cuenta_pagada(request, cuenta_id):
 # =========================================================================================
 def lista_comprobantes(request):
     comprobantes = ComprobantePago.objects.select_related(
-        'pago', 'cuenta', 'cliente'
-    ).order_by('-fecha_emision')
+        "pago", "cuenta", "cliente"
+    ).order_by("-fecha_emision")
 
     # Filtros opcionales
-    search = request.GET.get('search', '')
+    search = request.GET.get("search", "")
     if search:
         comprobantes = comprobantes.filter(
-            Q(numero_comprobante__icontains=search) |
-            Q(cliente__full_name__icontains=search) |
-            Q(cuenta__venta__numero_factura__icontains=search)
+            Q(numero_comprobante__icontains=search)
+            | Q(cliente__full_name__icontains=search)
+            | Q(cuenta__venta__numero_factura__icontains=search)
         )
 
     context = {
-        'comprobantes': comprobantes,
-        'search': search,
+        "comprobantes": comprobantes,
+        "search": search,
     }
 
-    return render(request, 'facturacion/lista_comprobantes.html', context)
+    return render(request, "facturacion/lista_comprobantes.html", context)
 
 
 @transaction.atomic
@@ -4253,7 +4615,7 @@ def anular_cuenta(request, cuenta_id):
     3. Anula cuotas
     4. Marca cuenta como anulada
     """
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
 
@@ -4264,13 +4626,16 @@ def anular_cuenta(request, cuenta_id):
 
             # Verificar que la cuenta no esté ya pagada completamente
             if cuenta.monto_pagado >= monto_con_interes:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No se puede anular una cuenta completamente pagada'
-                })
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "No se puede anular una cuenta completamente pagada",
+                    }
+                )
 
             # ── PASO 1: Anular pagos y crear MovimientoFinanciero reversales ─────────
-            pagos = PagoCuentaPorCobrar.objects.filter(cuenta=cuenta, anulado=False)
+            pagos = PagoCuentaPorCobrar.objects.filter(
+                cuenta=cuenta, anulado=False)
             for pago in pagos:
                 # Marcar pago como anulado
                 pago.anulado = True
@@ -4281,16 +4646,14 @@ def anular_cuenta(request, cuenta_id):
                 # Crear MovimientoFinanciero reverso para el pago
                 try:
                     movimiento_original = MovimientoFinanciero.objects.filter(
-                        pago_cxc=pago,
-                        origen='PAGO_CXC',
-                        tipo='INGRESO'
+                        pago_cxc=pago, origen="PAGO_CXC", tipo="INGRESO"
                     ).first()
 
                     if movimiento_original:
                         MovimientoFinanciero.objects.create(
-                            tipo='EGRESO',
-                            origen='ANULACION',
-                            estado='ACTIVO',
+                            tipo="EGRESO",
+                            origen="ANULACION",
+                            estado="ACTIVO",
                             monto=movimiento_original.monto,
                             fecha_operacion=timezone.now(),
                             factura=cuenta.venta,
@@ -4304,12 +4667,17 @@ def anular_cuenta(request, cuenta_id):
                             creado_por=request.user,
                         )
                 except Exception as e:
-                    print(f"Advertencia: Error al crear MovimientoFinanciero reverso de pago: {str(e)}")
+                    print(
+                        f"Advertencia: Error al crear MovimientoFinanciero reverso de pago: {str(e)}"
+                    )
             # ── FIN PASO 1 ──────────────────────────────────────────────────────────
 
             # ── PASO 2: Anular cuotas ─────────────────────────────────────────────
             try:
-                Cuota.objects.filter(venta=cuenta.venta, estado__in=['pendiente', 'parcial', 'pagada']).update(estado='anulada')
+                Cuota.objects.filter(
+                    venta=cuenta.venta, estado__in=[
+                        "pendiente", "parcial", "pagada"]
+                ).update(estado="anulada")
             except Exception as e:
                 print(f"Advertencia: Error al anular cuotas: {str(e)}")
             # ── FIN PASO 2 ──────────────────────────────────────────────────────────
@@ -4317,117 +4685,138 @@ def anular_cuenta(request, cuenta_id):
             # ── PASO 3: Anular la cuenta ──────────────────────────────────────────
             cuenta.anular_cuenta()
 
-            return JsonResponse({
-                'success': True,
-                'message': 'Cuenta anulada exitosamente'
-            })
+            return JsonResponse(
+                {"success": True, "message": "Cuenta anulada exitosamente"}
+            )
 
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'Error al anular cuenta: {str(e)}'
-            })
+            return JsonResponse(
+                {"success": False,
+                    "message": f"Error al anular cuenta: {str(e)}"}
+            )
 
-    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+    return JsonResponse({"success": False, "message": "Método no permitido"})
 
 
 def detalle_cuenta(request, cuenta_id):
     cuenta = get_object_or_404(
-        CuentaPorCobrar.objects.select_related('venta', 'cliente'),
-        id=cuenta_id
+        CuentaPorCobrar.objects.select_related("venta", "cliente"), id=cuenta_id
     )
 
     pagos = PagoCuentaPorCobrar.objects.filter(
-        cuenta=cuenta).order_by('-fecha_pago')
+        cuenta=cuenta).order_by("-fecha_pago")
 
     # CAMBIO: Usar total_a_pagar y total_con_interes
-    monto_original = cuenta.venta.total_a_pagar if cuenta.venta and cuenta.venta.total_a_pagar else cuenta.monto_total
-    monto_con_interes = cuenta.venta.total_con_interes if cuenta.venta and cuenta.venta.total_con_interes else monto_original
+    monto_original = (
+        cuenta.venta.total_a_pagar
+        if cuenta.venta and cuenta.venta.total_a_pagar
+        else cuenta.monto_total
+    )
+    monto_con_interes = (
+        cuenta.venta.total_con_interes
+        if cuenta.venta and cuenta.venta.total_con_interes
+        else monto_original
+    )
     saldo_pendiente = monto_con_interes - cuenta.monto_pagado
 
     data = {
-        'id': cuenta.id,
-        'factura': cuenta.venta.numero_factura,
-        'cliente': cuenta.cliente.full_name,
-        'telefono': cuenta.cliente.primary_phone or 'N/A',
-        'productos': [
-            {
-                'nombre': item.producto.nombre if hasattr(item, 'producto') else 'Servicio',
-                'cantidad': item.cantidad,
-                'precio': item.precio
-            }
-            for item in cuenta.venta.detalles.all()
-        ] if cuenta.venta else [],
-        'fecha_venta': cuenta.venta.fecha_venta.strftime('%Y-%m-%d') if cuenta.venta else '',
-        'fecha_vencimiento': cuenta.fecha_vencimiento.strftime('%Y-%m-%d') if cuenta.fecha_vencimiento else '',
-        'monto_total_original': float(monto_original),  # total_a_pagar
+        "id": cuenta.id,
+        "factura": cuenta.venta.numero_factura,
+        "cliente": cuenta.cliente.full_name,
+        "telefono": cuenta.cliente.primary_phone or "N/A",
+        "productos": (
+            [
+                {
+                    "nombre": (
+                        item.producto.nombre
+                        if hasattr(item, "producto")
+                        else "Servicio"
+                    ),
+                    "cantidad": item.cantidad,
+                    "precio": item.precio,
+                }
+                for item in cuenta.venta.detalles.all()
+            ]
+            if cuenta.venta
+            else []
+        ),
+        "fecha_venta": (
+            cuenta.venta.fecha_venta.strftime(
+                "%Y-%m-%d") if cuenta.venta else ""
+        ),
+        "fecha_vencimiento": (
+            cuenta.fecha_vencimiento.strftime("%Y-%m-%d")
+            if cuenta.fecha_vencimiento
+            else ""
+        ),
+        "monto_total_original": float(monto_original),  # total_a_pagar
         # total_con_interes
-        'monto_total_con_interes': float(monto_con_interes),
-        'monto_pagado': float(cuenta.monto_pagado),
+        "monto_total_con_interes": float(monto_con_interes),
+        "monto_pagado": float(cuenta.monto_pagado),
         # basado en total_con_interes
-        'saldo_pendiente': float(saldo_pendiente),
-        'estado': cuenta.get_estado_display(),
-        'observaciones': cuenta.observaciones or 'N/A',
-        'pagos': [
+        "saldo_pendiente": float(saldo_pendiente),
+        "estado": cuenta.get_estado_display(),
+        "observaciones": cuenta.observaciones or "N/A",
+        "pagos": [
             {
-                'fecha': pago.fecha_pago.strftime('%Y-%m-%d %H:%M'),
-                'monto': float(pago.monto),
-                'metodo': pago.get_metodo_pago_display(),
-                'referencia': pago.referencia or 'N/A',
-                'observaciones': pago.observaciones or 'N/A'
+                "fecha": pago.fecha_pago.strftime("%Y-%m-%d %H:%M"),
+                "monto": float(pago.monto),
+                "metodo": pago.get_metodo_pago_display(),
+                "referencia": pago.referencia or "N/A",
+                "observaciones": pago.observaciones or "N/A",
             }
             for pago in pagos
-        ]
+        ],
     }
 
     return JsonResponse(data)
 
 
 def gestiondesuplidores(request):
-    proveedores = Proveedor.objects.all().order_by('nombre_empresa')
+    proveedores = Proveedor.objects.all().order_by("nombre_empresa")
     paises = Proveedor.PAIS_CHOICES
     # categorias = Proveedor.CATEGORIA_CHOICES
     terminos_pago = Proveedor.TERMINOS_PAGO_CHOICES
 
     context = {
-        'proveedores': proveedores,
-        'paises': paises,
+        "proveedores": proveedores,
+        "paises": paises,
         # 'categorias': categorias,
-        'terminos_pago': terminos_pago,
+        "terminos_pago": terminos_pago,
     }
     return render(request, "facturacion/gestiondesuplidores.html", context)
 
 
 def agregar_proveedor(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             Proveedor.objects.create(
-                nombre_empresa=request.POST.get('companyName'),
-                rnc=request.POST.get('rnc'),
-                nombre_contacto=request.POST.get('contactName'),
-                email=request.POST.get('email'),
-                telefono=request.POST.get('phone'),
-                whatsapp=request.POST.get('whatsapp', ''),
-                pais=request.POST.get('country'),
-                ciudad=request.POST.get('city'),
+                nombre_empresa=request.POST.get("companyName"),
+                rnc=request.POST.get("rnc"),
+                nombre_contacto=request.POST.get("contactName"),
+                email=request.POST.get("email"),
+                telefono=request.POST.get("phone"),
+                whatsapp=request.POST.get("whatsapp", ""),
+                pais=request.POST.get("country"),
+                ciudad=request.POST.get("city"),
                 # categoria=request.POST.get('category'),
-                direccion=request.POST.get('address', ''),
-                terminos_pago=request.POST.get('paymentTerms', ''),
-                limite_credito=request.POST.get('creditLimit', 0) or 0,
-                notas=request.POST.get('notes', ''),
-                activo=request.POST.get('isActive') == 'on'
+                direccion=request.POST.get("address", ""),
+                terminos_pago=request.POST.get("paymentTerms", ""),
+                limite_credito=request.POST.get("creditLimit", 0) or 0,
+                notas=request.POST.get("notes", ""),
+                activo=request.POST.get("isActive") == "on",
             )
-            messages.success(request, 'Proveedor agregado exitosamente')
-            return redirect('gestiondesuplidores')
+            messages.success(request, "Proveedor agregado exitosamente")
+            return redirect("gestiondesuplidores")
         except Exception as e:
-            messages.error(request, f'Error al agregar proveedor: {str(e)}')
-            return redirect('gestiondesuplidores')
+            messages.error(request, f"Error al agregar proveedor: {str(e)}")
+            return redirect("gestiondesuplidores")
 
-    return redirect('gestiondesuplidores')
+    return redirect("gestiondesuplidores")
 
 
 def editar_proveedor(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             # Debug: ver qué datos están llegando
             print("Datos recibidos en editar_proveedor:")
@@ -4435,131 +4824,131 @@ def editar_proveedor(request):
                 print(f"{key}: {value}")
 
             proveedor = get_object_or_404(
-                Proveedor, id=request.POST.get('supplierId'))
+                Proveedor, id=request.POST.get("supplierId"))
 
             # Actualizar campos con los nombres correctos
-            proveedor.nombre_empresa = request.POST.get('nombre_empresa')
-            proveedor.rnc = request.POST.get('rnc')
-            proveedor.nombre_contacto = request.POST.get('nombre_contacto')
-            proveedor.email = request.POST.get('email')
-            proveedor.telefono = request.POST.get('telefono')
-            proveedor.whatsapp = request.POST.get('whatsapp', '')
-            proveedor.pais = request.POST.get('pais')
-            proveedor.ciudad = request.POST.get('ciudad')
-            proveedor.direccion = request.POST.get('direccion', '')
-            proveedor.terminos_pago = request.POST.get('terminos_pago', '')
+            proveedor.nombre_empresa = request.POST.get("nombre_empresa")
+            proveedor.rnc = request.POST.get("rnc")
+            proveedor.nombre_contacto = request.POST.get("nombre_contacto")
+            proveedor.email = request.POST.get("email")
+            proveedor.telefono = request.POST.get("telefono")
+            proveedor.whatsapp = request.POST.get("whatsapp", "")
+            proveedor.pais = request.POST.get("pais")
+            proveedor.ciudad = request.POST.get("ciudad")
+            proveedor.direccion = request.POST.get("direccion", "")
+            proveedor.terminos_pago = request.POST.get("terminos_pago", "")
 
             # Manejar límite de crédito (puede estar vacío)
-            limite_credito = request.POST.get('limite_credito', '0')
+            limite_credito = request.POST.get("limite_credito", "0")
             proveedor.limite_credito = float(
                 limite_credito) if limite_credito else 0.0
 
-            proveedor.notas = request.POST.get('notas', '')
-            proveedor.activo = request.POST.get('activo') == 'on'
+            proveedor.notas = request.POST.get("notas", "")
+            proveedor.activo = request.POST.get("activo") == "on"
 
             proveedor.save()
 
-            messages.success(request, 'Proveedor actualizado exitosamente')
+            messages.success(request, "Proveedor actualizado exitosamente")
 
             # Si es una petición AJAX, retornar JSON
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': True, 'message': 'Proveedor actualizado exitosamente'})
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {"success": True, "message": "Proveedor actualizado exitosamente"}
+                )
             else:
-                return redirect('gestiondesuplidores')
+                return redirect("gestiondesuplidores")
 
         except Exception as e:
-            error_msg = f'Error al actualizar proveedor: {str(e)}'
+            error_msg = f"Error al actualizar proveedor: {str(e)}"
             print(error_msg)
             messages.error(request, error_msg)
 
             # Si es AJAX, retornar error en JSON
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'message': error_msg})
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "message": error_msg})
             else:
-                return redirect('gestiondesuplidores')
+                return redirect("gestiondesuplidores")
 
     # Si no es POST, redirigir
-    return redirect('gestiondesuplidores')
+    return redirect("gestiondesuplidores")
 
 
 @require_POST
 def eliminar_proveedor(request):
     try:
         proveedor = get_object_or_404(
-            Proveedor, id=request.POST.get('supplierId'))
+            Proveedor, id=request.POST.get("supplierId"))
         proveedor.delete()
-        messages.success(request, 'Proveedor eliminado exitosamente')
+        messages.success(request, "Proveedor eliminado exitosamente")
     except Exception as e:
-        messages.error(request, f'Error al eliminar proveedor: {str(e)}')
+        messages.error(request, f"Error al eliminar proveedor: {str(e)}")
 
-    return redirect('gestiondesuplidores')
+    return redirect("gestiondesuplidores")
 
 
 def get_proveedor_data(request, id):
     proveedor = get_object_or_404(Proveedor, id=id)
     data = {
-        'id': proveedor.id,
-        'nombre_empresa': proveedor.nombre_empresa,
-        'rnc': proveedor.rnc,
-        'nombre_contacto': proveedor.nombre_contacto,
-        'email': proveedor.email,
-        'telefono': proveedor.telefono,
-        'whatsapp': proveedor.whatsapp or '',
-        'pais': proveedor.pais,
-        'ciudad': proveedor.ciudad,
+        "id": proveedor.id,
+        "nombre_empresa": proveedor.nombre_empresa,
+        "rnc": proveedor.rnc,
+        "nombre_contacto": proveedor.nombre_contacto,
+        "email": proveedor.email,
+        "telefono": proveedor.telefono,
+        "whatsapp": proveedor.whatsapp or "",
+        "pais": proveedor.pais,
+        "ciudad": proveedor.ciudad,
         # 'categoria': proveedor.categoria,
-        'direccion': proveedor.direccion or '',
-        'terminos_pago': proveedor.terminos_pago or '',
-        'limite_credito': str(proveedor.limite_credito),
-        'notas': proveedor.notas or '',
-        'activo': proveedor.activo
+        "direccion": proveedor.direccion or "",
+        "terminos_pago": proveedor.terminos_pago or "",
+        "limite_credito": str(proveedor.limite_credito),
+        "notas": proveedor.notas or "",
+        "activo": proveedor.activo,
     }
     return JsonResponse(data)
 
 
 def registrosuplidores(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         # Crear el proveedor directamente desde los datos del request
         try:
             proveedor = Proveedor(
-                nombre_empresa=request.POST.get('nombre_empresa'),
-                rnc=request.POST.get('rnc'),
-                nombre_contacto=request.POST.get('nombre_contacto'),
-                email=request.POST.get('email'),
-                telefono=request.POST.get('telefono'),
-                whatsapp=request.POST.get('whatsapp', ''),  # Campo opcional
-                pais=request.POST.get('pais'),
-                ciudad=request.POST.get('ciudad'),
+                nombre_empresa=request.POST.get("nombre_empresa"),
+                rnc=request.POST.get("rnc"),
+                nombre_contacto=request.POST.get("nombre_contacto"),
+                email=request.POST.get("email"),
+                telefono=request.POST.get("telefono"),
+                whatsapp=request.POST.get("whatsapp", ""),  # Campo opcional
+                pais=request.POST.get("pais"),
+                ciudad=request.POST.get("ciudad"),
                 # categoria=request.POST.get('categoria'),
-                direccion=request.POST.get('direccion', ''),  # Campo opcional
+                direccion=request.POST.get("direccion", ""),  # Campo opcional
                 terminos_pago=request.POST.get(
-                    'terminos_pago', ''),  # Campo opcional
-                limite_credito=request.POST.get(
-                    'limite_credito', 0) or 0,  # Valor por defecto 0
-                notas=request.POST.get('notas', ''),  # Campo opcional
-                activo=request.POST.get('activo') == 'on'  # Checkbox
+                    "terminos_pago", ""),  # Campo opcional
+                limite_credito=request.POST.get("limite_credito", 0)
+                or 0,  # Valor por defecto 0
+                notas=request.POST.get("notas", ""),  # Campo opcional
+                activo=request.POST.get("activo") == "on",  # Checkbox
             )
             proveedor.full_clean()  # Validar los datos según las reglas del modelo
             proveedor.save()
-            messages.success(request, 'Suplidor registrado exitosamente')
-            return redirect('registrosuplidores')
+            messages.success(request, "Suplidor registrado exitosamente")
+            return redirect("registrosuplidores")
 
         except Exception as e:
             # Manejar errores de validación
             messages.error(
-                request, f'Error al registrar el suplidor: {str(e)}')
+                request, f"Error al registrar el suplidor: {str(e)}")
             # Pasar los valores ingresados de vuelta al template para mantenerlos en el formulario
-            context = {
-                'valores': request.POST,
-                'error': str(e)
-            }
+            context = {"valores": request.POST, "error": str(e)}
             return render(request, "facturacion/registrosuplidores.html", context)
 
     # Si es GET, mostrar el formulario vacío
     return render(request, "facturacion/registrosuplidores.html")
 
-
     # ESTE ES EL NUEVO DE CIEERE DE CAJA
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -4567,52 +4956,46 @@ logger = logging.getLogger(__name__)
 def cierredecaja(request):
     # Verificar si hay una caja abierta
     caja_abierta = Caja.objects.filter(
-        usuario=request.user, estado='abierta').first()
+        usuario=request.user, estado="abierta").first()
 
     if not caja_abierta:
         messages.error(
-            request, 'No hay una caja abierta. Debe abrir una caja primero.')
-        return redirect('iniciocaja')
+            request, "No hay una caja abierta. Debe abrir una caja primero.")
+        return redirect("iniciocaja")
 
     # Obtener ventas desde la apertura de caja para el usuario actual
     ventas_periodo = Venta.objects.filter(
         vendedor=request.user,
         fecha_venta__gte=caja_abierta.fecha_apertura,
         completada=True,
-        anulada=False
+        anulada=False,
     )
 
     # VENTAS AL CONTADO - Usamos el TOTAL FINAL
     ventas_contado_efectivo = ventas_periodo.filter(
-        tipo_venta='contado',
-        metodo_pago='efectivo'
-    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        tipo_venta="contado", metodo_pago="efectivo"
+    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
     ventas_contado_tarjeta = ventas_periodo.filter(
-        tipo_venta='contado',
-        metodo_pago='tarjeta'
-    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        tipo_venta="contado", metodo_pago="tarjeta"
+    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
     ventas_contado_transferencia = ventas_periodo.filter(
-        tipo_venta='contado',
-        metodo_pago='transferencia'
-    ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+        tipo_venta="contado", metodo_pago="transferencia"
+    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
     # VENTAS A CRÉDITO - Usamos solo el MONTO INICIAL
     ventas_credito_efectivo = ventas_periodo.filter(
-        tipo_venta='credito',
-        metodo_pago='efectivo'
-    ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        tipo_venta="credito", metodo_pago="efectivo"
+    ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
 
     ventas_credito_tarjeta = ventas_periodo.filter(
-        tipo_venta='credito',
-        metodo_pago='tarjeta'
-    ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        tipo_venta="credito", metodo_pago="tarjeta"
+    ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
 
     ventas_credito_transferencia = ventas_periodo.filter(
-        tipo_venta='credito',
-        metodo_pago='transferencia'
-    ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+        tipo_venta="credito", metodo_pago="transferencia"
+    ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
 
     # CALCULAR TOTALES AJUSTADOS
     # Efectivo: contado (total final) + crédito (solo monto inicial)
@@ -4622,26 +5005,34 @@ def cierredecaja(request):
     ventas_tarjeta_ajustado = ventas_contado_tarjeta + ventas_credito_tarjeta
 
     # Transferencia: contado (total final) + crédito (solo monto inicial)
-    ventas_transferencia_ajustado = ventas_contado_transferencia + \
-        ventas_credito_transferencia
+    ventas_transferencia_ajustado = (
+        ventas_contado_transferencia + ventas_credito_transferencia
+    )
 
     # Total general de ventas
-    total_ventas_ajustado = (ventas_contado_efectivo + ventas_contado_tarjeta + ventas_contado_transferencia +
-                             ventas_credito_efectivo + ventas_credito_tarjeta + ventas_credito_transferencia)
+    total_ventas_ajustado = (
+        ventas_contado_efectivo
+        + ventas_contado_tarjeta
+        + ventas_contado_transferencia
+        + ventas_credito_efectivo
+        + ventas_credito_tarjeta
+        + ventas_credito_transferencia
+    )
 
     # Totales por tipo de venta para reporte
-    total_ventas_contado = ventas_contado_efectivo + \
-        ventas_contado_tarjeta + ventas_contado_transferencia
-    total_ventas_credito = ventas_credito_efectivo + \
-        ventas_credito_tarjeta + ventas_credito_transferencia
+    total_ventas_contado = (
+        ventas_contado_efectivo + ventas_contado_tarjeta + ventas_contado_transferencia
+    )
+    total_ventas_credito = (
+        ventas_credito_efectivo + ventas_credito_tarjeta + ventas_credito_transferencia
+    )
 
     # Obtener cantidad de ventas
     cantidad_ventas = ventas_periodo.count()
 
     # Obtener información de clientes
     clientes_count = Cliente.objects.filter(
-        venta__in=ventas_periodo
-    ).distinct().count()
+        venta__in=ventas_periodo).distinct().count()
 
     # Log para depuración
     logger.info(f"Caja abierta: {caja_abierta}")
@@ -4651,23 +5042,26 @@ def cierredecaja(request):
     logger.info(
         f"Ventas contado transferencia: {ventas_contado_transferencia:,.2f}")
     logger.info(
-        f"Ventas crédito efectivo (monto inicial): {ventas_credito_efectivo:,.2f}")
+        f"Ventas crédito efectivo (monto inicial): {ventas_credito_efectivo:,.2f}"
+    )
     logger.info(
-        f"Ventas crédito tarjeta (monto inicial): {ventas_credito_tarjeta:,.2f}")
+        f"Ventas crédito tarjeta (monto inicial): {ventas_credito_tarjeta:,.2f}"
+    )
     logger.info(
-        f"Ventas crédito transferencia (monto inicial): {ventas_credito_transferencia:,.2f}")
+        f"Ventas crédito transferencia (monto inicial): {ventas_credito_transferencia:,.2f}"
+    )
 
     context = {
-        'caja_abierta': caja_abierta,
-        'total_ventas': total_ventas_ajustado,
-        'ventas_efectivo': ventas_efectivo_ajustado,
-        'ventas_tarjeta': ventas_tarjeta_ajustado,
-        'ventas_transferencia': ventas_transferencia_ajustado,
-        'total_ventas_contado': total_ventas_contado,
-        'total_ventas_credito': total_ventas_credito,
-        'cantidad_ventas': cantidad_ventas,
-        'clientes_hoy': clientes_count,
-        'hoy': timezone.now().date(),
+        "caja_abierta": caja_abierta,
+        "total_ventas": total_ventas_ajustado,
+        "ventas_efectivo": ventas_efectivo_ajustado,
+        "ventas_tarjeta": ventas_tarjeta_ajustado,
+        "ventas_transferencia": ventas_transferencia_ajustado,
+        "total_ventas_contado": total_ventas_contado,
+        "total_ventas_credito": total_ventas_credito,
+        "cantidad_ventas": cantidad_ventas,
+        "clientes_hoy": clientes_count,
+        "hoy": timezone.now().date(),
     }
 
     return render(request, "facturacion/cierredecaja.html", context)
@@ -4675,69 +5069,70 @@ def cierredecaja(request):
 
 @login_required
 def procesar_cierre_caja(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         # Obtener la caja abierta actual
         caja_abierta = Caja.objects.filter(
-            usuario=request.user, estado='abierta').first()
+            usuario=request.user, estado="abierta"
+        ).first()
 
         if not caja_abierta:
-            messages.error(request, 'No hay una caja abierta para cerrar.')
-            return redirect('cierredecaja')
+            messages.error(request, "No hay una caja abierta para cerrar.")
+            return redirect("cierredecaja")
 
         # Obtener ventas desde la apertura de caja
         ventas_periodo = Venta.objects.filter(
             vendedor=request.user,
             fecha_venta__gte=caja_abierta.fecha_apertura,
             completada=True,
-            anulada=False
+            anulada=False,
         )
 
         # VENTAS AL CONTADO - Usamos el TOTAL FINAL
         ventas_contado_efectivo = ventas_periodo.filter(
-            tipo_venta='contado',
-            metodo_pago='efectivo'
-        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+            tipo_venta="contado", metodo_pago="efectivo"
+        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
         ventas_contado_tarjeta = ventas_periodo.filter(
-            tipo_venta='contado',
-            metodo_pago='tarjeta'
-        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+            tipo_venta="contado", metodo_pago="tarjeta"
+        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
         ventas_contado_transferencia = ventas_periodo.filter(
-            tipo_venta='contado',
-            metodo_pago='transferencia'
-        ).aggregate(total=Sum('total_a_pagar'))['total'] or Decimal('0.00')
+            tipo_venta="contado", metodo_pago="transferencia"
+        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
 
         # VENTAS A CRÉDITO - Usamos solo el MONTO INICIAL
         ventas_credito_efectivo = ventas_periodo.filter(
-            tipo_venta='credito',
-            metodo_pago='efectivo'
-        ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+            tipo_venta="credito", metodo_pago="efectivo"
+        ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
 
         ventas_credito_tarjeta = ventas_periodo.filter(
-            tipo_venta='credito',
-            metodo_pago='tarjeta'
-        ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+            tipo_venta="credito", metodo_pago="tarjeta"
+        ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
 
         ventas_credito_transferencia = ventas_periodo.filter(
-            tipo_venta='credito',
-            metodo_pago='transferencia'
-        ).aggregate(total=Sum('montoinicial'))['total'] or Decimal('0.00')
+            tipo_venta="credito", metodo_pago="transferencia"
+        ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
 
         # Calcular total esperado
-        total_esperado = (ventas_contado_efectivo + ventas_contado_tarjeta + ventas_contado_transferencia +
-                          ventas_credito_efectivo + ventas_credito_tarjeta + ventas_credito_transferencia)
+        total_esperado = (
+            ventas_contado_efectivo
+            + ventas_contado_tarjeta
+            + ventas_contado_transferencia
+            + ventas_credito_efectivo
+            + ventas_credito_tarjeta
+            + ventas_credito_transferencia
+        )
 
         # Resto del código permanece igual...
         # Obtener datos del formulario
-        monto_efectivo_real = request.POST.get('cash-amount')
-        monto_tarjeta_real = request.POST.get('card-amount') or '0'
-        observaciones = request.POST.get('observations', '')
+        monto_efectivo_real = request.POST.get("cash-amount")
+        monto_tarjeta_real = request.POST.get("card-amount") or "0"
+        observaciones = request.POST.get("observations", "")
 
         # Validaciones
         if not monto_efectivo_real:
-            messages.error(request, 'Debe ingresar el monto en efectivo real.')
-            return redirect('cierredecaja')
+            messages.error(request, "Debe ingresar el monto en efectivo real.")
+            return redirect("cierredecaja")
 
         try:
             # Convertir a Decimal en lugar de float
@@ -4745,8 +5140,8 @@ def procesar_cierre_caja(request):
             monto_tarjeta_real = Decimal(monto_tarjeta_real)
         except (ValueError, InvalidOperation):
             messages.error(
-                request, 'Los montos deben ser valores numéricos válidos.')
-            return redirect('cierredecaja')
+                request, "Los montos deben ser valores numéricos válidos.")
+            return redirect("cierredecaja")
 
         # Calcular diferencia (todos son Decimal ahora)
         total_real = monto_efectivo_real + monto_tarjeta_real
@@ -4755,7 +5150,7 @@ def procesar_cierre_caja(request):
         # Actualizar la caja
         caja_abierta.monto_final = total_real
         caja_abierta.fecha_cierre = timezone.now()
-        caja_abierta.estado = 'cerrada'
+        caja_abierta.estado = "cerrada"
         caja_abierta.observaciones = observaciones
         caja_abierta.save()
 
@@ -4766,29 +5161,30 @@ def procesar_cierre_caja(request):
             monto_tarjeta_real=monto_tarjeta_real,
             total_esperado=total_esperado,
             diferencia=diferencia,
-            observaciones=observaciones
+            observaciones=observaciones,
         )
 
         # Guardar información en sesión para mostrar en el cuadre
-        request.session['cierre_info'] = {
-            'fecha': timezone.now().date().strftime('%d/%m/%Y'),
-            'hora_cierre': timezone.now().strftime('%H:%M:%S'),
-            'monto_efectivo_real': float(monto_efectivo_real),
-            'monto_tarjeta_real': float(monto_tarjeta_real),
-            'total_esperado': float(total_esperado),
-            'diferencia': float(diferencia),
-            'observaciones': observaciones,
-            'ventas_count': ventas_periodo.count(),
-            'clientes_count': Cliente.objects.filter(
-                venta__in=ventas_periodo
-            ).distinct().count()
+        request.session["cierre_info"] = {
+            "fecha": timezone.now().date().strftime("%d/%m/%Y"),
+            "hora_cierre": timezone.now().strftime("%H:%M:%S"),
+            "monto_efectivo_real": float(monto_efectivo_real),
+            "monto_tarjeta_real": float(monto_tarjeta_real),
+            "total_esperado": float(total_esperado),
+            "diferencia": float(diferencia),
+            "observaciones": observaciones,
+            "ventas_count": ventas_periodo.count(),
+            "clientes_count": Cliente.objects.filter(venta__in=ventas_periodo)
+            .distinct()
+            .count(),
         }
 
         messages.success(
-            request, f'Caja cerrada exitosamente. Diferencia: RD${diferencia:,.2f}')
-        return redirect('cuadre')
+            request, f"Caja cerrada exitosamente. Diferencia: RD${diferencia:,.2f}"
+        )
+        return redirect("cuadre")
 
-    return redirect('cierredecaja')
+    return redirect("cierredecaja")
 
 
 # ESTE ES EL CODGO COMENTADO DEL CIERRE DE CAJA, POR SI SE NECESITA EN EL FUTURO
@@ -4964,13 +5360,16 @@ def procesar_cierre_caja(request):
 def cuadre(request):
     # Obtener la caja abierta actual o la última cerrada
     caja_actual = Caja.objects.filter(
-        usuario=request.user, estado='abierta').first()
+        usuario=request.user, estado="abierta").first()
 
     if not caja_actual:
-        caja_actual = Caja.objects.filter(
-            usuario=request.user, estado='cerrada').order_by('-fecha_cierre').first()
+        caja_actual = (
+            Caja.objects.filter(usuario=request.user, estado="cerrada")
+            .order_by("-fecha_cierre")
+            .first()
+        )
 
-    context = {'caja': None, 'ventas': {}, 'cierre': None}
+    context = {"caja": None, "ventas": {}, "cierre": None}
 
     if caja_actual:
         # Obtener ventas de esta caja
@@ -4978,7 +5377,7 @@ def cuadre(request):
             vendedor=request.user,
             fecha_venta__gte=caja_actual.fecha_apertura,
             completada=True,
-            anulada=False
+            anulada=False,
         )
 
         if caja_actual.fecha_cierre:
@@ -4988,41 +5387,53 @@ def cuadre(request):
 
         # CORRECCIÓN: Calcular por método de pago sumando contado + monto inicial créditos
         # Efectivo: ventas al contado en efectivo + monto inicial créditos en efectivo
-        ventas_contado_efectivo = ventas.filter(tipo_venta='contado', metodo_pago='efectivo').aggregate(
-            total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_contado_efectivo = ventas.filter(
+            tipo_venta="contado", metodo_pago="efectivo"
+        ).aggregate(total=Sum("total"))["total"] or Decimal("0.00")
         ventas_credito_efectivo = ventas.filter(
-            tipo_venta='credito', metodo_pago='efectivo')
+            tipo_venta="credito", metodo_pago="efectivo"
+        )
         montoinicial_credito_efectivo = ventas_credito_efectivo.aggregate(
-            total=Sum('montoinicial'))['total'] or Decimal('0.00')
+            total=Sum("montoinicial")
+        )["total"] or Decimal("0.00")
         total_efectivo_mostrar = ventas_contado_efectivo + montoinicial_credito_efectivo
 
         # Tarjeta: ventas al contado con tarjeta + monto inicial créditos con tarjeta
-        ventas_contado_tarjeta = ventas.filter(tipo_venta='contado', metodo_pago='tarjeta').aggregate(
-            total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_contado_tarjeta = ventas.filter(
+            tipo_venta="contado", metodo_pago="tarjeta"
+        ).aggregate(total=Sum("total"))["total"] or Decimal("0.00")
         ventas_credito_tarjeta = ventas.filter(
-            tipo_venta='credito', metodo_pago='tarjeta')
+            tipo_venta="credito", metodo_pago="tarjeta"
+        )
         montoinicial_credito_tarjeta = ventas_credito_tarjeta.aggregate(
-            total=Sum('montoinicial'))['total'] or Decimal('0.00')
+            total=Sum("montoinicial")
+        )["total"] or Decimal("0.00")
         total_tarjeta_mostrar = ventas_contado_tarjeta + montoinicial_credito_tarjeta
 
         # Transferencia: ventas al contado con transferencia + monto inicial créditos con transferencia
-        ventas_contado_transferencia = ventas.filter(tipo_venta='contado', metodo_pago='transferencia').aggregate(
-            total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_contado_transferencia = ventas.filter(
+            tipo_venta="contado", metodo_pago="transferencia"
+        ).aggregate(total=Sum("total"))["total"] or Decimal("0.00")
         ventas_credito_transferencia = ventas.filter(
-            tipo_venta='credito', metodo_pago='transferencia')
+            tipo_venta="credito", metodo_pago="transferencia"
+        )
         montoinicial_credito_transferencia = ventas_credito_transferencia.aggregate(
-            total=Sum('montoinicial'))['total'] or Decimal('0.00')
-        total_transferencia_mostrar = ventas_contado_transferencia + \
-            montoinicial_credito_transferencia
+            total=Sum("montoinicial")
+        )["total"] or Decimal("0.00")
+        total_transferencia_mostrar = (
+            ventas_contado_transferencia + montoinicial_credito_transferencia
+        )
 
         # Monto inicial total de todos los créditos (para el cuadre de caja)
-        ventas_credito = ventas.filter(tipo_venta='credito')
+        ventas_credito = ventas.filter(tipo_venta="credito")
         montoinicial_credito_total = ventas_credito.aggregate(
-            total=Sum('montoinicial'))['total'] or Decimal('0.00')
+            total=Sum("montoinicial")
+        )["total"] or Decimal("0.00")
 
         # Ventas totales al contado (para el Total General)
-        ventas_contado_total = ventas.filter(tipo_venta='contado').aggregate(
-            total=Sum('total'))['total'] or Decimal('0.00')
+        ventas_contado_total = ventas.filter(tipo_venta="contado").aggregate(
+            total=Sum("total")
+        )["total"] or Decimal("0.00")
 
         # CORRECCIÓN FINAL: TOTAL GENERAL = ventas al contado (TOTAL) + monto inicial créditos (TOTAL)
         total_general = ventas_contado_total + montoinicial_credito_total
@@ -5036,42 +5447,45 @@ def cuadre(request):
         # DEBUG: Verificar cálculos
         print("=== CÁLCULOS FINALES CORREGIDOS ===")
         print(
-            f"Efectivo mostrar: {total_efectivo_mostrar} (contado: {ventas_contado_efectivo} + crédito: {montoinicial_credito_efectivo})")
+            f"Efectivo mostrar: {total_efectivo_mostrar} (contado: {ventas_contado_efectivo} + crédito: {montoinicial_credito_efectivo})"
+        )
         print(
-            f"Tarjeta mostrar: {total_tarjeta_mostrar} (contado: {ventas_contado_tarjeta} + crédito: {montoinicial_credito_tarjeta})")
+            f"Tarjeta mostrar: {total_tarjeta_mostrar} (contado: {ventas_contado_tarjeta} + crédito: {montoinicial_credito_tarjeta})"
+        )
         print(
-            f"Transferencia mostrar: {total_transferencia_mostrar} (contado: {ventas_contado_transferencia} + crédito: {montoinicial_credito_transferencia})")
+            f"Transferencia mostrar: {total_transferencia_mostrar} (contado: {ventas_contado_transferencia} + crédito: {montoinicial_credito_transferencia})"
+        )
         print(f"Ventas al contado total: {ventas_contado_total}")
         print(f"Monto inicial créditos total: {montoinicial_credito_total}")
         print(f"Total general: {total_general}")
         print(f"Efectivo cuadre: {total_efectivo_cuadre}")
 
         context = {
-            'caja': caja_actual,
-            'ventas': {
-                'efectivo_cuadre': total_efectivo_cuadre,  # Solo para cuadre de caja
+            "caja": caja_actual,
+            "ventas": {
+                "efectivo_cuadre": total_efectivo_cuadre,  # Solo para cuadre de caja
                 # Para mostrar: contado + crédito efectivo
-                'efectivo_mostrar': total_efectivo_mostrar,
+                "efectivo_mostrar": total_efectivo_mostrar,
                 # Para mostrar: contado + crédito tarjeta
-                'tarjeta_mostrar': total_tarjeta_mostrar,
+                "tarjeta_mostrar": total_tarjeta_mostrar,
                 # Para mostrar: contado + crédito transferencia
-                'transferencia_mostrar': total_transferencia_mostrar,
-                'ventas_contado_total': ventas_contado_total,  # Total ventas al contado
+                "transferencia_mostrar": total_transferencia_mostrar,
+                "ventas_contado_total": ventas_contado_total,  # Total ventas al contado
                 # Total monto inicial créditos
-                'montoinicial_credito_total': montoinicial_credito_total,
-                'total': total_general,
+                "montoinicial_credito_total": montoinicial_credito_total,
+                "total": total_general,
                 # Detalles para desglose
-                'contado_efectivo': ventas_contado_efectivo,
-                'credito_efectivo': montoinicial_credito_efectivo,
-                'contado_tarjeta': ventas_contado_tarjeta,
-                'credito_tarjeta': montoinicial_credito_tarjeta,
-                'contado_transferencia': ventas_contado_transferencia,
-                'credito_transferencia': montoinicial_credito_transferencia,
+                "contado_efectivo": ventas_contado_efectivo,
+                "credito_efectivo": montoinicial_credito_efectivo,
+                "contado_tarjeta": ventas_contado_tarjeta,
+                "credito_tarjeta": montoinicial_credito_tarjeta,
+                "contado_transferencia": ventas_contado_transferencia,
+                "credito_transferencia": montoinicial_credito_transferencia,
             },
-            'cierre': cierre
+            "cierre": cierre,
         }
 
-    return render(request, 'facturacion/cuadre.html', context)
+    return render(request, "facturacion/cuadre.html", context)
 
 
 def reavastecer(request):
@@ -5081,21 +5495,25 @@ def reavastecer(request):
     # Preparar datos para el template
     productos_data = []
     for producto in productos:
-        productos_data.append({
-            'id': producto.id,
-            'name': producto.nombre_producto,
-            'brand': producto.get_marca_display(),
-            'model': f"{producto.modelo} {producto.capacidad if producto.capacidad else ''}",
-            'stock': producto.cantidad,
-            'price': float(producto.costo_venta),
-            'min_stock': producto.cantidad_minima
-        })
+        productos_data.append(
+            {
+                "id": producto.id,
+                "name": producto.nombre_producto,
+                "brand": producto.get_marca_display(),
+                "model": f"{producto.modelo} {producto.capacidad if producto.capacidad else ''}",
+                "stock": producto.cantidad,
+                "price": float(producto.costo_venta),
+                "min_stock": producto.cantidad_minima,
+            }
+        )
 
     context = {
-        'productos': productos_data,
-        'total_productos': productos.count(),
-        'productos_stock_bajo': productos.filter(cantidad__lte=models.F('cantidad_minima')).count(),
-        'valor_total': sum(p.cantidad * p.costo_venta for p in productos)
+        "productos": productos_data,
+        "total_productos": productos.count(),
+        "productos_stock_bajo": productos.filter(
+            cantidad__lte=models.F("cantidad_minima")
+        ).count(),
+        "valor_total": sum(p.cantidad * p.costo_venta for p in productos),
     }
 
     return render(request, "facturacion/reavastecer.html", context)
@@ -5106,12 +5524,12 @@ def reavastecer(request):
 def actualizar_stock(request):
     try:
         data = json.loads(request.body)
-        producto_id = data.get('producto_id')
-        nueva_cantidad = data.get('nueva_cantidad')
+        producto_id = data.get("producto_id")
+        nueva_cantidad = data.get("nueva_cantidad")
 
         # Validar datos
         if not producto_id or nueva_cantidad is None:
-            return JsonResponse({'success': False, 'error': 'Datos incompletos'})
+            return JsonResponse({"success": False, "error": "Datos incompletos"})
 
         # Buscar y actualizar el producto
         producto = EntradaProducto.objects.get(id=producto_id, activo=True)
@@ -5125,20 +5543,20 @@ def actualizar_stock(request):
 
         # Registrar movimiento de stock
         producto.registrar_movimiento_stock(
-            tipo_movimiento='ajuste',
+            tipo_movimiento="ajuste",
             cantidad=abs(cantidad_anterior - nueva_cantidad),
             cantidad_anterior=cantidad_anterior,
             cantidad_nueva=nueva_cantidad,
             motivo="Ajuste manual desde sistema de reabastecimiento",
-            usuario=request.user if request.user.is_authenticated else None
+            usuario=request.user if request.user.is_authenticated else None,
         )
 
-        return JsonResponse({'success': True, 'nuevo_stock': producto.cantidad})
+        return JsonResponse({"success": True, "nuevo_stock": producto.cantidad})
 
     except EntradaProducto.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Producto no encontrado'})
+        return JsonResponse({"success": False, "error": "Producto no encontrado"})
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 def devoluciones(request):
@@ -5150,17 +5568,21 @@ def devoluciones(request):
 def buscar_factura_devolucion(request):
     try:
         data = json.loads(request.body)
-        numero_factura = data.get('numero_factura', '').strip()
+        numero_factura = data.get("numero_factura", "").strip()
 
         if not numero_factura:
-            return JsonResponse({'error': 'Por favor, ingrese un número de factura.'}, status=400)
+            return JsonResponse(
+                {"error": "Por favor, ingrese un número de factura."}, status=400
+            )
 
         # Buscar la factura
         try:
             venta = Venta.objects.get(
                 numero_factura=numero_factura, anulada=False)
         except Venta.DoesNotExist:
-            return JsonResponse({'error': 'No se encontró ninguna factura con ese número.'}, status=404)
+            return JsonResponse(
+                {"error": "No se encontró ninguna factura con ese número."}, status=404
+            )
 
         # Obtener detalles de la venta
         detalles = DetalleVenta.objects.filter(venta=venta)
@@ -5169,35 +5591,43 @@ def buscar_factura_devolucion(request):
         productos = []
         for detalle in detalles:
             producto = detalle.producto
-            productos.append({
-                'id': detalle.id,
-                'codigo': producto.codigo_producto,
-                'producto': producto.nombre_producto,
-                'marca': producto.get_marca_display(),
-                'capacidad': producto.get_capacidad_display() if producto.capacidad else 'N/A',
-                'color': producto.get_color_display() if producto.color else 'N/A',
-                'estado': producto.get_estado_display(),
-                'cantidad': detalle.cantidad,
-                'precio': str(detalle.precio_unitario),
-                'chasis': producto.imei_serial,
-                'imagen': '/static/images/default-product.png'  # Imagen por defecto
-            })
+            productos.append(
+                {
+                    "id": detalle.id,
+                    "codigo": producto.codigo_producto,
+                    "producto": producto.nombre_producto,
+                    "marca": producto.get_marca_display(),
+                    "capacidad": (
+                        producto.get_capacidad_display()
+                        if producto.capacidad
+                        else "N/A"
+                    ),
+                    "color": producto.get_color_display() if producto.color else "N/A",
+                    "estado": producto.get_estado_display(),
+                    "cantidad": detalle.cantidad,
+                    "precio": str(detalle.precio_unitario),
+                    "chasis": producto.imei_serial,
+                    "imagen": "/static/images/default-product.png",  # Imagen por defecto
+                }
+            )
 
         # Información de la factura
         factura_info = {
-            'id': venta.numero_factura,
-            'fecha': venta.fecha_venta.strftime('%d/%m/%Y'),
-            'cliente': venta.cliente_nombre,
-            'total': str(venta.total),
-            'estado': 'Pagada' if venta.completada else 'Pendiente',
-            'vendedor': venta.vendedor.get_full_name() or venta.vendedor.username,
-            'productos': productos
+            "id": venta.numero_factura,
+            "fecha": venta.fecha_venta.strftime("%d/%m/%Y"),
+            "cliente": venta.cliente_nombre,
+            "total": str(venta.total),
+            "estado": "Pagada" if venta.completada else "Pendiente",
+            "vendedor": venta.vendedor.get_full_name() or venta.vendedor.username,
+            "productos": productos,
         }
 
-        return JsonResponse({'factura': factura_info})
+        return JsonResponse({"factura": factura_info})
 
     except Exception as e:
-        return JsonResponse({'error': f'Error al buscar la factura: {str(e)}'}, status=500)
+        return JsonResponse(
+            {"error": f"Error al buscar la factura: {str(e)}"}, status=500
+        )
 
 
 @csrf_exempt
@@ -5217,24 +5647,31 @@ def procesar_devolucion(request):
         data = json.loads(request.body)
 
         # Validar datos requeridos
-        required_fields = ['factura_id', 'producto_id', 'motivo', 'cantidad']
+        required_fields = ["factura_id", "producto_id", "motivo", "cantidad"]
         for field in required_fields:
             if field not in data or not data[field]:
-                return JsonResponse({'error': f'El campo {field} es requerido.'}, status=400)
+                return JsonResponse(
+                    {"error": f"El campo {field} es requerido."}, status=400
+                )
 
         # Obtener la venta y el detalle
         venta = get_object_or_404(
-            Venta, numero_factura=data['factura_id'], anulada=False)
+            Venta, numero_factura=data["factura_id"], anulada=False
+        )
         detalle = get_object_or_404(
-            DetalleVenta, id=data['producto_id'], venta=venta)
+            DetalleVenta, id=data["producto_id"], venta=venta)
 
         # Validar cantidad
-        cantidad_devolver = int(data['cantidad'])
+        cantidad_devolver = int(data["cantidad"])
         if cantidad_devolver <= 0:
-            return JsonResponse({'error': 'La cantidad a devolver debe ser mayor a 0.'}, status=400)
+            return JsonResponse(
+                {"error": "La cantidad a devolver debe ser mayor a 0."}, status=400
+            )
 
         if cantidad_devolver > detalle.cantidad:
-            return JsonResponse({'error': 'No puede devolver más unidades de las vendidas.'}, status=400)
+            return JsonResponse(
+                {"error": "No puede devolver más unidades de las vendidas."}, status=400
+            )
 
         # ── BLOQUE 5 — PROCESAMIENTO DE DEVOLUCIONES ─────────────────────────────────
         try:
@@ -5243,13 +5680,14 @@ def procesar_devolucion(request):
                 venta=venta,
                 producto=detalle.producto,
                 cantidad=cantidad_devolver,
-                motivo=data['motivo'],
-                observaciones=data.get('observaciones', ''),
-                usuario=request.user
+                motivo=data["motivo"],
+                observaciones=data.get("observaciones", ""),
+                usuario=request.user,
             )
 
             # Paso 2: Crear detalle de devolución con snapshot del producto
-            monto_devolucion = Decimal(cantidad_devolver) * detalle.precio_unitario
+            monto_devolucion = Decimal(
+                cantidad_devolver) * detalle.precio_unitario
             DetalleDevolucion.objects.create(
                 devolucion=devolucion,
                 nombre_producto=detalle.producto.nombre,  # Snapshot: historial exacto
@@ -5260,15 +5698,15 @@ def procesar_devolucion(request):
 
             # Paso 3: Crear movimiento financiero EGRESO
             MovimientoFinanciero.objects.create(
-                tipo='EGRESO',
-                origen='DEVOLUCION',
-                estado='ACTIVO',
+                tipo="EGRESO",
+                origen="DEVOLUCION",
+                estado="ACTIVO",
                 monto=monto_devolucion,
                 fecha_operacion=timezone.now(),
                 factura=venta,
                 devolucion=devolucion,
                 cliente=venta.cliente if venta.cliente else None,
-                metodo_pago='devolucion',
+                metodo_pago="devolucion",
                 descripcion=(
                     f"Devolución - Factura: {venta.numero_factura} - "
                     f"Producto: {detalle.producto.nombre} - "
@@ -5278,9 +5716,12 @@ def procesar_devolucion(request):
                 referencia=f"DEV-{devolucion.id}",
                 creado_por=request.user,
             )
-            print(f"DetalleDevolucion y MovimientoFinanciero creados: EGRESO | RD${monto_devolucion:,.2f}")
+            print(
+                f"DetalleDevolucion y MovimientoFinanciero creados: EGRESO | RD${monto_devolucion:,.2f}"
+            )
         except Exception as e:
-            print(f"Advertencia: Error al crear registro de devolución: {str(e)}")
+            print(
+                f"Advertencia: Error al crear registro de devolución: {str(e)}")
         # ── FIN BLOQUE 5 ─────────────────────────────────────────────────────────────
 
         # Paso 4: Ajustar stock del producto
@@ -5289,7 +5730,7 @@ def procesar_devolucion(request):
             cantidad=cantidad_devolver,
             usuario=request.user,
             motivo=f"Devolución - {data['motivo']}",
-            referencia=f"Factura: {venta.numero_factura}"
+            referencia=f"Factura: {venta.numero_factura}",
         )
 
         # Paso 5: Actualizar detalle de venta
@@ -5302,30 +5743,41 @@ def procesar_devolucion(request):
 
         # Paso 6: Recalcular totales de la venta
         detalles_restantes = DetalleVenta.objects.filter(venta=venta)
-        venta.subtotal = sum(
-            det.subtotal for det in detalles_restantes) if detalles_restantes.exists() else Decimal('0')
+        venta.subtotal = (
+            sum(det.subtotal for det in detalles_restantes)
+            if detalles_restantes.exists()
+            else Decimal("0")
+        )
         venta.total = venta.subtotal - venta.descuento_monto
-        venta.total_a_pagar = venta.total - venta.montoinicial if venta.es_financiada else venta.total
+        venta.total_a_pagar = (
+            venta.total - venta.montoinicial if venta.es_financiada else venta.total
+        )
         venta.save()
 
         # Paso 7: Actualizar cuenta por cobrar si existe
         try:
-            cuenta = CuentaPorCobrar.objects.get(venta=venta, anulada=False, eliminada=False)
+            cuenta = CuentaPorCobrar.objects.get(
+                venta=venta, anulada=False, eliminada=False
+            )
             # Reducir monto total devuelto proporcional
             cuenta.monto_total = venta.total
-            cuenta.save(update_fields=['monto_total'])
+            cuenta.save(update_fields=["monto_total"])
         except CuentaPorCobrar.DoesNotExist:
             pass  # Venta al contado, no tiene cuenta por cobrar
 
-        return JsonResponse({
-            'success': True,
-            'mensaje': f'Devolución procesada correctamente. Se han devuelto {cantidad_devolver} unidades.',
-            'numero_devolucion': f'DEV-{venta.numero_factura}-{devolucion.id}',
-            'monto_devuelto': float(monto_devolucion),
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "mensaje": f"Devolución procesada correctamente. Se han devuelto {cantidad_devolver} unidades.",
+                "numero_devolucion": f"DEV-{venta.numero_factura}-{devolucion.id}",
+                "monto_devuelto": float(monto_devolucion),
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({'error': f'Error al procesar la devolución: {str(e)}'}, status=500)
+        return JsonResponse(
+            {"error": f"Error al procesar la devolución: {str(e)}"}, status=500
+        )
 
 
 # Función para verificar si el usuario es superusuario
@@ -5333,44 +5785,52 @@ def is_superuser(user):
     return user.is_superuser
 
 
-@user_passes_test(is_superuser, login_url='/admin/login/')
+@user_passes_test(is_superuser, login_url="/admin/login/")
 def roles(request):
     # Obtener todos los grupos (roles)
     groups = Group.objects.all()
 
     # Obtener todos los usuarios
-    users = User.objects.all().prefetch_related('groups')
+    users = User.objects.all().prefetch_related("groups")
 
     # Procesar datos para los templates
     roles_data = []
     for group in groups:
         user_count = group.user_set.count()
         permissions = list(
-            group.permissions.values_list('codename', flat=True))
+            group.permissions.values_list("codename", flat=True))
 
-        roles_data.append({
-            'id': group.id,
-            'name': group.name,
-            'description': '',
-            'status': 'activo',
-            'isGlobal': True,
-            'permissions': permissions,
-            'userCount': user_count
-        })
+        roles_data.append(
+            {
+                "id": group.id,
+                "name": group.name,
+                "description": "",
+                "status": "activo",
+                "isGlobal": True,
+                "permissions": permissions,
+                "userCount": user_count,
+            }
+        )
 
     users_data = []
     for user in users:
         user_group = user.groups.first()
-        role_name = user_group.name if user_group else 'Sin rol'
+        role_name = user_group.name if user_group else "Sin rol"
 
-        users_data.append({
-            'id': user.id,
-            'name': f"{user.first_name} {user.last_name}".strip() or user.username,
-            'email': user.email,
-            'role': role_name,
-            'status': 'activo' if user.is_active else 'inactivo',
-            'lastAccess': user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Nunca'
-        })
+        users_data.append(
+            {
+                "id": user.id,
+                "name": f"{user.first_name} {user.last_name}".strip() or user.username,
+                "email": user.email,
+                "role": role_name,
+                "status": "activo" if user.is_active else "inactivo",
+                "lastAccess": (
+                    user.last_login.strftime("%Y-%m-%d %H:%M")
+                    if user.last_login
+                    else "Nunca"
+                ),
+            }
+        )
 
     # Estadísticas
     total_roles = groups.count()
@@ -5382,112 +5842,122 @@ def roles(request):
     inactive_users = total_users - active_users
 
     context = {
-        'roles_data': roles_data,
-        'users_data': users_data,
-        'total_roles': total_roles,
-        'active_roles': active_roles,
-        'inactive_roles': inactive_roles,
-        'total_users': total_users,
-        'active_users': active_users,
-        'inactive_users': inactive_users,
+        "roles_data": roles_data,
+        "users_data": users_data,
+        "total_roles": total_roles,
+        "active_roles": active_roles,
+        "inactive_roles": inactive_roles,
+        "total_users": total_users,
+        "active_users": active_users,
+        "inactive_users": inactive_users,
     }
 
     # Manejar búsquedas y filtros
-    search_role = request.GET.get('search_role', '')
-    status_filter = request.GET.get('status_filter', '')
+    search_role = request.GET.get("search_role", "")
+    status_filter = request.GET.get("status_filter", "")
 
     if search_role:
-        context['roles_data'] = [r for r in context['roles_data']
-                                 if search_role.lower() in r['name'].lower()]
+        context["roles_data"] = [
+            r for r in context["roles_data"] if search_role.lower() in r["name"].lower()
+        ]
 
     if status_filter:
-        context['roles_data'] = [r for r in context['roles_data']
-                                 if r['status'] == status_filter]
+        context["roles_data"] = [
+            r for r in context["roles_data"] if r["status"] == status_filter
+        ]
 
     # Manejar búsquedas y filtros para usuarios
-    search_user = request.GET.get('search_user', '')
-    role_filter = request.GET.get('role_filter', '')
-    user_status_filter = request.GET.get('user_status_filter', '')
+    search_user = request.GET.get("search_user", "")
+    role_filter = request.GET.get("role_filter", "")
+    user_status_filter = request.GET.get("user_status_filter", "")
 
     if search_user:
-        context['users_data'] = [u for u in context['users_data']
-                                 if search_user.lower() in u['name'].lower() or
-                                 search_user.lower() in u['email'].lower()]
+        context["users_data"] = [
+            u
+            for u in context["users_data"]
+            if search_user.lower() in u["name"].lower()
+            or search_user.lower() in u["email"].lower()
+        ]
 
     if role_filter:
-        context['users_data'] = [u for u in context['users_data']
-                                 if u['role'] == role_filter]
+        context["users_data"] = [
+            u for u in context["users_data"] if u["role"] == role_filter
+        ]
 
     if user_status_filter:
-        context['users_data'] = [u for u in context['users_data']
-                                 if u['status'] == user_status_filter]
+        context["users_data"] = [
+            u for u in context["users_data"] if u["status"] == user_status_filter
+        ]
 
     # Manejar acciones POST (crear, editar, eliminar)
-    if request.method == 'POST':
-        action = request.POST.get('action')
+    if request.method == "POST":
+        action = request.POST.get("action")
 
-        if action == 'create_role':
-            name = request.POST.get('name')
-            description = request.POST.get('description', '')
+        if action == "create_role":
+            name = request.POST.get("name")
+            description = request.POST.get("description", "")
 
             if not name:
-                messages.error(request, 'El nombre del rol es obligatorio.')
+                messages.error(request, "El nombre del rol es obligatorio.")
             elif Group.objects.filter(name=name).exists():
-                messages.error(request, 'Ya existe un rol con este nombre.')
+                messages.error(request, "Ya existe un rol con este nombre.")
             else:
                 group = Group.objects.create(name=name)
-                messages.success(request, 'Rol creado exitosamente.')
-                return redirect('roles')
+                messages.success(request, "Rol creado exitosamente.")
+                return redirect("roles")
 
-        elif action == 'edit_role':
-            role_id = request.POST.get('role_id')
-            name = request.POST.get('name')
-            description = request.POST.get('description', '')
-            status = request.POST.get('status', 'activo')
+        elif action == "edit_role":
+            role_id = request.POST.get("role_id")
+            name = request.POST.get("name")
+            description = request.POST.get("description", "")
+            status = request.POST.get("status", "activo")
 
             if not name:
-                messages.error(request, 'El nombre del rol es obligatorio.')
+                messages.error(request, "El nombre del rol es obligatorio.")
             else:
                 group = get_object_or_404(Group, id=role_id)
 
                 if Group.objects.filter(name=name).exclude(id=role_id).exists():
                     messages.error(
-                        request, 'Ya existe otro rol con este nombre.')
+                        request, "Ya existe otro rol con este nombre.")
                 else:
                     group.name = name
                     group.save()
-                    messages.success(request, 'Rol actualizado exitosamente.')
-                    return redirect('roles')
+                    messages.success(request, "Rol actualizado exitosamente.")
+                    return redirect("roles")
 
-        elif action == 'delete_role':
-            role_id = request.POST.get('role_id')
+        elif action == "delete_role":
+            role_id = request.POST.get("role_id")
             group = get_object_or_404(Group, id=role_id)
 
             if group.user_set.exists():
                 messages.error(
-                    request, 'No se puede eliminar un rol que tiene usuarios asignados.')
+                    request, "No se puede eliminar un rol que tiene usuarios asignados."
+                )
             else:
                 group.delete()
-                messages.success(request, 'Rol eliminado exitosamente.')
-                return redirect('roles')
+                messages.success(request, "Rol eliminado exitosamente.")
+                return redirect("roles")
 
-        elif action == 'create_user':
-            username = request.POST.get('username')
-            email = request.POST.get('email')
-            password = request.POST.get('password')
-            first_name = request.POST.get('first_name', '')
-            last_name = request.POST.get('last_name', '')
-            role_id = request.POST.get('role_id')
-            is_active = request.POST.get('status', 'activo') == 'activo'
+        elif action == "create_user":
+            username = request.POST.get("username")
+            email = request.POST.get("email")
+            password = request.POST.get("password")
+            first_name = request.POST.get("first_name", "")
+            last_name = request.POST.get("last_name", "")
+            role_id = request.POST.get("role_id")
+            is_active = request.POST.get("status", "activo") == "activo"
 
             if not all([username, email, password, role_id]):
                 messages.error(
-                    request, 'Todos los campos obligatorios deben ser completados.')
+                    request, "Todos los campos obligatorios deben ser completados."
+                )
             elif User.objects.filter(username=username).exists():
                 messages.error(
-                    request, 'Ya existe un usuario con este nombre de usuario.')
+                    request, "Ya existe un usuario con este nombre de usuario."
+                )
             elif User.objects.filter(email=email).exists():
-                messages.error(request, 'Ya existe un usuario con este email.')
+                messages.error(request, "Ya existe un usuario con este email.")
             else:
                 try:
                     with transaction.atomic():
@@ -5497,40 +5967,42 @@ def roles(request):
                             password=password,
                             first_name=first_name,
                             last_name=last_name,
-                            is_active=is_active
+                            is_active=is_active,
                         )
 
                         group = get_object_or_404(Group, id=role_id)
                         user.groups.add(group)
 
-                    messages.success(request, 'Usuario creado exitosamente.')
-                    return redirect('roles')
+                    messages.success(request, "Usuario creado exitosamente.")
+                    return redirect("roles")
                 except Exception as e:
                     messages.error(
-                        request, f'Error al crear usuario: {str(e)}')
+                        request, f"Error al crear usuario: {str(e)}")
 
-        elif action == 'edit_user':
-            user_id = request.POST.get('user_id')
-            username = request.POST.get('username')
-            email = request.POST.get('email')
-            password = request.POST.get('password', None)
-            first_name = request.POST.get('first_name', '')
-            last_name = request.POST.get('last_name', '')
-            role_id = request.POST.get('role_id')
-            is_active = request.POST.get('status', 'activo') == 'activo'
+        elif action == "edit_user":
+            user_id = request.POST.get("user_id")
+            username = request.POST.get("username")
+            email = request.POST.get("email")
+            password = request.POST.get("password", None)
+            first_name = request.POST.get("first_name", "")
+            last_name = request.POST.get("last_name", "")
+            role_id = request.POST.get("role_id")
+            is_active = request.POST.get("status", "activo") == "activo"
 
             if not all([username, email, role_id]):
                 messages.error(
-                    request, 'Todos los campos obligatorios deben ser completados.')
+                    request, "Todos los campos obligatorios deben ser completados."
+                )
             else:
                 user = get_object_or_404(User, id=user_id)
 
                 if User.objects.filter(username=username).exclude(id=user_id).exists():
                     messages.error(
-                        request, 'Ya existe otro usuario con este nombre de usuario.')
+                        request, "Ya existe otro usuario con este nombre de usuario."
+                    )
                 elif User.objects.filter(email=email).exclude(id=user_id).exists():
                     messages.error(
-                        request, 'Ya existe otro usuario con este email.')
+                        request, "Ya existe otro usuario con este email.")
                 else:
                     try:
                         with transaction.atomic():
@@ -5551,58 +6023,64 @@ def roles(request):
                             user.groups.add(group)
 
                         messages.success(
-                            request, 'Usuario actualizado exitosamente.')
-                        return redirect('roles')
+                            request, "Usuario actualizado exitosamente.")
+                        return redirect("roles")
                     except Exception as e:
                         messages.error(
-                            request, f'Error al actualizar usuario: {str(e)}')
+                            request, f"Error al actualizar usuario: {str(e)}"
+                        )
 
-        elif action == 'delete_user':
-            user_id = request.POST.get('user_id')
+        elif action == "delete_user":
+            user_id = request.POST.get("user_id")
             user = get_object_or_404(User, id=user_id)
 
             if user == request.user:
                 messages.error(
-                    request, 'No puedes eliminar tu propio usuario.')
+                    request, "No puedes eliminar tu propio usuario.")
             else:
                 user.delete()
-                messages.success(request, 'Usuario eliminado exitosamente.')
-                return redirect('roles')
+                messages.success(request, "Usuario eliminado exitosamente.")
+                return redirect("roles")
 
-        elif action == 'export_roles_csv':
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename="roles.csv"'
+        elif action == "export_roles_csv":
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = 'attachment; filename="roles.csv"'
 
             writer = csv.writer(response)
             writer.writerow(
-                ['Nombre', 'Descripción', 'Estado', 'Usuarios Asignados'])
+                ["Nombre", "Descripción", "Estado", "Usuarios Asignados"])
 
             for group in Group.objects.all():
                 user_count = group.user_set.count()
-                writer.writerow([group.name, '', 'activo', user_count])
+                writer.writerow([group.name, "", "activo", user_count])
 
             return response
 
-        elif action == 'export_users_csv':
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename="usuarios.csv"'
+        elif action == "export_users_csv":
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = 'attachment; filename="usuarios.csv"'
 
             writer = csv.writer(response)
-            writer.writerow(['Nombre', 'Email', 'Rol',
-                            'Estado', 'Último Acceso'])
+            writer.writerow(["Nombre", "Email", "Rol",
+                            "Estado", "Último Acceso"])
 
-            for user in User.objects.all().prefetch_related('groups'):
+            for user in User.objects.all().prefetch_related("groups"):
                 user_group = user.groups.first()
-                role_name = user_group.name if user_group else 'Sin rol'
+                role_name = user_group.name if user_group else "Sin rol"
 
-                writer.writerow([
-                    f"{user.first_name} {user.last_name}".strip() or user.username,
-                    user.email,
-                    role_name,
-                    'activo' if user.is_active else 'inactivo',
-                    user.last_login.strftime(
-                        '%Y-%m-%d %H:%M') if user.last_login else 'Nunca'
-                ])
+                writer.writerow(
+                    [
+                        f"{user.first_name} {user.last_name}".strip() or user.username,
+                        user.email,
+                        role_name,
+                        "activo" if user.is_active else "inactivo",
+                        (
+                            user.last_login.strftime("%Y-%m-%d %H:%M")
+                            if user.last_login
+                            else "Nunca"
+                        ),
+                    ]
+                )
 
             return response
 
@@ -5614,70 +6092,78 @@ def anular(request):
 
 
 def buscar_factura(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
-            numero_factura = request.POST.get('numero_factura', '').strip()
+            numero_factura = request.POST.get("numero_factura", "").strip()
 
             if not numero_factura:
-                return JsonResponse({'error': 'Número de factura requerido'}, status=400)
+                return JsonResponse(
+                    {"error": "Número de factura requerido"}, status=400
+                )
 
             # Buscar la factura
             try:
                 venta = Venta.objects.get(numero_factura=numero_factura)
             except Venta.DoesNotExist:
-                return JsonResponse({'error': 'Factura no encontrada'}, status=404)
+                return JsonResponse({"error": "Factura no encontrada"}, status=404)
 
             # Obtener detalles de la venta
             detalles = DetalleVenta.objects.filter(venta=venta)
 
             # Información básica del cliente
             cliente_info = {
-                'nombre': venta.cliente_nombre,
-                'cedula': venta.cliente_documento,
-                'telefono': 'N/A',
-                'direccion': 'N/A',
+                "nombre": venta.cliente_nombre,
+                "cedula": venta.cliente_documento,
+                "telefono": "N/A",
+                "direccion": "N/A",
             }
 
             # Determinar tipo de venta
-            tipo_venta = 'Contado' if venta.tipo_venta == 'contado' else 'Crédito'
+            tipo_venta = "Contado" if venta.tipo_venta == "contado" else "Crédito"
 
             # Formatear datos para la respuesta
             factura_data = {
-                'id': venta.id,
-                'numero_factura': venta.numero_factura,
-                'fecha': venta.fecha_venta.strftime('%Y-%m-%d'),
-                'estado': 'anulada' if venta.anulada else 'activa',
-                'tipo_venta': tipo_venta,
-                'cliente': cliente_info,
-                'vendedor': f"{venta.vendedor.first_name} {venta.vendedor.last_name}",
-                'items': [],
-                'subtotal': float(venta.subtotal),
-                'itbis': float(venta.total - venta.subtotal),
-                'total': float(venta.total),
-                'forma_pago': venta.get_metodo_pago_display(),
-                'monto_inicial': float(venta.montoinicial) if venta.montoinicial else 0,
-                'es_financiada': venta.es_financiada,
-                'monto_financiado': float(venta.monto_financiado) if venta.monto_financiado else 0,
-                'tasa_interes': float(venta.tasa_interes) if venta.tasa_interes else 0,
-                'plazo_meses': venta.plazo_meses if venta.plazo_meses else 0,
-                'cuota_mensual': float(venta.cuota_mensual) if venta.cuota_mensual else 0,
+                "id": venta.id,
+                "numero_factura": venta.numero_factura,
+                "fecha": venta.fecha_venta.strftime("%Y-%m-%d"),
+                "estado": "anulada" if venta.anulada else "activa",
+                "tipo_venta": tipo_venta,
+                "cliente": cliente_info,
+                "vendedor": f"{venta.vendedor.first_name} {venta.vendedor.last_name}",
+                "items": [],
+                "subtotal": float(venta.subtotal),
+                "itbis": float(venta.total - venta.subtotal),
+                "total": float(venta.total),
+                "forma_pago": venta.get_metodo_pago_display(),
+                "monto_inicial": float(venta.montoinicial) if venta.montoinicial else 0,
+                "es_financiada": venta.es_financiada,
+                "monto_financiado": (
+                    float(venta.monto_financiado) if venta.monto_financiado else 0
+                ),
+                "tasa_interes": float(venta.tasa_interes) if venta.tasa_interes else 0,
+                "plazo_meses": venta.plazo_meses if venta.plazo_meses else 0,
+                "cuota_mensual": (
+                    float(venta.cuota_mensual) if venta.cuota_mensual else 0
+                ),
             }
 
             # Agregar items
             for detalle in detalles:
-                factura_data['items'].append({
-                    'producto': detalle.producto.nombre_producto,
-                    'cantidad': detalle.cantidad,
-                    'precio': float(detalle.precio_unitario),
-                    'subtotal': float(detalle.subtotal)
-                })
+                factura_data["items"].append(
+                    {
+                        "producto": detalle.producto.nombre_producto,
+                        "cantidad": detalle.cantidad,
+                        "precio": float(detalle.precio_unitario),
+                        "subtotal": float(detalle.subtotal),
+                    }
+                )
 
             return JsonResponse(factura_data)
 
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
 @transaction.atomic
@@ -5689,19 +6175,23 @@ def anular_factura(request):
     3. Crea MovimientoFinanciero REVERSO (ANULACION)
     4. Anula cuotas asociadas
     """
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
-            factura_id = request.POST.get('factura_id')
-            motivo = request.POST.get('motivo', '').strip()
+            factura_id = request.POST.get("factura_id")
+            motivo = request.POST.get("motivo", "").strip()
 
             if not motivo:
-                return JsonResponse({'error': 'Motivo de anulación requerido'}, status=400)
+                return JsonResponse(
+                    {"error": "Motivo de anulación requerido"}, status=400
+                )
 
             # Buscar la factura
             try:
                 venta = Venta.objects.get(id=factura_id, anulada=False)
             except Venta.DoesNotExist:
-                return JsonResponse({'error': 'Factura no encontrada o ya anulada'}, status=404)
+                return JsonResponse(
+                    {"error": "Factura no encontrada o ya anulada"}, status=404
+                )
 
             # ── PASO 1: Marcar factura como anulada ──────────────────────────────────
             venta.anulada = True
@@ -5721,17 +6211,15 @@ def anular_factura(request):
             try:
                 # Buscar el MovimientoFinanciero original de la venta
                 movimiento_original = MovimientoFinanciero.objects.filter(
-                    factura=venta,
-                    origen='VENTA',
-                    tipo='INGRESO'
+                    factura=venta, origen="VENTA", tipo="INGRESO"
                 ).first()
 
                 if movimiento_original:
                     # Crear movimiento reverso
                     MovimientoFinanciero.objects.create(
-                        tipo='EGRESO',
-                        origen='ANULACION',
-                        estado='ACTIVO',
+                        tipo="EGRESO",
+                        origen="ANULACION",
+                        estado="ACTIVO",
                         monto=movimiento_original.monto,
                         fecha_operacion=timezone.now(),
                         factura=venta,
@@ -5744,39 +6232,47 @@ def anular_factura(request):
                         referencia=f"ANUL-{venta.numero_factura}",
                         creado_por=request.user,
                     )
-                    print(f"MovimientoFinanciero REVERSO creado: EGRESO | ANULACION | RD${movimiento_original.monto:,.2f}")
+                    print(
+                        f"MovimientoFinanciero REVERSO creado: EGRESO | ANULACION | RD${movimiento_original.monto:,.2f}"
+                    )
             except Exception as e:
-                print(f"Advertencia: Error al crear MovimientoFinanciero reverso: {str(e)}")
+                print(
+                    f"Advertencia: Error al crear MovimientoFinanciero reverso: {str(e)}"
+                )
             # ── FIN PASO 3 ──────────────────────────────────────────────────────────
 
             # ── PASO 4: Anular cuotas asociadas (si existen) ──────────────────────────
             try:
-                cuotas = Cuota.objects.filter(venta=venta, estado__in=['pendiente', 'parcial', 'pagada'])
-                cuotas.update(estado='anulada')
+                cuotas = Cuota.objects.filter(
+                    venta=venta, estado__in=["pendiente", "parcial", "pagada"]
+                )
+                cuotas.update(estado="anulada")
                 print(f"Cuotas anuladas para factura {venta.numero_factura}")
             except Exception as e:
                 print(f"Advertencia: Error al anular cuotas: {str(e)}")
             # ── FIN PASO 4 ──────────────────────────────────────────────────────────
 
-            return JsonResponse({'success': True, 'message': 'Factura anulada correctamente'})
+            return JsonResponse(
+                {"success": True, "message": "Factura anulada correctamente"}
+            )
 
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
 def reimprimir_factura(request):
     # Esta vista renderiza la página de reimpresión
-    return render(request, 'facturacion/reimprimirfactura.html')
+    return render(request, "facturacion/reimprimirfactura.html")
 
 
 def buscar_facturaR(request):
     # Esta vista busca una factura por su número y devuelve los datos en JSON
-    numero_factura = request.GET.get('numero_factura')
+    numero_factura = request.GET.get("numero_factura")
 
     if not numero_factura:
-        return JsonResponse({'error': 'Número de factura no proporcionado'}, status=400)
+        return JsonResponse({"error": "Número de factura no proporcionado"}, status=400)
 
     try:
         # Buscar la venta por número de factura
@@ -5784,7 +6280,7 @@ def buscar_facturaR(request):
 
         # Verificar si la factura está anulada
         if venta.anulada:
-            return JsonResponse({'error': 'Esta factura ha sido anulada'}, status=400)
+            return JsonResponse({"error": "Esta factura ha sido anulada"}, status=400)
 
         # Obtener los detalles de la venta
         detalles = DetalleVenta.objects.filter(venta=venta)
@@ -5793,21 +6289,40 @@ def buscar_facturaR(request):
         if venta.cliente:
             # Usa los nombres correctos de los campos del modelo Cliente
             # Revisa tu modelo Cliente para ver los nombres exactos
-            cliente_nombre = venta.cliente.name if hasattr(venta.cliente, 'name') else (
-                venta.cliente.nombres if hasattr(
-                    venta.cliente, 'nombres') else "Cliente"
+            cliente_nombre = (
+                venta.cliente.name
+                if hasattr(venta.cliente, "name")
+                else (
+                    venta.cliente.nombres
+                    if hasattr(venta.cliente, "nombres")
+                    else "Cliente"
+                )
             )
-            cliente_documento = venta.cliente.cedula if hasattr(venta.cliente, 'cedula') else (
-                venta.cliente.documento if hasattr(
-                    venta.cliente, 'documento') else "N/A"
+            cliente_documento = (
+                venta.cliente.cedula
+                if hasattr(venta.cliente, "cedula")
+                else (
+                    venta.cliente.documento
+                    if hasattr(venta.cliente, "documento")
+                    else "N/A"
+                )
             )
-            cliente_apodo = venta.cliente.apodo if hasattr(
-                venta.cliente, 'apodo') else None
-            cliente_telefono = venta.cliente.telefono if hasattr(
-                venta.cliente, 'telefono') else None
-            cliente_direccion = venta.cliente.direccion if hasattr(venta.cliente, 'direccion') else (
-                venta.cliente.direccion_completa if hasattr(
-                    venta.cliente, 'direccion_completa') else None
+            cliente_apodo = (
+                venta.cliente.apodo if hasattr(
+                    venta.cliente, "apodo") else None
+            )
+            cliente_telefono = (
+                venta.cliente.telefono if hasattr(
+                    venta.cliente, "telefono") else None
+            )
+            cliente_direccion = (
+                venta.cliente.direccion
+                if hasattr(venta.cliente, "direccion")
+                else (
+                    venta.cliente.direccion_completa
+                    if hasattr(venta.cliente, "direccion_completa")
+                    else None
+                )
             )
         else:
             cliente_nombre = venta.cliente_nombre or "Consumidor Final"
@@ -5818,116 +6333,182 @@ def buscar_facturaR(request):
 
         # Preparar los datos de la venta para la respuesta JSON
         datos_venta = {
-            'fecha': venta.fecha_venta.strftime('%d/%m/%Y %H:%M'),
-            'numero_factura': venta.numero_factura,
-            'ncf': venta.ncf if hasattr(venta, 'ncf') and venta.ncf else 'B0140000000',
-            'cliente_nombre': cliente_nombre,
-            'cliente_documento': cliente_documento,
-            'cliente_apodo': cliente_apodo,
-            'cliente_telefono': cliente_telefono,
-            'cliente_direccion': cliente_direccion,
-            'tipo_venta': venta.tipo_venta,
-            'tipo_venta_display': venta.get_tipo_venta_display(),
-            'metodo_pago': venta.metodo_pago,
-            'metodo_pago_display': venta.get_metodo_pago_display(),
-            'subtotal': float(venta.subtotal),
-            'descuento_monto': float(venta.descuento_monto),
-            'total_a_pagar': float(venta.total_a_pagar),
-            'fecha_vencimiento': venta.fecha_vencimiento.strftime('%d/%m/%Y') if hasattr(venta, 'fecha_vencimiento') and venta.fecha_vencimiento else None,
-            'es_financiada': venta.es_financiada if hasattr(venta, 'es_financiada') else False,
-            'cuota_mensual': float(venta.cuota_mensual) if hasattr(venta, 'cuota_mensual') and venta.cuota_mensual else 0,
-            'interes_total': float(venta.interes_total) if hasattr(venta, 'interes_total') and venta.interes_total else 0,
-            'montoinicial': float(venta.montoinicial) if hasattr(venta, 'montoinicial') and venta.montoinicial else 0,
-            'total_con_interes': float(venta.total_con_interes) if hasattr(venta, 'total_con_interes') and venta.total_con_interes else 0,
-            'vendedor_nombre': venta.vendedor.get_full_name() if venta.vendedor and venta.vendedor.get_full_name() else (
-                venta.vendedor.username if venta.vendedor else "Sistema"
+            "fecha": venta.fecha_venta.strftime("%d/%m/%Y %H:%M"),
+            "numero_factura": venta.numero_factura,
+            "ncf": venta.ncf if hasattr(venta, "ncf") and venta.ncf else "B0140000000",
+            "cliente_nombre": cliente_nombre,
+            "cliente_documento": cliente_documento,
+            "cliente_apodo": cliente_apodo,
+            "cliente_telefono": cliente_telefono,
+            "cliente_direccion": cliente_direccion,
+            "tipo_venta": venta.tipo_venta,
+            "tipo_venta_display": venta.get_tipo_venta_display(),
+            "metodo_pago": venta.metodo_pago,
+            "metodo_pago_display": venta.get_metodo_pago_display(),
+            "subtotal": float(venta.subtotal),
+            "descuento_monto": float(venta.descuento_monto),
+            "total_a_pagar": float(venta.total_a_pagar),
+            "fecha_vencimiento": (
+                venta.fecha_vencimiento.strftime("%d/%m/%Y")
+                if hasattr(venta, "fecha_vencimiento") and venta.fecha_vencimiento
+                else None
             ),
-            'detalles': []
+            "es_financiada": (
+                venta.es_financiada if hasattr(
+                    venta, "es_financiada") else False
+            ),
+            "cuota_mensual": (
+                float(venta.cuota_mensual)
+                if hasattr(venta, "cuota_mensual") and venta.cuota_mensual
+                else 0
+            ),
+            "interes_total": (
+                float(venta.interes_total)
+                if hasattr(venta, "interes_total") and venta.interes_total
+                else 0
+            ),
+            "montoinicial": (
+                float(venta.montoinicial)
+                if hasattr(venta, "montoinicial") and venta.montoinicial
+                else 0
+            ),
+            "total_con_interes": (
+                float(venta.total_con_interes)
+                if hasattr(venta, "total_con_interes") and venta.total_con_interes
+                else 0
+            ),
+            "vendedor_nombre": (
+                venta.vendedor.get_full_name()
+                if venta.vendedor and venta.vendedor.get_full_name()
+                else (venta.vendedor.username if venta.vendedor else "Sistema")
+            ),
+            "detalles": [],
         }
 
         # Agregar los detalles de los productos
         for detalle in detalles:
-            datos_venta['detalles'].append({
-                'producto_codigo': detalle.producto.codigo_producto if detalle.producto and hasattr(detalle.producto, 'codigo_producto') else "N/A",
-                'producto_nombre': detalle.producto.nombre_producto if detalle.producto and hasattr(detalle.producto, 'nombre_producto') else "Producto",
-                'producto_descripcion': detalle.producto.descripcion if detalle.producto and hasattr(detalle.producto, 'descripcion') else "",
-                'cantidad': detalle.cantidad,
-                'precio_unitario': float(detalle.precio_unitario),
-                'subtotal': float(detalle.subtotal)
-            })
+            datos_venta["detalles"].append(
+                {
+                    "producto_codigo": (
+                        detalle.producto.codigo_producto
+                        if detalle.producto
+                        and hasattr(detalle.producto, "codigo_producto")
+                        else "N/A"
+                    ),
+                    "producto_nombre": (
+                        detalle.producto.nombre_producto
+                        if detalle.producto
+                        and hasattr(detalle.producto, "nombre_producto")
+                        else "Producto"
+                    ),
+                    "producto_descripcion": (
+                        detalle.producto.descripcion
+                        if detalle.producto and hasattr(detalle.producto, "descripcion")
+                        else ""
+                    ),
+                    "cantidad": detalle.cantidad,
+                    "precio_unitario": float(detalle.precio_unitario),
+                    "subtotal": float(detalle.subtotal),
+                }
+            )
 
         return JsonResponse(datos_venta)
 
     except Venta.DoesNotExist:
-        return JsonResponse({'error': 'Factura no encontrada'}, status=404)
+        return JsonResponse({"error": "Factura no encontrada"}, status=404)
     except Exception as e:
         # Log the error for debugging
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error en buscar_facturaR: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
 
-        return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+        return JsonResponse(
+            {"error": f"Error interno del servidor: {str(e)}"}, status=500
+        )
 
 
 def ultima_factura(request):
     # Esta vista devuelve la última factura según el tipo (crédito/contado)
-    tipo_venta = request.GET.get('tipo_venta')
+    tipo_venta = request.GET.get("tipo_venta")
 
-    if not tipo_venta or tipo_venta not in ['contado', 'credito']:
-        return JsonResponse({'error': 'Tipo de venta no válido'}, status=400)
+    if not tipo_venta or tipo_venta not in ["contado", "credito"]:
+        return JsonResponse({"error": "Tipo de venta no válido"}, status=400)
 
     try:
         # Buscar la última venta del tipo especificado
-        ultima_venta = Venta.objects.filter(
-            tipo_venta=tipo_venta,
-            anulada=False
-        ).order_by('-fecha_venta').first()
+        ultima_venta = (
+            Venta.objects.filter(tipo_venta=tipo_venta, anulada=False)
+            .order_by("-fecha_venta")
+            .first()
+        )
 
         if not ultima_venta:
-            return JsonResponse({'error': f'No hay facturas de tipo {tipo_venta}'}, status=404)
+            return JsonResponse(
+                {"error": f"No hay facturas de tipo {tipo_venta}"}, status=404
+            )
 
-        return JsonResponse({
-            'numero_factura': ultima_venta.numero_factura,
-            'fecha': ultima_venta.fecha_venta.strftime('%d/%m/%Y %H:%M'),
-            'tipo_venta': ultima_venta.tipo_venta
-        })
+        return JsonResponse(
+            {
+                "numero_factura": ultima_venta.numero_factura,
+                "fecha": ultima_venta.fecha_venta.strftime("%d/%m/%Y %H:%M"),
+                "tipo_venta": ultima_venta.tipo_venta,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 def buscar_comprobante(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             numero_comprobante = request.POST.get(
-                'numero_comprobante', '').strip()
+                "numero_comprobante", "").strip()
 
             if not numero_comprobante:
-                return JsonResponse({'error': 'Número de comprobante requerido'}, status=400)
+                return JsonResponse(
+                    {"error": "Número de comprobante requerido"}, status=400
+                )
 
             # Buscar el comprobante por número
             comprobante = get_object_or_404(
-                ComprobantePago, numero_comprobante=numero_comprobante)
+                ComprobantePago, numero_comprobante=numero_comprobante
+            )
 
             # Verificar si el comprobante ya está anulado
-            if hasattr(comprobante, 'anulado') and comprobante.anulado:
-                return JsonResponse({'error': 'Este comprobante ya ha sido anulado'}, status=400)
+            if hasattr(comprobante, "anulado") and comprobante.anulado:
+                return JsonResponse(
+                    {"error": "Este comprobante ya ha sido anulado"}, status=400
+                )
 
             # Verificar si el pago asociado está anulado
-            if hasattr(comprobante.pago, 'anulado') and comprobante.pago.anulado:
-                return JsonResponse({'error': 'El pago asociado a este comprobante ha sido anulado'}, status=400)
+            if hasattr(comprobante.pago, "anulado") and comprobante.pago.anulado:
+                return JsonResponse(
+                    {"error": "El pago asociado a este comprobante ha sido anulado"},
+                    status=400,
+                )
 
             # Verificar si la cuenta por cobrar está anulada
-            if hasattr(comprobante, 'cuenta') and comprobante.cuenta and comprobante.cuenta.anulada:
-                return JsonResponse({'error': 'La cuenta por cobrar asociada ha sido anulada'}, status=400)
+            if (
+                hasattr(comprobante, "cuenta")
+                and comprobante.cuenta
+                and comprobante.cuenta.anulada
+            ):
+                return JsonResponse(
+                    {"error": "La cuenta por cobrar asociada ha sido anulada"},
+                    status=400,
+                )
 
             # Obtener información del pago asociado
             pago = comprobante.pago
             cuenta = comprobante.cuenta
 
             if not cuenta:
-                return JsonResponse({'error': 'No se encontró la cuenta asociada'}, status=400)
+                return JsonResponse(
+                    {"error": "No se encontró la cuenta asociada"}, status=400
+                )
 
             # Calcular el saldo antes del pago
             saldo_antes_pago = cuenta.saldo_pendiente + pago.monto
@@ -5937,37 +6518,65 @@ def buscar_comprobante(request):
 
             # Preparar los datos del comprobante para la respuesta JSON
             datos_comprobante = {
-                'numero_comprobante': comprobante.numero_comprobante,
-                'fecha_emision': comprobante.fecha_emision.strftime('%Y-%m-%d %H:%M:%S'),
-                'tipo_comprobante': comprobante.tipo_comprobante,
-                'tipo_comprobante_display': comprobante.get_tipo_comprobante_display(),
-                'cliente_nombre': comprobante.cliente.nombres if hasattr(comprobante.cliente, 'nombres') else "Cliente",
-                'cliente_documento': comprobante.cliente.cedula if hasattr(comprobante.cliente, 'cedula') else "N/A",
-                'cliente_telefono': comprobante.cliente.telefono if hasattr(comprobante.cliente, 'telefono') else None,
-                'cliente_direccion': comprobante.cliente.direccion if hasattr(comprobante.cliente, 'direccion') else None,
-                'monto_pago': float(pago.monto),
-                'fecha_pago': pago.fecha_pago.strftime('%Y-%m-%d %H:%M:%S'),
-                'metodo_pago': pago.metodo_pago,
-                'metodo_pago_display': pago.get_metodo_pago_display(),
-                'numero_factura': cuenta.venta.numero_factura if cuenta.venta else "N/A",
-                'monto_original': float(cuenta.monto_total_con_interes) if cuenta.monto_total_con_interes else 0,
-                'saldo_antes_pago': float(saldo_antes_pago),
-                'saldo_despues_pago': float(saldo_despues_pago),
-                'descripcion': pago.observaciones or f"Pago de cuota - {comprobante.numero_comprobante}",
-                'estado': 'activo'
+                "numero_comprobante": comprobante.numero_comprobante,
+                "fecha_emision": comprobante.fecha_emision.strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+                "tipo_comprobante": comprobante.tipo_comprobante,
+                "tipo_comprobante_display": comprobante.get_tipo_comprobante_display(),
+                "cliente_nombre": (
+                    comprobante.cliente.nombres
+                    if hasattr(comprobante.cliente, "nombres")
+                    else "Cliente"
+                ),
+                "cliente_documento": (
+                    comprobante.cliente.cedula
+                    if hasattr(comprobante.cliente, "cedula")
+                    else "N/A"
+                ),
+                "cliente_telefono": (
+                    comprobante.cliente.telefono
+                    if hasattr(comprobante.cliente, "telefono")
+                    else None
+                ),
+                "cliente_direccion": (
+                    comprobante.cliente.direccion
+                    if hasattr(comprobante.cliente, "direccion")
+                    else None
+                ),
+                "monto_pago": float(pago.monto),
+                "fecha_pago": pago.fecha_pago.strftime("%Y-%m-%d %H:%M:%S"),
+                "metodo_pago": pago.metodo_pago,
+                "metodo_pago_display": pago.get_metodo_pago_display(),
+                "numero_factura": (
+                    cuenta.venta.numero_factura if cuenta.venta else "N/A"
+                ),
+                "monto_original": (
+                    float(cuenta.monto_total_con_interes)
+                    if cuenta.monto_total_con_interes
+                    else 0
+                ),
+                "saldo_antes_pago": float(saldo_antes_pago),
+                "saldo_despues_pago": float(saldo_despues_pago),
+                "descripcion": pago.observaciones
+                or f"Pago de cuota - {comprobante.numero_comprobante}",
+                "estado": "activo",
             }
 
             return JsonResponse(datos_comprobante)
 
         except ComprobantePago.DoesNotExist:
-            return JsonResponse({'error': 'Comprobante no encontrado'}, status=404)
+            return JsonResponse({"error": "Comprobante no encontrado"}, status=404)
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Error en buscar_comprobante: {str(e)}")
-            return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+            return JsonResponse(
+                {"error": f"Error interno del servidor: {str(e)}"}, status=500
+            )
 
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
 @transaction.atomic
@@ -5979,23 +6588,24 @@ def anular_comprobante_action(request):
     3. Revierte cambios en la cuenta por cobrar
     4. Anula cuotas afectadas
     """
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
 
     try:
-        numero_comprobante = request.POST.get('numero_comprobante')
-        motivo = request.POST.get('motivo')
+        numero_comprobante = request.POST.get("numero_comprobante")
+        motivo = request.POST.get("motivo")
 
         if not numero_comprobante or not motivo:
-            return JsonResponse({'error': 'Datos incompletos'}, status=400)
+            return JsonResponse({"error": "Datos incompletos"}, status=400)
 
         # Buscar el comprobante
         comprobante = get_object_or_404(
-            ComprobantePago, numero_comprobante=numero_comprobante)
+            ComprobantePago, numero_comprobante=numero_comprobante
+        )
 
         # Verificar si ya está anulado
-        if hasattr(comprobante, 'anulado') and comprobante.anulado:
-            return JsonResponse({'error': 'El comprobante ya está anulado'}, status=400)
+        if hasattr(comprobante, "anulado") and comprobante.anulado:
+            return JsonResponse({"error": "El comprobante ya está anulado"}, status=400)
 
         # Obtener el pago asociado
         pago = comprobante.pago
@@ -6003,7 +6613,7 @@ def anular_comprobante_action(request):
 
         # Verificar que el pago no esté anulado
         if pago.anulado:
-            return JsonResponse({'error': 'El pago ya está anulado'}, status=400)
+            return JsonResponse({"error": "El pago ya está anulado"}, status=400)
 
         # ── PASO 1: Revertir el pago en la cuenta por cobrar ──────────────────────
         cuenta.monto_pagado -= pago.monto
@@ -6014,11 +6624,11 @@ def anular_comprobante_action(request):
 
         # Actualizar el estado de la cuenta según el nuevo saldo pendiente
         if nuevo_saldo_pendiente <= 0:
-            cuenta.estado = 'pagada'
+            cuenta.estado = "pagada"
         elif cuenta.monto_pagado > 0:
-            cuenta.estado = 'parcial'
+            cuenta.estado = "parcial"
         else:
-            cuenta.estado = 'pendiente'
+            cuenta.estado = "pendiente"
 
         cuenta.save()
         # ── FIN PASO 1 ──────────────────────────────────────────────────────────
@@ -6034,16 +6644,14 @@ def anular_comprobante_action(request):
         # ── PASO 3: Crear MovimientoFinanciero REVERSO ────────────────────────────
         try:
             movimiento_original = MovimientoFinanciero.objects.filter(
-                pago_cxc=pago,
-                origen='PAGO_CXC',
-                tipo='INGRESO'
+                pago_cxc=pago, origen="PAGO_CXC", tipo="INGRESO"
             ).first()
 
             if movimiento_original:
                 MovimientoFinanciero.objects.create(
-                    tipo='EGRESO',
-                    origen='ANULACION',
-                    estado='ACTIVO',
+                    tipo="EGRESO",
+                    origen="ANULACION",
+                    estado="ACTIVO",
                     monto=movimiento_original.monto,
                     fecha_operacion=timezone.now(),
                     factura=cuenta.venta,
@@ -6056,28 +6664,36 @@ def anular_comprobante_action(request):
                     referencia=f"ANUL-COMP-{pago.id}",
                     creado_por=request.user,
                 )
-                print(f"MovimientoFinanciero REVERSO creado para anulación de comprobante: RD${movimiento_original.monto:,.2f}")
+                print(
+                    f"MovimientoFinanciero REVERSO creado para anulación de comprobante: RD${movimiento_original.monto:,.2f}"
+                )
         except Exception as e:
-            print(f"Advertencia: Error al crear MovimientoFinanciero reverso de comprobante: {str(e)}")
+            print(
+                f"Advertencia: Error al crear MovimientoFinanciero reverso de comprobante: {str(e)}"
+            )
         # ── FIN PASO 3 ──────────────────────────────────────────────────────────
 
         # ── PASO 4: Anular cuotas relacionadas ────────────────────────────────────
         try:
             # Revertir cuotas que fueron pagadas con este pago
             # Nota: simplificar a "reabrir" si es parcial o volver a pendiente
-            cuotas = Cuota.objects.filter(venta=cuenta.venta, estado__in=['pagada', 'parcial'])
+            cuotas = Cuota.objects.filter(
+                venta=cuenta.venta, estado__in=["pagada", "parcial"]
+            )
             for cuota in cuotas:
-                cuota.estado = 'pendiente'
+                cuota.estado = "pendiente"
                 cuota.fecha_pago_completo = None
                 cuota.monto_pendiente = cuota.monto_original
-            Cuota.objects.bulk_update(cuotas, ['estado', 'fecha_pago_completo', 'monto_pendiente'])
+            Cuota.objects.bulk_update(
+                cuotas, ["estado", "fecha_pago_completo", "monto_pendiente"]
+            )
             print(f"Cuotas revertidas para comprobante {numero_comprobante}")
         except Exception as e:
             print(f"Advertencia: Error al revertir cuotas: {str(e)}")
         # ── FIN PASO 4 ──────────────────────────────────────────────────────────
 
         # ── PASO 5: Marcar el comprobante como anulado ───────────────────────────
-        if hasattr(comprobante, 'anulado'):
+        if hasattr(comprobante, "anulado"):
             comprobante.anulado = True
             comprobante.fecha_anulacion = timezone.now()
             comprobante.motivo_anulacion = motivo
@@ -6085,40 +6701,53 @@ def anular_comprobante_action(request):
             comprobante.save()
         # ── FIN PASO 5 ──────────────────────────────────────────────────────────
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Comprobante anulado exitosamente',
-            'numero_comprobante': comprobante.numero_comprobante
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Comprobante anulado exitosamente",
+                "numero_comprobante": comprobante.numero_comprobante,
+            }
+        )
 
     except ComprobantePago.DoesNotExist:
-        return JsonResponse({'error': 'Comprobante no encontrado'}, status=404)
+        return JsonResponse({"error": "Comprobante no encontrado"}, status=404)
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error en anular_comprobante_action: {str(e)}")
-        return JsonResponse({'error': f'Error al anular el comprobante: {str(e)}'}, status=500)
+        return JsonResponse(
+            {"error": f"Error al anular el comprobante: {str(e)}"}, status=500
+        )
 
 
 def ultimo_comprobante(request):
     # Esta vista devuelve el último comprobante emitido
     try:
         # Buscar el último comprobante
-        ultimo_comprobante = ComprobantePago.objects.filter(
-            anulado=False  # Asumiendo que agregas este campo
-        ).order_by('-fecha_emision').first()
+        ultimo_comprobante = (
+            ComprobantePago.objects.filter(
+                anulado=False  # Asumiendo que agregas este campo
+            )
+            .order_by("-fecha_emision")
+            .first()
+        )
 
         if not ultimo_comprobante:
-            return JsonResponse({'error': 'No hay comprobantes registrados'}, status=404)
+            return JsonResponse(
+                {"error": "No hay comprobantes registrados"}, status=404
+            )
 
-        return JsonResponse({
-            'numero_comprobante': ultimo_comprobante.numero_comprobante,
-            'fecha': ultimo_comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M'),
-            'tipo_comprobante': ultimo_comprobante.tipo_comprobante
-        })
+        return JsonResponse(
+            {
+                "numero_comprobante": ultimo_comprobante.numero_comprobante,
+                "fecha": ultimo_comprobante.fecha_emision.strftime("%d/%m/%Y %H:%M"),
+                "tipo_comprobante": ultimo_comprobante.tipo_comprobante,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 def cuentasAtrasada(request):
@@ -6131,15 +6760,14 @@ def cuentasAtrasada(request):
     try:
         # Obtener todas las cuotas pendientes/parciales que están vencidas
         cuotas_atrasadas_qs = (
-            Cuota.objects
-            .filter(
-                estado__in=['pendiente', 'parcial'],
+            Cuota.objects.filter(
+                estado__in=["pendiente", "parcial"],
                 fecha_vencimiento__lt=hoy,
                 venta__cuenta_por_cobrar__anulada=False,
                 venta__cuenta_por_cobrar__eliminada=False,
             )
-            .select_related('venta', 'cliente')
-            .order_by('fecha_vencimiento')  # Más antiguas primero
+            .select_related("venta", "cliente")
+            .order_by("fecha_vencimiento")  # Más antiguas primero
         )
 
         overdue_data = []
@@ -6149,77 +6777,78 @@ def cuentasAtrasada(request):
             venta = cuota.venta
             cliente = cuota.cliente or venta.cliente if venta else None
             cuenta = venta.cuenta_por_cobrar if venta else None
-            
+
             if not venta or not cliente or not cuenta:
                 continue
 
             # Datos de la cuota
             nombre_cliente = cliente.full_name
-            telefono_cliente = cliente.primary_phone or 'No disponible'
+            telefono_cliente = cliente.primary_phone or "No disponible"
             numero_factura = venta.numero_factura
             fecha_vencimiento_cuota = cuota.fecha_vencimiento
-            
+
             # Días de atraso de esta cuota específica
             dias_atraso = (hoy - fecha_vencimiento_cuota).days
-            
+
             # Determinar estado de contacto desde la cuenta
-            contact_status = 'no_contacted'
-            if hasattr(cuenta, 'contact_status'):
+            contact_status = "no_contacted"
+            if hasattr(cuenta, "contact_status"):
                 contact_status = cuenta.contact_status
 
             # Dato del monto: usar el monto_pendiente de la cuota específica
-            monto_atrasado = float(cuota.monto_pendiente or cuota.monto_original)
+            monto_atrasado = float(
+                cuota.monto_pendiente or cuota.monto_original)
             monto_original_cuota = float(cuota.monto_original)
-            
+
             # Información adicional de la venta
             fecha_factura = venta.fecha_venta.date() if venta.fecha_venta else hoy
             monto_total_venta = Decimal(cuenta.monto_total or 0)
-            
+
             # Contar cuotas de esta venta para contexto
             total_cuotas_venta = cuota.venta.cuotas.count()
-            cuotas_pagadas_venta = cuota.venta.cuotas.filter(estado='pagada').count()
+            cuotas_pagadas_venta = cuota.venta.cuotas.filter(
+                estado="pagada").count()
             cuotas_atrasadas_venta = cuota.venta.cuotas.filter(
-                estado__in=['pendiente', 'parcial'],
-                fecha_vencimiento__lt=hoy
+                estado__in=["pendiente", "parcial"], fecha_vencimiento__lt=hoy
             ).count()
 
             cuota_data = {
-                'id': cuenta.id,  # ID de la cuenta (para tracking)
-                'cuotaId': cuota.id,  # ID de la cuota específica
-                'numeroCuota': cuota.numero_cuota,
-                'clientName': nombre_cliente,
-                'clientPhone': telefono_cliente,
-                'invoiceNumber': numero_factura,
-                'dueDate': fecha_vencimiento_cuota.strftime('%Y-%m-%d'),
-                'originalAmount': float(monto_total_venta),  # Monto total de la venta
-                'overdueAmount': monto_atrasado,  # Monto pendiente de ESTA cuota
-                'montoCuota': monto_original_cuota,  # Monto original de la cuota
-                'daysOverdue': dias_atraso,
-                'status': 'vencida',
-                'contactStatus': contact_status,
-                'saleDate': fecha_factura.strftime('%Y-%m-%d'),
-                'totalCuotas': total_cuotas_venta,
-                'cuotasPagadas': cuotas_pagadas_venta,
-                'overdueInstallments': cuotas_atrasadas_venta,
-                'montoPorCuota': monto_original_cuota,
+                "id": cuenta.id,  # ID de la cuenta (para tracking)
+                "cuotaId": cuota.id,  # ID de la cuota específica
+                "numeroCuota": cuota.numero_cuota,
+                "clientName": nombre_cliente,
+                "clientPhone": telefono_cliente,
+                "invoiceNumber": numero_factura,
+                "dueDate": fecha_vencimiento_cuota.strftime("%Y-%m-%d"),
+                # Monto total de la venta
+                "originalAmount": float(monto_total_venta),
+                "overdueAmount": monto_atrasado,  # Monto pendiente de ESTA cuota
+                "montoCuota": monto_original_cuota,  # Monto original de la cuota
+                "daysOverdue": dias_atraso,
+                "status": "vencida",
+                "contactStatus": contact_status,
+                "saleDate": fecha_factura.strftime("%Y-%m-%d"),
+                "totalCuotas": total_cuotas_venta,
+                "cuotasPagadas": cuotas_pagadas_venta,
+                "overdueInstallments": cuotas_atrasadas_venta,
+                "montoPorCuota": monto_original_cuota,
             }
 
             overdue_data.append(cuota_data)
 
         # Ordenar por días de atraso (mayor primero) y por fecha (más antiguas primero)
-        overdue_data.sort(key=lambda x: (-x['daysOverdue'], x['dueDate']))
+        overdue_data.sort(key=lambda x: (-x["daysOverdue"], x["dueDate"]))
 
     except Exception as e:
         print(f"Error al obtener cuotas atrasadas: {e}")
         import traceback
+
         traceback.print_exc()
         overdue_data = []
 
-    context = {
-        'overdue_data_json': overdue_data
-    }
+    context = {"overdue_data_json": overdue_data}
 
-    return render(request, 'facturacion/cuentasAtrasada.html', context)
+    return render(request, "facturacion/cuentasAtrasada.html", context)
 
 
 @login_required
@@ -6227,14 +6856,16 @@ def cuentasAtrasada(request):
 @require_POST
 def generar_pdf_cuotas_atrasadas(request):
     try:
-        payload = json.loads(request.body or '{}')
-        items = payload.get('items', [])
-        resumen = payload.get('summary', {})
-        usuario_reporte = getattr(request.user, 'username', 'N/A')
+        payload = json.loads(request.body or "{}")
+        items = payload.get("items", [])
+        resumen = payload.get("summary", {})
+        usuario_reporte = getattr(request.user, "username", "N/A")
 
-        response = HttpResponse(content_type='application/pdf')
-        filename = f"reporte_cuotas_atrasadas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response = HttpResponse(content_type="application/pdf")
+        filename = (
+            f"reporte_cuotas_atrasadas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
         p = canvas.Canvas(response, pagesize=letter)
         width, height = letter
@@ -6261,14 +6892,15 @@ def generar_pdf_cuotas_atrasadas(request):
 
             p.setFont("Helvetica", 9)
             p.setFillColorRGB(0.35, 0.35, 0.35)
-            p.drawCentredString(width / 2, y - 27, f"Realizado por: {usuario_reporte}")
+            p.drawCentredString(width / 2, y - 27,
+                                f"Realizado por: {usuario_reporte}")
 
             p.setFont("Helvetica", 9)
             p.setFillColorRGB(0.35, 0.35, 0.35)
             p.drawCentredString(
                 width / 2,
                 y - 40,
-                f"Generado el {datetime.now().strftime('%d/%m/%Y %I:%M %p')}"
+                f"Generado el {datetime.now().strftime('%d/%m/%Y %I:%M %p')}",
             )
 
             y_line = y - 47
@@ -6286,16 +6918,34 @@ def generar_pdf_cuotas_atrasadas(request):
 
             p.setFillColorRGB(0.15, 0.15, 0.15)
             p.setFont("Helvetica-Bold", 10)
-            p.drawString(left + 10, y - 16, f"Cuotas con atraso de 15+ dias: {resumen.get('overdueCount', 0)}")
-            p.drawString(left + 295, y - 16, f"Cuotas en alerta (5 a 14 dias): {resumen.get('alertCount', 0)}")
-            p.drawString(left + 10, y - 34, f"Clientes contactados: {resumen.get('contactedCount', 0)}")
-            p.drawString(left + 295, y - 34, f"Monto total atrasado: {money(resumen.get('totalAmount', 0))}")
+            p.drawString(
+                left + 10,
+                y - 16,
+                f"Cuotas con atraso de 15+ dias: {resumen.get('overdueCount', 0)}",
+            )
+            p.drawString(
+                left + 295,
+                y - 16,
+                f"Cuotas en alerta (5 a 14 dias): {resumen.get('alertCount', 0)}",
+            )
+            p.drawString(
+                left + 10,
+                y - 34,
+                f"Clientes contactados: {resumen.get('contactedCount', 0)}",
+            )
+            p.drawString(
+                left + 295,
+                y - 34,
+                f"Monto total atrasado: {money(resumen.get('totalAmount', 0))}",
+            )
 
             p.setFont("Helvetica", 8)
             p.setFillColorRGB(0.35, 0.35, 0.35)
-            p.drawString(left + 10, y - 50, "Leyenda: 15+ dias = vencido | 5 a 14 dias = alerta")
+            p.drawString(
+                left + 10, y - 50, "Leyenda: 15+ dias = vencido | 5 a 14 dias = alerta"
+            )
 
-            y -= (box_h + 14)
+            y -= box_h + 14
 
         def draw_table_header():
             nonlocal y
@@ -6338,13 +6988,17 @@ def generar_pdf_cuotas_atrasadas(request):
                 p.setFillColorRGB(0.99, 0.99, 0.99)
                 p.rect(left, y - 54, right - left, 56, fill=1, stroke=0)
 
-            client_name = str(item.get('clientName') or 'N/A')[:34]
-            invoice_number = str(item.get('invoiceNumber') or 'N/A')[:16]
-            client_phone = str(item.get('clientPhone') or 'N/A')[:16]
-            overdue_amount = item.get('overdueAmount', 0)
-            days_overdue = int(item.get('daysOverdue', 0) or 0)
-            contact_status = str(item.get('contactStatus') or 'no_contacted')
-            status_text = 'Contactado' if contact_status == 'contacted' else ('Vencido' if days_overdue > 14 else 'Alerta')
+            client_name = str(item.get("clientName") or "N/A")[:34]
+            invoice_number = str(item.get("invoiceNumber") or "N/A")[:16]
+            client_phone = str(item.get("clientPhone") or "N/A")[:16]
+            overdue_amount = item.get("overdueAmount", 0)
+            days_overdue = int(item.get("daysOverdue", 0) or 0)
+            contact_status = str(item.get("contactStatus") or "no_contacted")
+            status_text = (
+                "Contactado"
+                if contact_status == "contacted"
+                else ("Vencido" if days_overdue > 14 else "Alerta")
+            )
 
             p.setFillColorRGB(0.12, 0.12, 0.12)
             p.setFont("Helvetica", 8)
@@ -6359,10 +7013,10 @@ def generar_pdf_cuotas_atrasadas(request):
 
             y -= 14
 
-            total_cuotas = int(item.get('totalCuotas', 0) or 0)
-            cuotas_atrasadas = int(item.get('overdueInstallments', 0) or 0)
-            cuotas_pagadas = int(item.get('cuotasPagadas', 0) or 0)
-            monto_por_cuota = Decimal(str(item.get('montoPorCuota', 0) or 0))
+            total_cuotas = int(item.get("totalCuotas", 0) or 0)
+            cuotas_atrasadas = int(item.get("overdueInstallments", 0) or 0)
+            cuotas_pagadas = int(item.get("cuotasPagadas", 0) or 0)
+            monto_por_cuota = Decimal(str(item.get("montoPorCuota", 0) or 0))
 
             total_plazo = monto_por_cuota * Decimal(total_cuotas)
             total_atrasadas = monto_por_cuota * Decimal(cuotas_atrasadas)
@@ -6388,7 +7042,9 @@ def generar_pdf_cuotas_atrasadas(request):
         return response
 
     except Exception as e:
-        return HttpResponse(f"Error al generar el reporte de cuotas atrasadas: {str(e)}", status=500)
+        return HttpResponse(
+            f"Error al generar el reporte de cuotas atrasadas: {str(e)}", status=500
+        )
 
 
 def calcular_fecha_cuota(fecha_factura, numero_cuota):
@@ -6420,6 +7076,7 @@ def calcular_fecha_cuota(fecha_factura, numero_cuota):
 # ============================================================
 # HELPER — calcular días de atraso SIN N+1
 # ============================================================
+
 
 def calcular_dias_atraso_bulk(cuotas_prefetchadas):
     """
@@ -6456,7 +7113,7 @@ def calcular_dias_atraso_bulk(cuotas_prefetchadas):
     # Agrupar en memoria por venta — cero queries
     por_venta = defaultdict(list)
     for cuota in cuotas_prefetchadas:
-        if cuota.estado in ('pendiente', 'parcial'):
+        if cuota.estado in ("pendiente", "parcial"):
             por_venta[cuota.venta_id].append(cuota)
 
     resultado = {}
@@ -6477,6 +7134,7 @@ def calcular_dias_atraso_bulk(cuotas_prefetchadas):
 # HELPER — cuotas atrasadas para el reporte PDF
 # ============================================================
 
+
 def get_cuotas_atrasadas():
     """
     Devuelve lista de dicts con las cuentas que tienen atraso real.
@@ -6494,18 +7152,18 @@ def get_cuotas_atrasadas():
 
     # Query 1: cuentas activas con al menos una cuota vencida
     cuentas_con_atraso = (
-        CuentaPorCobrar.objects
-        .filter(
-            estado__in=['pendiente', 'parcial'],
+        CuentaPorCobrar.objects.filter(
+            estado__in=["pendiente", "parcial"],
             anulada=False,
             eliminada=False,
-            venta__cuotas__estado__in=['pendiente', 'parcial'],
+            venta__cuotas__estado__in=["pendiente", "parcial"],
             venta__cuotas__fecha_vencimiento__lt=hoy,
         )
-        .select_related('venta', 'cliente')
-        .prefetch_related('venta__cuotas')  # Query 2: todas las cuotas de golpe
+        .select_related("venta", "cliente")
+        # Query 2: todas las cuotas de golpe
+        .prefetch_related("venta__cuotas")
         .distinct()
-        .order_by('cliente__full_name')
+        .order_by("cliente__full_name")
     )
 
     items = []
@@ -6515,8 +7173,8 @@ def get_cuotas_atrasadas():
         cuotas_venta = list(cuenta.venta.cuotas.all())
 
         cuotas_activas = sorted(
-            [c for c in cuotas_venta if c.estado in ('pendiente', 'parcial')],
-            key=lambda c: c.fecha_vencimiento
+            [c for c in cuotas_venta if c.estado in ("pendiente", "parcial")],
+            key=lambda c: c.fecha_vencimiento,
         )
 
         if not cuotas_activas:
@@ -6533,33 +7191,39 @@ def get_cuotas_atrasadas():
         monto_vencido = sum(
             c.monto_pendiente
             for c in cuotas_venta
-            if c.estado in ('pendiente', 'parcial') and c.fecha_vencimiento < hoy
+            if c.estado in ("pendiente", "parcial") and c.fecha_vencimiento < hoy
         )
 
-        total_cuotas          = len(cuotas_venta)
-        cuotas_pagadas_count  = sum(1 for c in cuotas_venta if c.estado == 'pagada')
+        total_cuotas = len(cuotas_venta)
+        cuotas_pagadas_count = sum(
+            1 for c in cuotas_venta if c.estado == "pagada")
         cuotas_atrasadas_count = sum(
-            1 for c in cuotas_venta
-            if c.estado in ('pendiente', 'parcial') and c.fecha_vencimiento < hoy
+            1
+            for c in cuotas_venta
+            if c.estado in ("pendiente", "parcial") and c.fecha_vencimiento < hoy
         )
 
-        items.append({
-            'id'                      : cuenta.id,
-            'clientName'              : cuenta.cliente.full_name,
-            'clientPhone'             : cuenta.cliente.primary_phone or 'N/A',
-            'invoiceNumber'           : cuenta.venta.numero_factura,
-            'originalAmount'          : float(cuenta.monto_total),
-            'overdueAmount'           : float(monto_vencido),
-            'daysOverdue'             : dias_atraso,
-            'dueDate'                 : cuota_critica.fecha_vencimiento.strftime('%Y-%m-%d'),
-            'totalCuotas'             : total_cuotas,
-            'cuotasPagadas'           : cuotas_pagadas_count,
-            'overdueInstallments'     : cuotas_atrasadas_count,
-            'montoPorCuota'           : float(cuota_critica.monto_original),
-            'fechaVencimientoCritica' : cuota_critica.fecha_vencimiento.strftime('%Y-%m-%d'),
-            # contactStatus lo maneja tu lógica existente de cobranza
-            'contactStatus'           : 'no_contacted',
-        })
+        items.append(
+            {
+                "id": cuenta.id,
+                "clientName": cuenta.cliente.full_name,
+                "clientPhone": cuenta.cliente.primary_phone or "N/A",
+                "invoiceNumber": cuenta.venta.numero_factura,
+                "originalAmount": float(cuenta.monto_total),
+                "overdueAmount": float(monto_vencido),
+                "daysOverdue": dias_atraso,
+                "dueDate": cuota_critica.fecha_vencimiento.strftime("%Y-%m-%d"),
+                "totalCuotas": total_cuotas,
+                "cuotasPagadas": cuotas_pagadas_count,
+                "overdueInstallments": cuotas_atrasadas_count,
+                "montoPorCuota": float(cuota_critica.monto_original),
+                "fechaVencimientoCritica": cuota_critica.fecha_vencimiento.strftime(
+                    "%Y-%m-%d"
+                ),
+                # contactStatus lo maneja tu lógica existente de cobranza
+                "contactStatus": "no_contacted",
+            }
+        )
 
     return items
 
@@ -6599,17 +7263,15 @@ def actualizar_estados_cuentas_atrasadas():
     hoy = date.today()
 
     cuentas = CuentaPorCobrar.objects.filter(
-        Q(estado='pendiente') | Q(estado='parcial'),
-        anulada=False,
-        eliminada=False
+        Q(estado="pendiente") | Q(estado="parcial"), anulada=False, eliminada=False
     )
 
     for cuenta in cuentas:
         # Verificar si la cuenta tiene fecha de vencimiento y está vencida
         if cuenta.fecha_vencimiento and cuenta.fecha_vencimiento < hoy:
             # Marcar como vencida si no está ya marcada
-            if cuenta.estado != 'vencida':
-                cuenta.estado = 'vencida'
+            if cuenta.estado != "vencida":
+                cuenta.estado = "vencida"
                 cuenta.save()
 
     return True
@@ -6619,50 +7281,50 @@ def actualizar_estados_cuentas_atrasadas():
 
 @login_required
 def rebajar_deuda(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             data = json.loads(request.body)
-            cuenta_id = data.get('cuenta_id')
-            monto_rebaja = Decimal(data.get('monto_rebaja'))
-            observaciones = data.get('observaciones', '')
+            cuenta_id = data.get("cuenta_id")
+            monto_rebaja = Decimal(data.get("monto_rebaja"))
+            observaciones = data.get("observaciones", "")
 
             cuenta = get_object_or_404(CuentaPorCobrar, id=cuenta_id)
 
             # Verificar que la cuenta no esté anulada o eliminada
             if cuenta.anulada or cuenta.eliminada:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No se puede rebajar una cuenta anulada o eliminada'
-                })
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "No se puede rebajar una cuenta anulada o eliminada",
+                    }
+                )
 
             # Aplicar la rebaja usando el método del modelo
             rebaja = cuenta.rebajar_deuda(
-                monto_rebaja=monto_rebaja,
-                observaciones=observaciones
+                monto_rebaja=monto_rebaja, observaciones=observaciones
             )
 
             # Calcular el nuevo saldo pendiente
             nuevo_saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
 
-            return JsonResponse({
-                'success': True,
-                'message': f'Rebaja aplicada exitosamente. Nueva deuda total: RD$ {cuenta.monto_total:,.2f}',
-                'nuevo_monto_total': float(cuenta.monto_total),
-                'monto_rebajado': float(monto_rebaja),
-                'nuevo_saldo_pendiente': float(nuevo_saldo_pendiente),
-                'estado_actual': cuenta.estado,
-                'rebaja_id': rebaja.id
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Rebaja aplicada exitosamente. Nueva deuda total: RD$ {cuenta.monto_total:,.2f}",
+                    "nuevo_monto_total": float(cuenta.monto_total),
+                    "monto_rebajado": float(monto_rebaja),
+                    "nuevo_saldo_pendiente": float(nuevo_saldo_pendiente),
+                    "estado_actual": cuenta.estado,
+                    "rebaja_id": rebaja.id,
+                }
+            )
 
         except ValueError as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
+            return JsonResponse({"success": False, "message": str(e)})
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'Error al aplicar rebaja: {str(e)}'
-            })
+            return JsonResponse(
+                {"success": False,
+                    "message": f"Error al aplicar rebaja: {str(e)}"}
+            )
 
-    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+    return JsonResponse({"success": False, "message": "Método no permitido"})
