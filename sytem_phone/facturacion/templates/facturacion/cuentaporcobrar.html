@@ -1270,6 +1270,10 @@
             <span class="detail-value currency" id="detailPaidAmount"></span>
           </div>
           <div class="detail-item">
+            <span class="detail-label">Descuento Aplicado:</span>
+            <span class="detail-value currency" id="detailDiscountApplied" style="color: #ff6b6b; font-weight: bold;"></span>
+          </div>
+          <div class="detail-item">
             <span class="detail-label">Monto Pendiente:</span>
             <span class="detail-value currency" id="detailPendingAmount"></span>
           </div>
@@ -1317,11 +1321,6 @@
           </button>
         </div>
         <div class="modal-body">
-          <div class="payment-info">
-            <i class="bx bx-info-circle"></i>
-            Saldo Pendiente:
-            <span id="paymentModalPendingAmount" class="currency">RD$ 0</span>
-          </div>
           <form id="paymentForm">
             <input type="hidden" id="paymentAccountId" />
             <div class="payment-form-group">
@@ -1407,11 +1406,6 @@
           </button>
         </div>
         <div class="modal-body">
-          <div class="payment-info">
-            <i class="bx bx-info-circle"></i>
-            Saldo Pendiente:
-            <span id="discountModalPendingAmount" class="currency">RD$ 0</span>
-          </div>
           <form id="discountForm">
             <input type="hidden" id="discountAccountId" />
             <div class="payment-form-group">
@@ -2266,6 +2260,12 @@
           `RD$ ${montoTotal.toLocaleString("es-DO")}`;
         document.getElementById("detailPaidAmount").textContent =
           `RD$ ${montoPagado.toLocaleString("es-DO")}`;
+        
+        // Calcular descuento aplicado
+        const descuentoAplicado = montoTotal - (montoPagado + pendingBalance);
+        document.getElementById("detailDiscountApplied").textContent =
+          `RD$ ${descuentoAplicado.toLocaleString("es-DO")}`;
+        
         document.getElementById("detailPendingAmount").textContent =
           `RD$ ${pendingBalance.toLocaleString("es-DO")}`;
 
@@ -2367,9 +2367,6 @@
           return;
         }
 
-        // Mostrar información actualizada en el modal
-        document.getElementById("paymentModalPendingAmount").textContent =
-          `RD$ ${currentPendingBalance.toLocaleString("es-DO")}`;
         document.getElementById("paymentAccountId").value = id;
 
         // Prellenar con la cuota sugerida (en lugar del saldo total pendiente)
@@ -2396,20 +2393,21 @@
         accountInfo.className = "account-info";
         accountInfo.style.cssText =
           "background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;";
+        const descuentoAplicado = parseFloat(account.descuentoAplicado || 0);
         accountInfo.innerHTML = `
         <h5 style="margin: 0 0 10px 0; color: #333;">Información de la Cuenta</h5>
         <p style="margin: 5px 0;"><strong>Cliente:</strong> ${account.clientName}</p>
         <p style="margin: 5px 0;"><strong>Factura:</strong> ${account.invoiceNumber}</p>
         <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${montoTotal.toLocaleString("es-DO")}</p>
         <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${montoPagado.toLocaleString("es-DO")}</p>
+        <p style="margin: 5px 0;"><strong>Descuento Aplicado:</strong> <span style="color: #ff6b6b; font-weight: bold;">RD$ ${descuentoAplicado.toLocaleString("es-DO")}</span></p>
         <p style="margin: 5px 0;"><strong>Cuotas Seleccionadas:</strong> ${cuotasSeleccionadas}</p>
         <p style="margin: 5px 0;"><strong>Monto por Cuotas:</strong> RD$ ${montoDefaultPago.toLocaleString("es-DO")}</p>
         <p style="margin: 0;"><strong>Saldo Pendiente:</strong> RD$ ${currentPendingBalance.toLocaleString("es-DO")}</p>
     `;
 
-        // Insertar antes del formulario de pago
-        const paymentInfo = modalBody.querySelector(".payment-info");
-        modalBody.insertBefore(accountInfo, paymentInfo);
+        // Insertar al inicio del modal-body (justo después del título)
+        modalBody.insertBefore(accountInfo, modalBody.firstChild);
 
         document.getElementById("paymentModal").classList.add("active");
         document.body.style.overflow = "hidden";
@@ -2821,9 +2819,6 @@
           return;
         }
 
-        // Mostrar información actualizada en el modal
-        document.getElementById("discountModalPendingAmount").textContent =
-          `RD$ ${saldoFinal.toLocaleString("es-DO")}`;
         document.getElementById("discountAccountId").value = id;
 
         // Resetear el formulario
@@ -2848,19 +2843,19 @@
         accountInfo.className = "account-info";
         accountInfo.style.cssText =
           "background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;";
+        const descuentoAplicado = parseFloat(account.descuentoAplicado || 0);
         accountInfo.innerHTML = `
         <h5 style="margin: 0 0 10px 0; color: #333;">Información de la Cuenta</h5>
         <p style="margin: 5px 0;"><strong>Cliente:</strong> ${account.clientName}</p>
         <p style="margin: 5px 0;"><strong>Factura:</strong> ${account.invoiceNumber}</p>
         <p style="margin: 5px 0;"><strong>Monto Total Original:</strong> RD$ ${montoTotal.toLocaleString("es-DO")}</p>
         <p style="margin: 5px 0;"><strong>Monto Ya Pagado:</strong> RD$ ${montoPagado.toLocaleString("es-DO")}</p>
-        <p style="margin: 5px 0;"><strong>Saldo Pendiente:</strong> <span style="font-weight: bold; color: #28a745;">RD$ ${saldoFinal.toLocaleString("es-DO")}</span></p>
-
+        <p style="margin: 0;"><strong>Descuento Aplicado:</strong> <span style="color: #ff6b6b; font-weight: bold;">RD$ ${descuentoAplicado.toLocaleString("es-DO")}</span></p>
+        <p style="margin: 0;"><strong>Saldo Pendiente:</strong> <span style="font-weight: bold; color: #28a745;">RD$ ${saldoFinal.toLocaleString("es-DO")}</span></p>
     `;
 
-        // Insertar antes del formulario de descuento
-        const discountInfo = modalBody.querySelector(".payment-info");
-        modalBody.insertBefore(accountInfo, discountInfo);
+        // Insertar al inicio del modal-body (justo después del título)
+        modalBody.insertBefore(accountInfo, modalBody.firstChild);
 
         document.getElementById("discountModal").classList.add("active");
         document.body.style.overflow = "hidden";

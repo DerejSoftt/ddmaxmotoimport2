@@ -3746,6 +3746,18 @@ def cuentaporcobrar(request):
             else 0.0
         )
 
+        # Obtener descuento aplicado desde MovimientoFinanciero (ajustes/rebajas)
+        descuento_total = Decimal("0.00")
+        if cuenta.venta:
+            ajustes_qs = MovimientoFinanciero.objects.filter(
+                factura=cuenta.venta,
+                origen='AJUSTE',
+                tipo='EGRESO',
+                estado='ACTIVO'
+            )
+            for ajuste in ajustes_qs:
+                descuento_total += ajuste.monto
+
         cuentas_data.append(
             {
                 "id": cuenta.id,
@@ -3773,6 +3785,7 @@ def cuentaporcobrar(request):
                 "observations": cuenta.observaciones or "",
                 "puede_eliminar": puede_eliminar,
                 "fechaVencimientoCritica": fecha_vencimiento_critica,
+                "descuentoAplicado": float(descuento_total),
             }
         )
 
@@ -4038,7 +4051,10 @@ def aplicar_descuento(request):
         if cuenta.estado == 'pagada':
             return JsonResponse({'success': False, 'message': 'No se puede aplicar descuento a una cuenta completamente pagada'})
 
-        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
+        # Usar funciones para obtener saldos reales (considerando rebajas previas)
+        monto_total_real = _get_effective_total_amount(cuenta)
+        monto_pagado_real = _get_effective_paid_amount(cuenta)
+        saldo_pendiente = monto_total_real - monto_pagado_real
 
         if saldo_pendiente <= 0:
             return JsonResponse({
@@ -4076,16 +4092,21 @@ def aplicar_descuento(request):
             fecha_pago=timezone.now(),
         )
 
-        saldo_anterior = saldo_pendiente
-        cuenta.monto_pagado = cuenta.monto_pagado + monto_descuento
-        nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+        # Calcular saldos correctamente
+        saldo_anterior = saldo_pendiente  # Saldo ANTES del descuento
+        nuevo_saldo = saldo_pendiente - monto_descuento  # Saldo DESPUÉS del descuento
 
         if nuevo_saldo < 0:
             nuevo_saldo = Decimal('0')
-            cuenta.monto_pagado = cuenta.monto_total
+            monto_descuento = saldo_pendiente  # Ajustar el descuento al saldo pendiente
+
+        # Actualizar cuenta SOLO en DB (no en memoria)
+        cuenta.monto_pagado = monto_pagado_real + monto_descuento
 
         if nuevo_saldo <= 0:
             cuenta.estado = 'pagada'
+            # Asegurar que monto_pagado = monto_total
+            cuenta.monto_pagado = monto_total_real
         elif cuenta.monto_pagado > 0:
             cuenta.estado = 'parcial'
         else:
