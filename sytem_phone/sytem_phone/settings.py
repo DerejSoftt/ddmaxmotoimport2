@@ -28,15 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # SECRET_KEY = 'django-insecure-xf0=u@=4-_d7kd4xsv+p6&9cmc#&7oiv$v2$cogh#eg$@*ui_h'
-
-# SECRET_KEY = os.environ.get('SECRET_KEY')
-
 SECRET_KEY = os.environ.get('SECRET_KEY')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = True
-# ALLOWED_HOSTS = ['*']
-
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
@@ -91,44 +83,7 @@ WSGI_APPLICATION = 'sytem_phone.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.mysql",
-#         "NAME": "ddmaxmotoimportdb",
-#         "USER": "root",
-#         "PASSWORD": "",
-#         "HOST": "localhost",
-#         "PORT": "3306",
-#         "OPTIONS": {
-#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-#         }
-#     }
-# }
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.mysql",
-#         "NAME": "ddmaxmotoimport",
-#         "USER": "root",
-#         "PASSWORD": "",
-#         "HOST": "localhost",
-#         "PORT": "3306",
-#         "OPTIONS": {
-#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-#         }
-#     }
-# }
-
-
-
-
-
-
-
 #  BASE DE DATS DE PRODUCCION
-
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -168,7 +123,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'es-do'  # Configuración regional para República Dominicana
 # En settings.py
-TIME_ZONE = 'America/Santo_Domingo'  # Zona horaria de República Dominicana
+TIME_ZONE = 'UTC'  # Zona horaria de República Dominicana
 USE_TZ = True  # Usar zonas horarias
 USE_I18N = True
 USE_L10N = True
