@@ -15,6 +15,7 @@ from .models import (
     ComprobantePago,
     RebajaDeuda,
     # NUEVOS MODELOS
+    Devolucion,
     Cuota,
     DetalleDevolucion,
     MovimientoFinanciero,
@@ -5826,7 +5827,6 @@ def buscar_factura_devolucion(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 @transaction.atomic
-@transaction.atomic
 def procesar_devolucion(request):
     """
     Procesa una devolución completa:
@@ -7152,9 +7152,9 @@ def generar_pdf_cuotas_atrasadas(request):
         def draw_summary_box():
             nonlocal y
             box_h = 66
-            p.setFillColorRGB(0.97, 0.97, 0.97)
+            # SIN FONDO - solo línea de borde
             p.setStrokeColorRGB(0.9, 0.9, 0.9)
-            p.rect(left, y - box_h, right - left, box_h, fill=1, stroke=1)
+            p.rect(left, y - box_h, right - left, box_h, fill=0, stroke=1)
 
             p.setFillColorRGB(0.15, 0.15, 0.15)
             p.setFont("Helvetica-Bold", 10)
@@ -7176,7 +7176,7 @@ def generar_pdf_cuotas_atrasadas(request):
             p.drawString(
                 left + 295,
                 y - 34,
-                f"Monto total atrasado: {money(resumen.get('totalAmount', 0))}",
+                f"Total de registros: {len(items)}",
             )
 
             p.setFont("Helvetica", 8)
@@ -7196,10 +7196,11 @@ def generar_pdf_cuotas_atrasadas(request):
             p.setFont("Helvetica-Bold", 8)
             p.drawString(left + 6, y - 11, "Cliente")
             p.drawString(left + 170, y - 11, "Factura")
-            p.drawString(left + 260, y - 11, "Tel.")
-            p.drawString(left + 342, y - 11, "Monto atrasado")
-            p.drawString(left + 435, y - 11, "Dias")
-            p.drawString(left + 468, y - 11, "Estado")
+            p.drawString(left + 240, y - 11, "Fecha")
+            p.drawString(left + 310, y - 11, "Tel.")
+            p.drawString(left + 385, y - 11, "Monto atrasado")
+            p.drawString(left + 465, y - 11, "Dias")
+            p.drawString(left + 495, y - 11, "Estado")
             y -= 23
 
         draw_header()
@@ -7215,7 +7216,18 @@ def generar_pdf_cuotas_atrasadas(request):
 
         draw_table_header()
 
-        for index, item in enumerate(items):
+        # Agrupar items por factura para evitar repetir detalles de cuotas
+        from collections import defaultdict
+        facturas_agrupadas = defaultdict(list)
+        for item in items:
+            invoice_number = item.get("invoiceNumber", "N/A")
+            facturas_agrupadas[invoice_number].append(item)
+
+        # Procesar cada grupo de factura
+        for invoice_number, items_factura in facturas_agrupadas.items():
+            # Tomar el primer item como referencia (todos del mismo grupo tienen datos comunes)
+            item_ref = items_factura[0]
+
             # Cada bloque consume aprox 64 puntos (fila + 3 lineas + separador)
             if y < 130:
                 p.showPage()
@@ -7223,17 +7235,15 @@ def generar_pdf_cuotas_atrasadas(request):
                 draw_header()
                 draw_table_header()
 
-            # Fondo alternado para separar visualmente cada cuenta
-            if index % 2 == 0:
-                p.setFillColorRGB(0.99, 0.99, 0.99)
-                p.rect(left, y - 54, right - left, 56, fill=1, stroke=0)
-
-            client_name = str(item.get("clientName") or "N/A")[:34]
-            invoice_number = str(item.get("invoiceNumber") or "N/A")[:16]
-            client_phone = str(item.get("clientPhone") or "N/A")[:16]
-            overdue_amount = item.get("overdueAmount", 0)
-            days_overdue = int(item.get("daysOverdue", 0) or 0)
-            contact_status = str(item.get("contactStatus") or "no_contacted")
+            # SIN FONDO ALTERNADO
+            client_name = str(item_ref.get("clientName") or "N/A")[:34]
+            invoice_number = str(item_ref.get("invoiceNumber") or "N/A")[:16]
+            invoice_date = str(item_ref.get("saleDate") or "N/A")[:10]
+            client_phone = str(item_ref.get("clientPhone") or "N/A")[:14]
+            overdue_amount = item_ref.get("overdueAmount", 0)
+            days_overdue = int(item_ref.get("daysOverdue", 0) or 0)
+            contact_status = str(item_ref.get(
+                "contactStatus") or "no_contacted")
             status_text = (
                 "Contactado"
                 if contact_status == "contacted"
@@ -7244,19 +7254,22 @@ def generar_pdf_cuotas_atrasadas(request):
             p.setFont("Helvetica", 8)
             p.drawString(left + 6, y, client_name)
             p.drawString(left + 170, y, invoice_number)
-            p.drawString(left + 260, y, client_phone)
+            p.drawString(left + 240, y, invoice_date)
+            p.drawString(left + 310, y, client_phone)
             p.setFont("Helvetica-Bold", 8)
-            p.drawString(left + 342, y, money(overdue_amount))
+            p.drawString(left + 385, y, money(overdue_amount))
             p.setFont("Helvetica", 8)
-            p.drawString(left + 435, y, f"{days_overdue}")
-            p.drawString(left + 468, y, status_text)
+            p.drawString(left + 465, y, f"{days_overdue}")
+            p.drawString(left + 495, y, status_text)
 
             y -= 14
 
-            total_cuotas = int(item.get("totalCuotas", 0) or 0)
-            cuotas_atrasadas = int(item.get("overdueInstallments", 0) or 0)
-            cuotas_pagadas = int(item.get("cuotasPagadas", 0) or 0)
-            monto_por_cuota = Decimal(str(item.get("montoPorCuota", 0) or 0))
+            # MOSTRAR DETALLES DE CUOTAS SOLO UNA VEZ POR FACTURA
+            total_cuotas = int(item_ref.get("totalCuotas", 0) or 0)
+            cuotas_atrasadas = int(item_ref.get("overdueInstallments", 0) or 0)
+            cuotas_pagadas = int(item_ref.get("cuotasPagadas", 0) or 0)
+            monto_por_cuota = Decimal(
+                str(item_ref.get("montoPorCuota", 0) or 0))
 
             total_plazo = monto_por_cuota * Decimal(total_cuotas)
             total_atrasadas = monto_por_cuota * Decimal(cuotas_atrasadas)
