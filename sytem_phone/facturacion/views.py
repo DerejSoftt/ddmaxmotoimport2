@@ -132,35 +132,69 @@ def _has_movimientos_data():
 # Helper con fallback: intenta MovimientoFinanciero primero, luego Venta
 def _net_income(start_date, end_date, use_movimientos=None):
     """
-    Retorna ingresos netos (ventas/cobros) entre start_date y end_date.
+    Retorna ingresos netos (ventas/cobros - descuentos/egresos) entre start_date y end_date.
     Si use_movimientos es None, detecta automáticamente.
     Si hay datos en MovimientoFinanciero, lo usa; sino, usa tabla Venta.
+
+    IMPORTANTE: Convierte las fechas RD (UTC-4) a rangos UTC para filtros correctos
+    start_date 2026-04-15 (RD) = 2026-04-15 00:00:00 RD = 2026-04-15 04:00:00 UTC
+    end_date   2026-04-15 (RD) = 2026-04-15 23:59:59 RD = 2026-04-16 03:59:59 UTC
     """
-    from django.db.models import Value, DecimalField
+    from django.db.models import Value, DecimalField, Q
     from django.db.models.functions import Coalesce
+    from datetime import datetime
 
     # Detectar automáticamente si no se especifica
     if use_movimientos is None:
         use_movimientos = _has_movimientos_data()
 
+    # Convertir fechas RD a rango UTC para filtros
+    # +4 horas es lo equivalente UTC de RD
+    start_utc = datetime.combine(
+        start_date, datetime.min.time()).replace(tzinfo=TZ_RD)
+    end_utc = datetime.combine(
+        end_date, datetime.max.time()).replace(tzinfo=TZ_RD)
+
+    start_utc = start_utc.astimezone(pytz.UTC)
+    end_utc = end_utc.astimezone(pytz.UTC)
+
     if use_movimientos:
         # Fuente: MovimientoFinanciero
         qs = MovimientoFinanciero.objects.filter(
-            fecha_operacion__date__gte=start_date,
-            fecha_operacion__date__lte=end_date,
+            fecha_operacion__gte=start_utc,
+            fecha_operacion__lte=end_utc,
             estado='ACTIVO'
         )
-        ingresos = qs.filter(tipo='INGRESO').aggregate(
+
+        # INGRESOS: Ventas + Pagos (pero excluir pagos de facturas anuladas)
+        ingresos_qs = qs.filter(tipo='INGRESO').exclude(
+            # Excluir pagos cuya factura esté anulada
+            Q(origen='PAGO_CXC') & Q(pago_cxc__cuenta__venta__anulada=True)
+        )
+        ingresos = ingresos_qs.aggregate(
             total=Coalesce(Sum('monto'), Value(
                 Decimal('0.00'), output_field=DecimalField()))
         )['total']
-        return ingresos or Decimal('0.00')
+
+        # EGRESOS: Anulaciones + Devoluciones + Ajustes
+        egresos = qs.filter(tipo='EGRESO').aggregate(
+            total=Coalesce(Sum('monto'), Value(
+                Decimal('0.00'), output_field=DecimalField()))
+        )['total']
+
+        ingreso_neto = (ingresos or Decimal('0.00')) - \
+            (egresos or Decimal('0.00'))
+
+        print(
+            f"[_net_income {start_date}] Ingresos: {ingresos}, Egresos: {egresos}, Neto: {ingreso_neto}")
+
+        return ingreso_neto
     else:
         # Fallback: Venta (contado + crédito + pagos CxC)
         # Ventas contado: dinero recibido
         contado = Venta.objects.filter(
-            fecha_venta__date__gte=start_date,
-            fecha_venta__date__lte=end_date,
+            fecha_venta__gte=start_utc,
+            fecha_venta__lte=end_utc,
             tipo_venta='contado',
             anulada=False
         ).aggregate(total=Coalesce(Sum('total_a_pagar'), Value(
@@ -168,35 +202,59 @@ def _net_income(start_date, end_date, use_movimientos=None):
 
         # Ventas crédito: total de la venta
         credito = Venta.objects.filter(
-            fecha_venta__date__gte=start_date,
-            fecha_venta__date__lte=end_date,
+            fecha_venta__gte=start_utc,
+            fecha_venta__lte=end_utc,
             tipo_venta='credito',
             anulada=False
         ).aggregate(total=Coalesce(Sum('total'), Value(
             Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
 
-        # Pagos CxC: dinero recibido
+        # Pagos CxC: dinero recibido (SOLO de facturas NO anuladas)
         pagos_cxc = PagoCuentaPorCobrar.objects.filter(
-            fecha_pago__date__gte=start_date,
-            fecha_pago__date__lte=end_date,
-            anulado=False
+            fecha_pago__gte=start_utc,
+            fecha_pago__lte=end_utc,
+            anulado=False,
+            cuenta__venta__anulada=False  # Excluir pagos de facturas anuladas
         ).aggregate(total=Coalesce(Sum('monto'), Value(
             Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
 
-        total = contado + credito + pagos_cxc
-        print(
-            f"[FALLBACK {start_date}] Contado: {contado}, Crédito: {credito}, Pagos: {pagos_cxc} = {total}")
-        return total
+        # EGRESOS: Anulaciones (total de facturas anuladas)
+        anulaciones = Venta.objects.filter(
+            fecha_anulacion__gte=start_utc,
+            fecha_anulacion__lte=end_utc,
+            anulada=True
+        ).aggregate(total=Coalesce(Sum('total'), Value(
+            Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
 
+        # EGRESOS: Devoluciones
+        devoluciones = DetalleDevolucion.objects.filter(
+            devolucion__fecha_devolucion__gte=start_utc,
+            devolucion__fecha_devolucion__lte=end_utc
+        ).aggregate(total=Coalesce(Sum('monto'), Value(
+            Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
 
-# -----------------------------------------------------------------------------
+        # EGRESOS: Rebajas de Deuda
+        rebajas = RebajaDeuda.objects.filter(
+            fecha_rebaja__gte=start_utc,
+            fecha_rebaja__lte=end_utc
+        ).aggregate(total=Coalesce(Sum('monto_rebaja'), Value(
+            Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
+
+        ingresos_total = contado + credito + pagos_cxc
+        egresos_total = anulaciones + devoluciones + rebajas
+        total = ingresos_total - egresos_total
+
 # Helper: ingreso neto por día en una lista de fechas
 # -----------------------------------------------------------------------------
+
+
 def _net_income_per_day(dates, use_movimientos=None):
     """
     Recibe una lista de fechas (date objects) y retorna un dict
     {fecha: ingreso_neto_decimal} para cada una.
     Si use_movimientos es None, detecta automáticamente.
+
+    Convierte fechas RD a UTC para filtros correctos.
     """
     if not dates:
         return {}
@@ -204,23 +262,55 @@ def _net_income_per_day(dates, use_movimientos=None):
     if use_movimientos is None:
         use_movimientos = _has_movimientos_data()
 
+    # Crear dict con fechas RD → valores UTC-4
+    daily_balance = {d: Decimal('0.00') for d in dates}
+
+    # Convertir rango a UTC para filtros
+    from datetime import datetime
     min_date = min(dates)
     max_date = max(dates)
-    daily_balance = {d: Decimal('0.00') for d in dates}
+
+    start_utc = datetime.combine(
+        min_date, datetime.min.time()).replace(tzinfo=TZ_RD)
+    end_utc = datetime.combine(
+        max_date, datetime.max.time()).replace(tzinfo=TZ_RD)
+
+    start_utc = start_utc.astimezone(pytz.UTC)
+    end_utc = end_utc.astimezone(pytz.UTC)
 
     if use_movimientos:
         # Desde MovimientoFinanciero
-        movs = MovimientoFinanciero.objects.filter(
-            fecha_operacion__date__gte=min_date,
-            fecha_operacion__date__lte=max_date,
+        # INGRESOS (excluir pagos de facturas anuladas)
+        from django.db.models import Q
+
+        movs_ingreso = MovimientoFinanciero.objects.filter(
+            fecha_operacion__gte=start_utc,
+            fecha_operacion__lte=end_utc,
             estado='ACTIVO',
             tipo='INGRESO'
-        ).values('fecha_operacion__date', 'monto')
+        ).exclude(
+            Q(origen='PAGO_CXC') & Q(pago_cxc__cuenta__venta__anulada=True)
+        ).values('fecha_operacion', 'monto')
 
-        for mov in movs:
-            day = mov['fecha_operacion__date']
-            if day in daily_balance:
-                daily_balance[day] += mov['monto']
+        for mov in movs_ingreso:
+            # Convertir fecha UTC a fecha RD
+            mov_fecha_rd = mov['fecha_operacion'].astimezone(TZ_RD).date()
+            if mov_fecha_rd in daily_balance:
+                daily_balance[mov_fecha_rd] += mov['monto']
+
+        # EGRESOS (restar)
+        movs_egreso = MovimientoFinanciero.objects.filter(
+            fecha_operacion__gte=start_utc,
+            fecha_operacion__lte=end_utc,
+            estado='ACTIVO',
+            tipo='EGRESO'
+        ).values('fecha_operacion', 'monto')
+
+        for mov in movs_egreso:
+            # Convertir fecha UTC a fecha RD
+            mov_fecha_rd = mov['fecha_operacion'].astimezone(TZ_RD).date()
+            if mov_fecha_rd in daily_balance:
+                daily_balance[mov_fecha_rd] -= mov['monto']
     else:
         # Fallback: desde Venta
         from django.db.models import Value, DecimalField
@@ -228,50 +318,101 @@ def _net_income_per_day(dates, use_movimientos=None):
 
         # Ventas contado
         ventas_contado = Venta.objects.filter(
-            fecha_venta__date__gte=min_date,
-            fecha_venta__date__lte=max_date,
+            fecha_venta__gte=start_utc,
+            fecha_venta__lte=end_utc,
             tipo_venta='contado',
             anulada=False
-        ).values('fecha_venta__date').annotate(
+        ).values('fecha_venta').annotate(
             total=Coalesce(Sum('total_a_pagar'), Value(
                 Decimal('0.00'), output_field=DecimalField()))
         )
 
         for vc in ventas_contado:
-            day = vc['fecha_venta__date']
-            if day in daily_balance:
-                daily_balance[day] += vc['total']
+            # Convertir fecha UTC a fecha RD
+            vc_fecha_rd = vc['fecha_venta'].astimezone(TZ_RD).date()
+            if vc_fecha_rd in daily_balance:
+                daily_balance[vc_fecha_rd] += vc['total']
 
         # Ventas crédito (total de la venta)
         ventas_credito = Venta.objects.filter(
-            fecha_venta__date__gte=min_date,
-            fecha_venta__date__lte=max_date,
+            fecha_venta__gte=start_utc,
+            fecha_venta__lte=end_utc,
             tipo_venta='credito',
             anulada=False
-        ).values('fecha_venta__date').annotate(
+        ).values('fecha_venta').annotate(
             total=Coalesce(Sum('total'), Value(
                 Decimal('0.00'), output_field=DecimalField()))
         )
 
         for vc in ventas_credito:
-            day = vc['fecha_venta__date']
-            if day in daily_balance:
-                daily_balance[day] += vc['total']
+            # Convertir fecha UTC a fecha RD
+            vc_fecha_rd = vc['fecha_venta'].astimezone(TZ_RD).date()
+            if vc_fecha_rd in daily_balance:
+                daily_balance[vc_fecha_rd] += vc['total']
 
-        # Pagos CxC
+        # Pagos CxC (SOLO de facturas NO anuladas)
         pagos = PagoCuentaPorCobrar.objects.filter(
-            fecha_pago__date__gte=min_date,
-            fecha_pago__date__lte=max_date,
-            anulado=False
-        ).values('fecha_pago__date').annotate(
+            fecha_pago__gte=start_utc,
+            fecha_pago__lte=end_utc,
+            anulado=False,
+            cuenta__venta__anulada=False  # Excluir pagos de facturas anuladas
+        ).values('fecha_pago').annotate(
             total=Coalesce(Sum('monto'), Value(
                 Decimal('0.00'), output_field=DecimalField()))
         )
 
         for pago in pagos:
-            day = pago['fecha_pago__date']
-            if day in daily_balance:
-                daily_balance[day] += pago['total']
+            # Convertir fecha UTC a fecha RD
+            pago_fecha_rd = pago['fecha_pago'].astimezone(TZ_RD).date()
+            if pago_fecha_rd in daily_balance:
+                daily_balance[pago_fecha_rd] += pago['total']
+
+        # Restar EGRESOS: Anulaciones
+        anulaciones = Venta.objects.filter(
+            fecha_anulacion__gte=start_utc,
+            fecha_anulacion__lte=end_utc,
+            anulada=True
+        ).values('fecha_anulacion').annotate(
+            total=Coalesce(Sum('total'), Value(
+                Decimal('0.00'), output_field=DecimalField()))
+        )
+
+        for anul in anulaciones:
+            # Convertir fecha UTC a fecha RD
+            anul_fecha_rd = anul['fecha_anulacion'].astimezone(TZ_RD).date()
+            if anul_fecha_rd in daily_balance:
+                daily_balance[anul_fecha_rd] -= anul['total']
+
+        # Restar EGRESOS: Devoluciones
+        devoluciones = DetalleDevolucion.objects.filter(
+            devolucion__fecha_devolucion__gte=start_utc,
+            devolucion__fecha_devolucion__lte=end_utc
+        ).values('devolucion__fecha_devolucion').annotate(
+            total=Coalesce(Sum('monto'), Value(
+                Decimal('0.00'), output_field=DecimalField()))
+        )
+
+        for dev in devoluciones:
+            # Convertir fecha UTC a fecha RD
+            dev_fecha_rd = dev['devolucion__fecha_devolucion'].astimezone(
+                TZ_RD).date()
+            if dev_fecha_rd in daily_balance:
+                daily_balance[dev_fecha_rd] -= dev['total']
+
+        # Restar EGRESOS: Rebajas
+        rebajas = RebajaDeuda.objects.filter(
+            fecha_rebaja__gte=start_utc,
+            fecha_rebaja__lte=end_utc
+        ).values('fecha_rebaja').annotate(
+            total=Coalesce(Sum('monto_rebaja'), Value(
+                Decimal('0.00'), output_field=DecimalField()))
+        )
+
+        for rebaja in rebajas:
+            # Convertir fecha UTC a fecha RD
+            rebaja_fecha_rd = rebaja['fecha_rebaja'].astimezone(TZ_RD).date()
+            if rebaja_fecha_rd in daily_balance:
+                daily_balance[rebaja_fecha_rd] -= rebaja['total']
 
     return daily_balance
 
@@ -5642,13 +5783,13 @@ def procesar_devolucion(request):
                 cantidad_devolver) * detalle.precio_unitario
             DetalleDevolucion.objects.create(
                 devolucion=devolucion,
-                nombre_producto=detalle.producto.nombre,  # Snapshot: historial exacto
+                nombre_producto=detalle.producto.nombre_producto,  # Snapshot: historial exacto
                 cantidad=cantidad_devolver,
                 precio_unitario=detalle.precio_unitario,
                 # monto se calcula automáticamente en el método save() del modelo
             )
 
-            # Paso 3: Crear movimiento financiero EGRESO
+            # Paso 3: Crear movimiento financiero EGRESO (con campos válidos)
             MovimientoFinanciero.objects.create(
                 tipo="EGRESO",
                 origen="DEVOLUCION",
@@ -5657,11 +5798,11 @@ def procesar_devolucion(request):
                 fecha_operacion=timezone.now(),
                 factura=venta,
                 devolucion=devolucion,
-                cliente=venta.cliente if venta.cliente else None,
-                metodo_pago="devolucion",
+                cliente=venta.cliente,
+                metodo_pago=venta.metodo_pago,  # Usar el método de pago original
                 descripcion=(
                     f"Devolución - Factura: {venta.numero_factura} - "
-                    f"Producto: {detalle.producto.nombre} - "
+                    f"Producto: {detalle.producto.nombre_producto} - "
                     f"Cantidad: {cantidad_devolver} - "
                     f"Motivo: {data['motivo']}"
                 ),
@@ -5676,14 +5817,12 @@ def procesar_devolucion(request):
                 f"Advertencia: Error al crear registro de devolución: {str(e)}")
         # ── FIN BLOQUE 5 ─────────────────────────────────────────────────────────────
 
-        # Paso 4: Ajustar stock del producto
+        # Paso 4: Ajustar stock del producto (método simple)
         producto = detalle.producto
-        producto.sumar_stock(
-            cantidad=cantidad_devolver,
-            usuario=request.user,
-            motivo=f"Devolución - {data['motivo']}",
-            referencia=f"Factura: {venta.numero_factura}",
-        )
+        producto.cantidad += cantidad_devolver
+        producto.save()
+        print(
+            f"Stock devuelto: {producto.nombre_producto} +{cantidad_devolver} unidades")
 
         # Paso 5: Actualizar detalle de venta
         detalle.cantidad -= cantidad_devolver
@@ -5706,16 +5845,34 @@ def procesar_devolucion(request):
         )
         venta.save()
 
-        # Paso 7: Actualizar cuenta por cobrar si existe
+        # Paso 7: Actualizar cuenta por cobrar si existe (SOLO para ventas a crédito)
         try:
-            cuenta = CuentaPorCobrar.objects.get(
+            cuenta = CuentaPorCobrar.objects.filter(
                 venta=venta, anulada=False, eliminada=False
-            )
-            # Reducir monto total devuelto proporcional
-            cuenta.monto_total = venta.total
-            cuenta.save(update_fields=["monto_total"])
+            ).first()
+            if cuenta:
+                # Para devoluciones en crédito: reducir el monto_total
+                # Si es refund (el cliente devuelve dinero), reducir también monto_pagado
+                cuenta.monto_total = venta.total
+
+                # Recalcular estado basado en nuevo saldo
+                nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+                if nuevo_saldo <= 0:
+                    cuenta.estado = 'pagada'
+                    cuenta.monto_pagado = cuenta.monto_total
+                elif cuenta.monto_pagado > 0:
+                    cuenta.estado = 'parcial'
+                else:
+                    cuenta.estado = 'pendiente'
+
+                cuenta.save(update_fields=[
+                            'monto_total', 'monto_pagado', 'estado', 'fecha_actualizacion'])
+                print(f"Cuenta por cobrar actualizada: monto_total={cuenta.monto_total}, "
+                      f"monto_pagado={cuenta.monto_pagado}, saldo={nuevo_saldo}")
         except CuentaPorCobrar.DoesNotExist:
-            pass  # Venta al contado, no tiene cuenta por cobrar
+            print(
+                f"No existe cuenta por cobrar para factura {venta.numero_factura} (posiblemente venta contado)")
+            pass
 
         return JsonResponse(
             {
@@ -6124,8 +6281,11 @@ def anular_factura(request):
     Anula una factura de venta:
     1. Marca venta como anulada
     2. Restaura inventario
-    3. Crea MovimientoFinanciero REVERSO (ANULACION)
-    4. Anula cuotas asociadas
+    3. Anula CuentaPorCobrar si existe
+    4. Anula todos los PagoCuentaPorCobrar asociados
+    5. Marca movimientos de pago como INACTIVO
+    6. Crea MovimientoFinanciero EGRESO/ANULACION
+    7. Anula cuotas asociadas
     """
     if request.method == "POST":
         try:
@@ -6159,7 +6319,34 @@ def anular_factura(request):
                 producto.cantidad += detalle.cantidad
                 producto.save()
 
-            # ── PASO 3: Crear MovimientoFinanciero REVERSO ─────────────────────────────
+            # ── PASO 3: Anular CuentaPorCobrar si existe ─────────────────────────────
+            try:
+                cuenta = CuentaPorCobrar.objects.filter(
+                    venta=venta, anulada=False).first()
+                if cuenta:
+                    # Anular todos los pagos asociados a esta cuenta
+                    pagos = PagoCuentaPorCobrar.objects.filter(
+                        cuenta=cuenta, anulado=False)
+                    pagos.update(anulado=True)
+
+                    # Marcar los MovimientoFinanciero de esos pagos como INACTIVO
+                    MovimientoFinanciero.objects.filter(
+                        pago_cxc__in=pagos,
+                        origen='PAGO_CXC',
+                        tipo='INGRESO'
+                    ).update(estado='INACTIVO')
+
+                    print(
+                        f"Anulados {pagos.count()} pagos para factura {venta.numero_factura}")
+
+                    # Anular la cuenta
+                    cuenta.anular_cuenta()
+                    print(f"Cuenta por cobrar anulada: {cuenta.id}")
+            except Exception as e:
+                print(f"Advertencia: Error al anular pagos: {str(e)}")
+            # ── FIN PASO 3 ──────────────────────────────────────────────────────────
+
+            # ── PASO 4: Crear MovimientoFinanciero EGRESO ──────────────────────────
             try:
                 # Buscar el MovimientoFinanciero original de la venta
                 movimiento_original = MovimientoFinanciero.objects.filter(
@@ -6167,7 +6354,7 @@ def anular_factura(request):
                 ).first()
 
                 if movimiento_original:
-                    # Crear movimiento reverso
+                    # Crear movimiento EGRESO para revertir el ingreso de la venta
                     MovimientoFinanciero.objects.create(
                         tipo="EGRESO",
                         origen="ANULACION",
@@ -6175,25 +6362,26 @@ def anular_factura(request):
                         monto=movimiento_original.monto,
                         fecha_operacion=timezone.now(),
                         factura=venta,
-                        cliente=venta.cliente if venta.cliente else None,
-                        movimiento_origen=movimiento_original,  # Referencia al original
+                        cliente=venta.cliente,
+                        metodo_pago=movimiento_original.metodo_pago,
+                        movimiento_origen=movimiento_original,
                         descripcion=(
                             f"Anulación de Venta - Factura: {venta.numero_factura} - "
-                            f"Motivo: {motivo} - Rev. Mov. {movimiento_original.id}"
+                            f"Motivo: {motivo}"
                         ),
                         referencia=f"ANUL-{venta.numero_factura}",
                         creado_por=request.user,
                     )
                     print(
-                        f"MovimientoFinanciero REVERSO creado: EGRESO | ANULACION | RD${movimiento_original.monto:,.2f}"
+                        f"MovimientoFinanciero EGRESO creado: RD${movimiento_original.monto:,.2f}"
                     )
             except Exception as e:
                 print(
-                    f"Advertencia: Error al crear MovimientoFinanciero reverso: {str(e)}"
+                    f"Advertencia: Error al crear MovimientoFinanciero: {str(e)}"
                 )
-            # ── FIN PASO 3 ──────────────────────────────────────────────────────────
+            # ── FIN PASO 4 ──────────────────────────────────────────────────────────
 
-            # ── PASO 4: Anular cuotas asociadas (si existen) ──────────────────────────
+            # ── PASO 5: Anular cuotas asociadas (si existen) ──────────────────────────
             try:
                 cuotas = Cuota.objects.filter(
                     venta=venta, estado__in=["pendiente", "parcial", "pagada"]
@@ -6202,7 +6390,7 @@ def anular_factura(request):
                 print(f"Cuotas anuladas para factura {venta.numero_factura}")
             except Exception as e:
                 print(f"Advertencia: Error al anular cuotas: {str(e)}")
-            # ── FIN PASO 4 ──────────────────────────────────────────────────────────
+            # ── FIN PASO 5 ──────────────────────────────────────────────────────────
 
             return JsonResponse(
                 {"success": True, "message": "Factura anulada correctamente"}
