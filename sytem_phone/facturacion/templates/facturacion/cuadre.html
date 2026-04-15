@@ -856,21 +856,21 @@
                         </div>
                         <div class="date-time-container">
                             <div class="summary-item">
-                                <h3><i class='bx bx-calendar'></i> Fecha de Apertura</h3>
+                                <h3><i class='bx bx-calendar'></i> Fecha Actual (RD)</h3>
                                 <p id="opening-date">
-                                    {% if caja %}{{ caja.fecha_apertura|date:"d/m/Y" }}{% else %}No disponible{% endif %}
+                                    {% if fecha_actual_rd %}{{ fecha_actual_rd }}{% else %}No disponible{% endif %}
                                 </p>
                             </div>
                             <div class="summary-item">
                                 <h3><i class='bx bx-time'></i> Hora de Apertura</h3>
                                 <p id="opening-time">
-                                    {% if caja %}{{ caja.fecha_apertura|date:"h:i A" }}{% else %}No disponible{% endif %}
+                                    {% if hora_apertura_rd %}{{ hora_apertura_rd }}{% else %}No disponible{% endif %}
                                 </p>
                             </div>
                             <div class="summary-item">
                                 <h3><i class='bx bx-time-five'></i> Hora de Cierre</h3>
                                 <p id="closing-time">
-                                    {% if caja and caja.fecha_cierre %}{{ caja.fecha_cierre|date:"h:i A" }}{% else %}No cerrado{% endif %}
+                                    {% if hora_cierre_rd %}{{ hora_cierre_rd }}{% else %}No cerrado{% endif %}
                                 </p>
                             </div>
                         </div>
@@ -928,7 +928,7 @@
     <div class="summary-item">
         <h3><i class='bx bx-dollar-circle'></i> Total General</h3>
         <p id="total-sales">
-            {% if ventas %}{{ ventas.total|currency_format }}{% else %}RD$0.00{% endif %}
+            {% if ventas %}RD${{ ventas.total|floatformat:2 }}{% else %}RD$0.00{% endif %}
         </p>
     </div>
     
@@ -949,22 +949,22 @@
             <!-- Efectivo -->
     <div class="payment-method">
             <span class="label"><i class='bx bx-money'></i> Efectivo</span>
-            <span class="value">
-                {% if ventas %}{{ ventas.efectivo_mostrar|currency_format }}{% else %}RD$0.00{% endif %}
+            <span class="value" id="cash-sales">
+                {% if ventas %}RD${{ ventas.efectivo|floatformat:2 }}{% else %}RD$0.00{% endif %}
             </span>
         </div>
                 <!-- Tarjeta -->
         <div class="payment-method">
             <span class="label"><i class='bx bx-credit-card'></i> Tarjeta</span>
-            <span class="value">
-                {% if ventas %}{{ ventas.tarjeta_mostrar|currency_format }}{% else %}RD$0.00{% endif %}
+            <span class="value" id="card-sales">
+                {% if ventas %}RD${{ ventas.tarjeta|floatformat:2 }}{% else %}RD$0.00{% endif %}
             </span>
         </div>
                 <!-- Transferencia -->
         <div class="payment-method">
             <span class="label"><i class='bx bx-transfer'></i> Transferencia</span>
-            <span class="value">
-                {% if ventas %}{{ ventas.transferencia_mostrar|currency_format }}{% else %}RD$0.00{% endif %}
+            <span class="value" id="transfer-sales">
+                {% if ventas %}RD${{ ventas.transferencia|floatformat:2 }}{% else %}RD$0.00{% endif %}
             </span>
         </div>
 </div>
@@ -1005,48 +1005,15 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Datos pasados desde Django
-            const registerData = {
-                caja: {% if caja %}{
-                    fechaApertura: "{{ caja.fecha_apertura|date:'c' }}",
-                    fechaCierre: "{{ caja.fecha_cierre|date:'c' }}" || null,
-                    usuario: "{{ caja.usuario }}",
-                    montoInicial: {{ caja.monto_inicial }},
-                    observaciones: "{{ caja.observaciones|default:'' }}"
-                }{% else %}null{% endif %},
-                ventas: {% if ventas %}{
-                    efectivo: {{ ventas.efectivo }},
-                    tarjeta: {{ ventas.tarjeta }},
-                    transferencia: {{ ventas.transferencia }},
-                    credito: {{ ventas.credito }},
-                    total: {{ ventas.total }}
-                }{% else %}null{% endif %},
-                cierre: {% if cierre %}{
-                    montoEfectivoReal: {{ cierre.monto_efectivo_real }},
-                    diferencia: {{ cierre.diferencia }},
-                    observaciones: "{{ cierre.observaciones|default:'' }}"
-                }{% else %}null{% endif %}
-            };
+            // Función para formatear moneda
+            function formatCurrency(amount) {
+                return new Intl.NumberFormat('es-DO', {
+                    style: 'currency',
+                    currency: 'DOP'
+                }).format(amount).replace('DOP', 'RD');
+            }
 
-            // Elementos del DOM
-            const DOM = {
-                openingDate: document.getElementById("opening-date"),
-                openingTime: document.getElementById("opening-time"),
-                closingTime: document.getElementById("closing-time"),
-                responsibleUser: document.getElementById("responsible-user"),
-                initialAmount: document.getElementById("initial-amount"),
-                countedAmount: document.getElementById("counted-amount"),
-                creditAmount: document.getElementById("credit-amount"),
-                differenceDisplay: document.getElementById("difference-display"),
-                totalSales: document.getElementById("total-sales"),
-                cashSales: document.getElementById("cash-sales"),
-                cardSales: document.getElementById("card-sales"),
-                transferSales: document.getElementById("transfer-sales"),
-                creditSales: document.getElementById("credit-sales"),
-                observations: document.getElementById("observations")
-            };
-
-            // Funciones para el sidebar
+            // Función para toggle sidebar
             function toggleSidebar() {
                 const sidebar = document.getElementById('sidebar');
                 const sidebarOverlay = document.querySelector('.sidebar-overlay');
@@ -1063,130 +1030,6 @@
                 sidebar.classList.remove('active');
                 sidebarOverlay.classList.remove('active');
                 document.body.classList.remove('sidebar-open');
-            }
-
-            // Función para formatear moneda con animación
-            function formatCurrency(amount) {
-                return new Intl.NumberFormat('es-DO', {
-                    style: 'currency',
-                    currency: 'DOP'
-                }).format(amount).replace('DOP', 'RD');
-            }
-
-            // Función para formatear fecha
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('es-DO', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-            }
-
-            // Función para formatear hora
-            function formatTime(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleTimeString('es-DO', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                });
-            }
-
-            // Función para animar números
-            function animateNumber(element, finalNumber) {
-                const startNumber = 0;
-                const duration = 1500;
-                const startTime = Date.now();
-                
-                function updateNumber() {
-                    const currentTime = Date.now();
-                    const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // Easing function para suavizar la animación
-                    const easeOutCubic = 1 - Math.pow(1 - progress, 3);
-                    const currentNumber = startNumber + (finalNumber - startNumber) * easeOutCubic;
-                    
-                    if (element.textContent.includes('RD')) {
-                        element.textContent = formatCurrency(currentNumber);
-                    } else {
-                        element.textContent = Math.round(currentNumber).toLocaleString();
-                    }
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(updateNumber);
-                    }
-                }
-                
-                requestAnimationFrame(updateNumber);
-            }
-
-            // Función para calcular totales con animaciones
-            function calculateTotals() {
-                if (!registerData.caja || !registerData.ventas) {
-                    showNotification('No hay datos de caja disponibles', 'danger');
-                    return;
-                }
-                
-                // Actualizar información de fecha y hora
-                DOM.openingDate.textContent = formatDate(registerData.caja.fechaApertura);
-                DOM.openingTime.textContent = formatTime(registerData.caja.fechaApertura);
-                DOM.closingTime.textContent = registerData.caja.fechaCierre ? 
-                    formatTime(registerData.caja.fechaCierre) : "No cerrado";
-                DOM.responsibleUser.textContent = registerData.caja.usuario;
-                
-                // Animar números principales
-                setTimeout(() => animateNumber(DOM.initialAmount, registerData.caja.montoInicial), 200);
-                
-                if (registerData.cierre) {
-                    setTimeout(() => animateNumber(DOM.countedAmount, registerData.cierre.montoEfectivoReal), 400);
-                }
-                
-                setTimeout(() => animateNumber(DOM.creditAmount, registerData.ventas.credito), 450);
-                setTimeout(() => animateNumber(DOM.totalSales, registerData.ventas.total), 600);
-                
-                // Actualizar diferencia con efecto
-                setTimeout(() => {
-                    if (registerData.cierre) {
-                        if (registerData.cierre.diferencia > 0) {
-                            DOM.differenceDisplay.className = "status status-success pulse-effect";
-                            DOM.differenceDisplay.innerHTML = `<i class='bx bx-check-circle'></i> <span>Sobrante de ${formatCurrency(registerData.cierre.diferencia)}</span>`;
-                        } else if (registerData.cierre.diferencia < 0) {
-                            DOM.differenceDisplay.className = "status status-danger pulse-effect";
-                            DOM.differenceDisplay.innerHTML = `<i class='bx bx-error-circle'></i> <span>Faltante de ${formatCurrency(Math.abs(registerData.cierre.diferencia))}</span>`;
-                        } else {
-                            DOM.differenceDisplay.className = "status status-success pulse-effect";
-                            DOM.differenceDisplay.innerHTML = `<i class='bx bx-check-circle'></i> <span>Perfecto, no hay diferencia</span>`;
-                        }
-                    } else {
-                        DOM.differenceDisplay.className = "status status-warning";
-                        DOM.differenceDisplay.innerHTML = `<i class='bx bx-time'></i> <span>Caja aún no cerrada</span>`;
-                    }
-                }, 800);
-                
-                // Animar métodos de pago
-                setTimeout(() => animateNumber(DOM.cashSales, registerData.ventas.efectivo), 1000);
-                setTimeout(() => animateNumber(DOM.cardSales, registerData.ventas.tarjeta), 1150);
-                setTimeout(() => animateNumber(DOM.transferSales, registerData.ventas.transferencia), 1300);
-                setTimeout(() => animateNumber(DOM.creditSales, registerData.ventas.credito), 1450);
-                
-                // Actualizar observaciones con efecto de escritura
-                setTimeout(() => {
-                    const text = registerData.caja.observaciones || 
-                                (registerData.cierre ? registerData.cierre.observaciones : "") || 
-                                "No hay observaciones registradas";
-                    DOM.observations.textContent = "";
-                    let i = 0;
-                    function typeWriter() {
-                        if (i < text.length) {
-                            DOM.observations.textContent += text.charAt(i);
-                            i++;
-                            setTimeout(typeWriter, 30);
-                        }
-                    }
-                    typeWriter();
-                }, 1500);
             }
 
             // Función para mostrar notificación
@@ -1220,22 +1063,7 @@
                 }, 3000);
             }
 
-            // Función para exportar a PDF con feedback
-            function exportToPDF() {
-                const btn = event.target.closest('.btn');
-                const originalContent = btn.innerHTML;
-                
-                btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Generando PDF...';
-                btn.disabled = true;
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalContent;
-                    btn.disabled = false;
-                    showNotification('PDF generado correctamente', 'success');
-                }, 2000);
-            }
-
-            // Función para imprimir el reporte con feedback
+            // Función para imprimir el reporte
             function printReport() {
                 const btn = event.target.closest('.btn');
                 const originalContent = btn.innerHTML;
@@ -1251,7 +1079,7 @@
                 }, 1000);
             }
 
-            // Función para manejar el responsive con suavidad
+            // Función para manejar responsive
             function handleResize() {
                 const sidebar = document.getElementById('sidebar');
                 const mainContent = document.querySelector('.main-content');
@@ -1263,10 +1091,9 @@
                 }
             }
 
-            // Event Listeners
+            // Exponer funciones al globalscope
             window.toggleSidebar = toggleSidebar;
             window.closeSidebar = closeSidebar;
-            window.exportToPDF = exportToPDF;
             window.printReport = printReport;
             window.addEventListener('resize', handleResize);
 
@@ -1294,17 +1121,15 @@
                 });
             });
 
-            // Inicialización con delay para efecto de carga
-            setTimeout(calculateTotals, 500);
-            
             // Mostrar mensaje de bienvenida
             setTimeout(() => {
-                if (registerData.caja) {
+                const caja = document.querySelector('[id="opening-date"]').textContent;
+                if (caja && caja !== 'No disponible') {
                     showNotification('Cuadre de caja cargado correctamente', 'success');
                 } else {
-                    showNotification('No hay caja activa para mostrar', 'warning');
+                    showNotification('No hay caja disponible para mostrar', 'warning');
                 }
-            }, 2000);
+            }, 500);
         });
     </script>
 </body>

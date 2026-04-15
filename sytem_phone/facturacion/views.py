@@ -459,6 +459,172 @@ def _monthly_trend(months=12, use_movimientos=None, year=None):
 
 
 # =============================================================================
+# HELPERS: Cálculos por método de pago (para cierre/cuadre)
+# =============================================================================
+
+def _net_income_by_payment_method(start_datetime, end_datetime, use_movimientos=None):
+    """
+    Calcula INGRESOS BRUTOS por método de pago (efectivo, tarjeta, transferencia).
+    Retorna dict: {'efectivo': Decimal, 'tarjeta': Decimal, 'transferencia': Decimal}
+
+    NOTA: Retorna SOLO INGRESOS, sin restar egresos.
+    Los egresos se restan aparte de forma global.
+
+    Acepta datetime objects con hora precisa para filtros exactos.
+    """
+    from django.db.models import Value, DecimalField, Q
+    from django.db.models.functions import Coalesce
+
+    if use_movimientos is None:
+        use_movimientos = _has_movimientos_data()
+
+    # Convertir rangos RD a UTC
+    # Si recibimos date, convertir a datetime; si datetime, usar como está
+    from datetime import datetime
+    if isinstance(start_datetime, datetime):
+        if start_datetime.tzinfo is None:
+            start_utc = start_datetime.replace(
+                tzinfo=TZ_RD).astimezone(pytz.UTC)
+        else:
+            start_utc = start_datetime.astimezone(pytz.UTC)
+    else:
+        start_utc = datetime.combine(
+            start_datetime, datetime.min.time()).replace(tzinfo=TZ_RD).astimezone(pytz.UTC)
+
+    if isinstance(end_datetime, datetime):
+        if end_datetime.tzinfo is None:
+            end_utc = end_datetime.replace(tzinfo=TZ_RD).astimezone(pytz.UTC)
+        else:
+            end_utc = end_datetime.astimezone(pytz.UTC)
+    else:
+        end_utc = datetime.combine(
+            end_datetime, datetime.max.time()).replace(tzinfo=TZ_RD).astimezone(pytz.UTC)
+
+    result = {
+        'efectivo': Decimal('0.00'),
+        'tarjeta': Decimal('0.00'),
+        'transferencia': Decimal('0.00'),
+    }
+
+    if use_movimientos:
+        # INGRESOS desde MovimientoFinanciero por método de pago
+        for metodo in ['efectivo', 'tarjeta', 'transferencia']:
+            ingresos = MovimientoFinanciero.objects.filter(
+                fecha_operacion__gte=start_utc,
+                fecha_operacion__lte=end_utc,
+                estado='ACTIVO',
+                tipo='INGRESO',
+                metodo_pago=metodo
+            ).exclude(
+                Q(origen='PAGO_CXC') & Q(pago_cxc__cuenta__venta__anulada=True)
+            ).aggregate(total=Coalesce(Sum('monto'), Value(Decimal('0.00'), output_field=DecimalField())))['total']
+
+            result[metodo] = ingresos or Decimal('0.00')
+    else:
+        # Fallback desde Venta - Solo INGRESOS (sin filtrar por caja)
+        for metodo in ['efectivo', 'tarjeta', 'transferencia']:
+            # Ventas contado
+            vc = Venta.objects.filter(
+                fecha_venta__gte=start_utc,
+                fecha_venta__lte=end_utc,
+                tipo_venta='contado',
+                metodo_pago=metodo,
+                anulada=False
+            ).aggregate(total=Coalesce(Sum('total_a_pagar'), Value(Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
+
+            # Ventas crédito (monto inicial)
+            vcred = Venta.objects.filter(
+                fecha_venta__gte=start_utc,
+                fecha_venta__lte=end_utc,
+                tipo_venta='credito',
+                metodo_pago=metodo,
+                anulada=False
+            ).aggregate(total=Coalesce(Sum('montoinicial'), Value(Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
+
+            # Pagos CxC (solo de facturas no anuladas)
+            pagos = PagoCuentaPorCobrar.objects.filter(
+                fecha_pago__gte=start_utc,
+                fecha_pago__lte=end_utc,
+                anulado=False,
+                cuenta__venta__anulada=False
+            ).filter(
+                Q(cuenta__venta__metodo_pago=metodo) |
+                Q(cuenta__venta__tipo_venta='credito')
+            ).aggregate(total=Coalesce(Sum('monto'), Value(Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
+
+            ingresos = vc + vcred + pagos
+            result[metodo] = ingresos
+
+    return result
+
+
+def _net_egresos(start_datetime, end_datetime, use_movimientos=None):
+    """
+    Calcula egresos totales (anulaciones, devoluciones, rebajas).
+    Retorna Decimal con el total de egresos.
+
+    Usa MovimientoFinanciero con conversiones UTC correctas.
+    Acepta datetime objects con hora precisa para filtros exactos.
+    """
+    from django.db.models import Value, DecimalField
+    from django.db.models.functions import Coalesce
+
+    if use_movimientos is None:
+        use_movimientos = _has_movimientos_data()
+
+    # Convertir rangos RD a UTC
+    # Si recibimos date, convertir a datetime; si datetime, usar como está
+    from datetime import datetime
+    if isinstance(start_datetime, datetime):
+        if start_datetime.tzinfo is None:
+            start_utc = start_datetime.replace(
+                tzinfo=TZ_RD).astimezone(pytz.UTC)
+        else:
+            start_utc = start_datetime.astimezone(pytz.UTC)
+    else:
+        start_utc = datetime.combine(
+            start_datetime, datetime.min.time()).replace(tzinfo=TZ_RD).astimezone(pytz.UTC)
+
+    if isinstance(end_datetime, datetime):
+        if end_datetime.tzinfo is None:
+            end_utc = end_datetime.replace(tzinfo=TZ_RD).astimezone(pytz.UTC)
+        else:
+            end_utc = end_datetime.astimezone(pytz.UTC)
+    else:
+        end_utc = datetime.combine(
+            end_datetime, datetime.max.time()).replace(tzinfo=TZ_RD).astimezone(pytz.UTC)
+
+    if use_movimientos:
+        egresos = MovimientoFinanciero.objects.filter(
+            fecha_operacion__gte=start_utc,
+            fecha_operacion__lte=end_utc,
+            estado='ACTIVO',
+            tipo='EGRESO'
+        ).aggregate(total=Coalesce(Sum('monto'), Value(Decimal('0.00'), output_field=DecimalField())))['total']
+    else:
+        # Fallback: Anulaciones + Devoluciones + Rebajas
+        anul = Venta.objects.filter(
+            fecha_anulacion__gte=start_utc,
+            fecha_anulacion__lte=end_utc,
+            anulada=True
+        ).aggregate(total=Coalesce(Sum('total'), Value(Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
+
+        dev = DetalleDevolucion.objects.filter(
+            devolucion__fecha_devolucion__gte=start_utc,
+            devolucion__fecha_devolucion__lte=end_utc
+        ).aggregate(total=Coalesce(Sum('monto'), Value(Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
+
+        rebaja = RebajaDeuda.objects.filter(
+            fecha_rebaja__gte=start_utc,
+            fecha_rebaja__lte=end_utc
+        ).aggregate(total=Coalesce(Sum('monto_rebaja'), Value(Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
+
+        egresos = anul + dev + rebaja
+
+    return egresos or Decimal('0.00')
+
+
+# =============================================================================
 # DASHBOARD PRINCIPAL (renderiza el HTML)
 # =============================================================================
 def dashboard(request):
@@ -5046,7 +5212,13 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
+@login_required
 def cierredecaja(request):
+    """
+    Vista de cierre de caja mostrando el neto real por método de pago.
+
+    Fórmula: Neto por Método = Ingresos Brutos por Método - (Egresos Totales * proporción del método)
+    """
     # Verificar si hay una caja abierta
     caja_abierta = Caja.objects.filter(
         usuario=request.user, estado="abierta").first()
@@ -5056,105 +5228,86 @@ def cierredecaja(request):
             request, "No hay una caja abierta. Debe abrir una caja primero.")
         return redirect("iniciocaja")
 
-    # Obtener ventas desde la apertura de caja para el usuario actual
-    ventas_periodo = Venta.objects.filter(
-        vendedor=request.user,
+    # Obtener tiempo de apertura exacto de la caja
+    fecha_apertura = caja_abierta.fecha_apertura  # Es un datetime
+
+    # Obtener tiempo actual (o cierre si ya fue cerrada)
+    if caja_abierta.estado == "cerrada" and caja_abierta.fecha_cierre:
+        fecha_cierre = caja_abierta.fecha_cierre
+    else:
+        fecha_cierre = timezone.now()
+
+    # Obtener hora local de RD para presentación
+    ahora_local_rd = timezone.now().astimezone(TZ_RD)
+
+    # Calcular INGRESOS BRUTOS por método (sin descontar egresos)
+    # Usar tiempos exactos: desde apertura hasta cierre/ahora
+    ingresos_brutos_por_metodo = _net_income_by_payment_method(
+        fecha_apertura, fecha_cierre, use_movimientos=True)
+
+    # Total ingresos brutos
+    total_ingresos_brutos = sum(ingresos_brutos_por_metodo.values())
+
+    # Egresos totales
+    total_egresos = _net_egresos(
+        fecha_apertura, fecha_cierre, use_movimientos=True)
+
+    # Neto TOTAL = Ingresos brutos - Egresos totales
+    total_neto = total_ingresos_brutos - total_egresos
+
+    # Distribuir egresos proporcionalmente por método
+    # Para mostrar cuánto le corresponde a cada método
+    neto_por_metodo = {}
+    if total_ingresos_brutos > 0:
+        for metodo in ['efectivo', 'tarjeta', 'transferencia']:
+            proporcion = ingresos_brutos_por_metodo[metodo] / \
+                total_ingresos_brutos
+            egresos_del_metodo = total_egresos * proporcion
+            neto_por_metodo[metodo] = ingresos_brutos_por_metodo[metodo] - \
+                egresos_del_metodo
+    else:
+        neto_por_metodo = {
+            'efectivo': Decimal('0.00'),
+            'tarjeta': Decimal('0.00'),
+            'transferencia': Decimal('0.00'),
+        }
+
+    # Obtener cantidad de ventas en el rango de tiempo de la caja
+    cantidad_ventas = Venta.objects.filter(
+        vendedor=caja_abierta.usuario,
         fecha_venta__gte=caja_abierta.fecha_apertura,
-        completada=True,
-        anulada=False,
-    )
+        fecha_venta__lte=fecha_cierre,
+        anulada=False
+    ).count()
 
-    # VENTAS AL CONTADO - Usamos el TOTAL FINAL
-    ventas_contado_efectivo = ventas_periodo.filter(
-        tipo_venta="contado", metodo_pago="efectivo"
-    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
-
-    ventas_contado_tarjeta = ventas_periodo.filter(
-        tipo_venta="contado", metodo_pago="tarjeta"
-    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
-
-    ventas_contado_transferencia = ventas_periodo.filter(
-        tipo_venta="contado", metodo_pago="transferencia"
-    ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
-
-    # VENTAS A CRÉDITO - Usamos solo el MONTO INICIAL
-    ventas_credito_efectivo = ventas_periodo.filter(
-        tipo_venta="credito", metodo_pago="efectivo"
-    ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
-
-    ventas_credito_tarjeta = ventas_periodo.filter(
-        tipo_venta="credito", metodo_pago="tarjeta"
-    ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
-
-    ventas_credito_transferencia = ventas_periodo.filter(
-        tipo_venta="credito", metodo_pago="transferencia"
-    ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
-
-    # CALCULAR TOTALES AJUSTADOS
-    # Efectivo: contado (total final) + crédito (solo monto inicial)
-    ventas_efectivo_ajustado = ventas_contado_efectivo + ventas_credito_efectivo
-
-    # Tarjeta: contado (total final) + crédito (solo monto inicial)
-    ventas_tarjeta_ajustado = ventas_contado_tarjeta + ventas_credito_tarjeta
-
-    # Transferencia: contado (total final) + crédito (solo monto inicial)
-    ventas_transferencia_ajustado = (
-        ventas_contado_transferencia + ventas_credito_transferencia
-    )
-
-    # Total general de ventas
-    total_ventas_ajustado = (
-        ventas_contado_efectivo
-        + ventas_contado_tarjeta
-        + ventas_contado_transferencia
-        + ventas_credito_efectivo
-        + ventas_credito_tarjeta
-        + ventas_credito_transferencia
-    )
-
-    # Totales por tipo de venta para reporte
-    total_ventas_contado = (
-        ventas_contado_efectivo + ventas_contado_tarjeta + ventas_contado_transferencia
-    )
-    total_ventas_credito = (
-        ventas_credito_efectivo + ventas_credito_tarjeta + ventas_credito_transferencia
-    )
-
-    # Obtener cantidad de ventas
-    cantidad_ventas = ventas_periodo.count()
-
-    # Obtener información de clientes
+    # Obtener cantidad de clientes en el rango de tiempo de la caja
     clientes_count = Cliente.objects.filter(
-        venta__in=ventas_periodo).distinct().count()
+        venta__vendedor=caja_abierta.usuario,
+        venta__fecha_venta__gte=caja_abierta.fecha_apertura,
+        venta__fecha_venta__lte=fecha_cierre,
+        venta__anulada=False
+    ).distinct().count()
 
     # Log para depuración
     logger.info(f"Caja abierta: {caja_abierta}")
-    logger.info(f"Ventas encontradas: {cantidad_ventas:,}")
-    logger.info(f"Ventas contado efectivo: {ventas_contado_efectivo:,.2f}")
-    logger.info(f"Ventas contado tarjeta: {ventas_contado_tarjeta:,.2f}")
     logger.info(
-        f"Ventas contado transferencia: {ventas_contado_transferencia:,.2f}")
-    logger.info(
-        f"Ventas crédito efectivo (monto inicial): {ventas_credito_efectivo:,.2f}"
-    )
-    logger.info(
-        f"Ventas crédito tarjeta (monto inicial): {ventas_credito_tarjeta:,.2f}"
-    )
-    logger.info(
-        f"Ventas crédito transferencia (monto inicial): {ventas_credito_transferencia:,.2f}"
-    )
+        f"Fecha apertura: {fecha_apertura} | Fecha cierre: {fecha_cierre}")
+    logger.info(f"Ingresos brutos por método: {ingresos_brutos_por_metodo}")
+    logger.info(f"Egresos totales: {total_egresos}")
+    logger.info(f"Neto por método (estimado): {neto_por_metodo}")
+    logger.info(f"Total neto esperado: {total_neto}")
 
     context = {
         "caja_abierta": caja_abierta,
-        "total_ventas": total_ventas_ajustado,
-        "ventas_efectivo": ventas_efectivo_ajustado,
-        "ventas_tarjeta": ventas_tarjeta_ajustado,
-        "ventas_transferencia": ventas_transferencia_ajustado,
-        "total_ventas_contado": total_ventas_contado,
-        "total_ventas_credito": total_ventas_credito,
+        "total_ventas": float(total_neto),
+        "ventas_efectivo": float(neto_por_metodo['efectivo']),
+        "ventas_tarjeta": float(neto_por_metodo['tarjeta']),
+        "ventas_transferencia": float(neto_por_metodo['transferencia']),
+        "total_ventas_contado": float(total_ingresos_brutos),
+        "total_ventas_credito": float(total_egresos),
         "cantidad_ventas": cantidad_ventas,
         "clientes_hoy": clientes_count,
-        "hoy": timezone.now().date(),
+        "hoy": _get_now_rd(),
     }
 
     return render(request, "facturacion/cierredecaja.html", context)
@@ -5172,51 +5325,34 @@ def procesar_cierre_caja(request):
             messages.error(request, "No hay una caja abierta para cerrar.")
             return redirect("cierredecaja")
 
-        # Obtener ventas desde la apertura de caja
+        # Obtener tiempo de apertura exacto de la caja
+        fecha_apertura = caja_abierta.fecha_apertura  # Es un datetime
+        fecha_cierre = timezone.now()  # Tiempo actual
+
+        # Obtener hora local de RD para presentación
+        ahora_local_rd = timezone.now().astimezone(TZ_RD)
+
+        # Calcular INGRESOS BRUTOS por método
+        # Usar tiempos exactos: desde apertura hasta ahora
+        ingresos_brutos_por_metodo = _net_income_by_payment_method(
+            fecha_apertura, fecha_cierre, use_movimientos=True)
+        total_ingresos_brutos = sum(ingresos_brutos_por_metodo.values())
+
+        # Egresos totales
+        total_egresos = _net_egresos(
+            fecha_apertura, fecha_cierre, use_movimientos=True)
+
+        # Total esperado = Ingresos brutos - Egresos totales
+        total_esperado = total_ingresos_brutos - total_egresos
+
+        # Para obtener ventas de contexto
         ventas_periodo = Venta.objects.filter(
-            vendedor=request.user,
+            vendedor=caja_abierta.usuario,
             fecha_venta__gte=caja_abierta.fecha_apertura,
-            completada=True,
+            fecha_venta__lte=fecha_cierre,
             anulada=False,
         )
 
-        # VENTAS AL CONTADO - Usamos el TOTAL FINAL
-        ventas_contado_efectivo = ventas_periodo.filter(
-            tipo_venta="contado", metodo_pago="efectivo"
-        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
-
-        ventas_contado_tarjeta = ventas_periodo.filter(
-            tipo_venta="contado", metodo_pago="tarjeta"
-        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
-
-        ventas_contado_transferencia = ventas_periodo.filter(
-            tipo_venta="contado", metodo_pago="transferencia"
-        ).aggregate(total=Sum("total_a_pagar"))["total"] or Decimal("0.00")
-
-        # VENTAS A CRÉDITO - Usamos solo el MONTO INICIAL
-        ventas_credito_efectivo = ventas_periodo.filter(
-            tipo_venta="credito", metodo_pago="efectivo"
-        ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
-
-        ventas_credito_tarjeta = ventas_periodo.filter(
-            tipo_venta="credito", metodo_pago="tarjeta"
-        ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
-
-        ventas_credito_transferencia = ventas_periodo.filter(
-            tipo_venta="credito", metodo_pago="transferencia"
-        ).aggregate(total=Sum("montoinicial"))["total"] or Decimal("0.00")
-
-        # Calcular total esperado
-        total_esperado = (
-            ventas_contado_efectivo
-            + ventas_contado_tarjeta
-            + ventas_contado_transferencia
-            + ventas_credito_efectivo
-            + ventas_credito_tarjeta
-            + ventas_credito_transferencia
-        )
-
-        # Resto del código permanece igual...
         # Obtener datos del formulario
         monto_efectivo_real = request.POST.get("cash-amount")
         monto_tarjeta_real = request.POST.get("card-amount") or "0"
@@ -5258,9 +5394,10 @@ def procesar_cierre_caja(request):
         )
 
         # Guardar información en sesión para mostrar en el cuadre
+        ahora_rd = timezone.now().astimezone(TZ_RD)
         request.session["cierre_info"] = {
-            "fecha": timezone.now().date().strftime("%d/%m/%Y"),
-            "hora_cierre": timezone.now().strftime("%H:%M:%S"),
+            "fecha": ahora_rd.strftime("%d/%m/%Y"),
+            "hora_cierre": ahora_rd.strftime("%H:%M:%S"),
             "monto_efectivo_real": float(monto_efectivo_real),
             "monto_tarjeta_real": float(monto_tarjeta_real),
             "total_esperado": float(total_esperado),
@@ -5450,7 +5587,13 @@ def procesar_cierre_caja(request):
 
 
 @login_required
+@login_required
 def cuadre(request):
+    """
+    Vista de cuadre de caja mostrando el neto real por método de pago.
+
+    Fórmula: Neto por Método = Ingresos Brutos por Método - (Egresos Totales * proporción del método)
+    """
     # Obtener la caja abierta actual o la última cerrada
     caja_actual = Caja.objects.filter(
         usuario=request.user, estado="abierta").first()
@@ -5465,117 +5608,74 @@ def cuadre(request):
     context = {"caja": None, "ventas": {}, "cierre": None}
 
     if caja_actual:
-        # Obtener ventas de esta caja
-        ventas = Venta.objects.filter(
-            vendedor=request.user,
-            fecha_venta__gte=caja_actual.fecha_apertura,
-            completada=True,
-            anulada=False,
-        )
+        # Obtener tiempo de apertura exacto de la caja
+        fecha_apertura = caja_actual.fecha_apertura  # Es un datetime
 
-        if caja_actual.fecha_cierre:
-            ventas = ventas.filter(fecha_venta__lte=caja_actual.fecha_cierre)
+        # Obtener tiempo de cierre si existe, sino usar ahora
+        if caja_actual.estado == "cerrada" and caja_actual.fecha_cierre:
+            fecha_cierre = caja_actual.fecha_cierre
+        else:
+            fecha_cierre = timezone.now()
 
+        # Calcular INGRESOS BRUTOS por método
+        ingresos_brutos_por_metodo = _net_income_by_payment_method(
+            fecha_apertura, fecha_cierre, use_movimientos=True)
+        total_ingresos_brutos = sum(ingresos_brutos_por_metodo.values())
+
+        # Egresos totales
+        total_egresos = _net_egresos(
+            fecha_apertura, fecha_cierre, use_movimientos=True)
+
+        # Neto TOTAL
+        total_neto = total_ingresos_brutos - total_egresos
+
+        # Distribuir egresos proporcionalmente por método
+        neto_por_metodo = {}
+        if total_ingresos_brutos > 0:
+            for metodo in ['efectivo', 'tarjeta', 'transferencia']:
+                proporcion = ingresos_brutos_por_metodo[metodo] / \
+                    total_ingresos_brutos
+                egresos_del_metodo = total_egresos * proporcion
+                neto_por_metodo[metodo] = ingresos_brutos_por_metodo[metodo] - \
+                    egresos_del_metodo
+        else:
+            neto_por_metodo = {
+                'efectivo': Decimal('0.00'),
+                'tarjeta': Decimal('0.00'),
+                'transferencia': Decimal('0.00'),
+            }
+
+        # Obtener cierre si existe
         cierre = CierreCaja.objects.filter(caja=caja_actual).first()
 
-        # CORRECCIÓN: Calcular por método de pago sumando contado + monto inicial créditos
-        # Efectivo: ventas al contado en efectivo + monto inicial créditos en efectivo
-        ventas_contado_efectivo = ventas.filter(
-            tipo_venta="contado", metodo_pago="efectivo"
-        ).aggregate(total=Sum("total"))["total"] or Decimal("0.00")
-        ventas_credito_efectivo = ventas.filter(
-            tipo_venta="credito", metodo_pago="efectivo"
-        )
-        montoinicial_credito_efectivo = ventas_credito_efectivo.aggregate(
-            total=Sum("montoinicial")
-        )["total"] or Decimal("0.00")
-        total_efectivo_mostrar = ventas_contado_efectivo + montoinicial_credito_efectivo
-
-        # Tarjeta: ventas al contado con tarjeta + monto inicial créditos con tarjeta
-        ventas_contado_tarjeta = ventas.filter(
-            tipo_venta="contado", metodo_pago="tarjeta"
-        ).aggregate(total=Sum("total"))["total"] or Decimal("0.00")
-        ventas_credito_tarjeta = ventas.filter(
-            tipo_venta="credito", metodo_pago="tarjeta"
-        )
-        montoinicial_credito_tarjeta = ventas_credito_tarjeta.aggregate(
-            total=Sum("montoinicial")
-        )["total"] or Decimal("0.00")
-        total_tarjeta_mostrar = ventas_contado_tarjeta + montoinicial_credito_tarjeta
-
-        # Transferencia: ventas al contado con transferencia + monto inicial créditos con transferencia
-        ventas_contado_transferencia = ventas.filter(
-            tipo_venta="contado", metodo_pago="transferencia"
-        ).aggregate(total=Sum("total"))["total"] or Decimal("0.00")
-        ventas_credito_transferencia = ventas.filter(
-            tipo_venta="credito", metodo_pago="transferencia"
-        )
-        montoinicial_credito_transferencia = ventas_credito_transferencia.aggregate(
-            total=Sum("montoinicial")
-        )["total"] or Decimal("0.00")
-        total_transferencia_mostrar = (
-            ventas_contado_transferencia + montoinicial_credito_transferencia
-        )
-
-        # Monto inicial total de todos los créditos (para el cuadre de caja)
-        ventas_credito = ventas.filter(tipo_venta="credito")
-        montoinicial_credito_total = ventas_credito.aggregate(
-            total=Sum("montoinicial")
-        )["total"] or Decimal("0.00")
-
-        # Ventas totales al contado (para el Total General)
-        ventas_contado_total = ventas.filter(tipo_venta="contado").aggregate(
-            total=Sum("total")
-        )["total"] or Decimal("0.00")
-
-        # CORRECCIÓN FINAL: TOTAL GENERAL = ventas al contado (TOTAL) + monto inicial créditos (TOTAL)
-        total_general = ventas_contado_total + montoinicial_credito_total
-
-        # EFECTIVO para cuadre de caja = solo montos iniciales de créditos
-        total_efectivo_cuadre = montoinicial_credito_total
-
-        # CALCULAR MONTO CONTADO REAL
-        monto_contado = caja_actual.monto_inicial + total_efectivo_cuadre
-
         # DEBUG: Verificar cálculos
-        print("=== CÁLCULOS FINALES CORREGIDOS ===")
-        print(
-            f"Efectivo mostrar: {total_efectivo_mostrar} (contado: {ventas_contado_efectivo} + crédito: {montoinicial_credito_efectivo})"
-        )
-        print(
-            f"Tarjeta mostrar: {total_tarjeta_mostrar} (contado: {ventas_contado_tarjeta} + crédito: {montoinicial_credito_tarjeta})"
-        )
-        print(
-            f"Transferencia mostrar: {total_transferencia_mostrar} (contado: {ventas_contado_transferencia} + crédito: {montoinicial_credito_transferencia})"
-        )
-        print(f"Ventas al contado total: {ventas_contado_total}")
-        print(f"Monto inicial créditos total: {montoinicial_credito_total}")
-        print(f"Total general: {total_general}")
-        print(f"Efectivo cuadre: {total_efectivo_cuadre}")
+        logger.info("=== CÁLCULOS FINALES CUADRE ===")
+        logger.info(f"Ingresos brutos: {ingresos_brutos_por_metodo}")
+        logger.info(f"Egresos totales: {total_egresos}")
+        logger.info(f"Neto por método: {neto_por_metodo}")
+        logger.info(f"Total neto general: {total_neto}")
+
+        # Convertir fechas y horas a zona horaria RD
+        fecha_apertura_rd = fecha_apertura.astimezone(TZ_RD)
+        fecha_cierre_rd = fecha_cierre.astimezone(TZ_RD)
+        ahora_rd = timezone.now().astimezone(TZ_RD)
 
         context = {
             "caja": caja_actual,
             "ventas": {
-                "efectivo_cuadre": total_efectivo_cuadre,  # Solo para cuadre de caja
-                # Para mostrar: contado + crédito efectivo
-                "efectivo_mostrar": total_efectivo_mostrar,
-                # Para mostrar: contado + crédito tarjeta
-                "tarjeta_mostrar": total_tarjeta_mostrar,
-                # Para mostrar: contado + crédito transferencia
-                "transferencia_mostrar": total_transferencia_mostrar,
-                "ventas_contado_total": ventas_contado_total,  # Total ventas al contado
-                # Total monto inicial créditos
-                "montoinicial_credito_total": montoinicial_credito_total,
-                "total": total_general,
-                # Detalles para desglose
-                "contado_efectivo": ventas_contado_efectivo,
-                "credito_efectivo": montoinicial_credito_efectivo,
-                "contado_tarjeta": ventas_contado_tarjeta,
-                "credito_tarjeta": montoinicial_credito_tarjeta,
-                "contado_transferencia": ventas_contado_transferencia,
-                "credito_transferencia": montoinicial_credito_transferencia,
+                "efectivo": float(neto_por_metodo['efectivo']),
+                "tarjeta": float(neto_por_metodo['tarjeta']),
+                "transferencia": float(neto_por_metodo['transferencia']),
+                "total": float(total_neto),
             },
             "cierre": cierre,
+            "fecha_apertura": fecha_apertura,
+            "fecha_cierre": fecha_cierre,
+            "fecha_actual_rd": ahora_rd.strftime("%d/%m/%Y"),  # Solo fecha
+            # Solo hora 12h con segundos
+            "hora_apertura_rd": fecha_apertura_rd.strftime("%I:%M:%S %p"),
+            # Solo hora 12h con segundos
+            "hora_cierre_rd": fecha_cierre_rd.strftime("%I:%M:%S %p"),
         }
 
     return render(request, "facturacion/cuadre.html", context)
