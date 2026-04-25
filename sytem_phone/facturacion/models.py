@@ -750,6 +750,13 @@ class PagoCuentaPorCobrar(models.Model):
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     fecha_registro = models.DateTimeField(auto_now_add=True)
     anulado = models.BooleanField(default=False)
+    idempotency_key = models.UUIDField(
+        unique=True, 
+        null=True, 
+        blank=True, 
+        verbose_name="Clave de Idempotencia",
+        help_text="Clave generada por el cliente para evitar duplicados"
+    )
     
     class Meta:
         db_table = 'pagos_cuentas_por_cobrar'
@@ -759,6 +766,29 @@ class PagoCuentaPorCobrar(models.Model):
     
     def __str__(self):
         return f"Pago #{self.id} - {self.cuenta} - RD${self.monto}"
+
+
+class IdempotencyLog(models.Model):
+    """
+    Almacena las respuestas de las solicitudes de pago para re-entregarlas
+    en caso de reintento con la misma clave.
+    """
+    idempotency_key = models.UUIDField(unique=True, db_index=True)
+    response_body = models.TextField()
+    status_code = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        db_table = 'idempotency_logs'
+        verbose_name = 'Log de Idempotencia'
+        verbose_name_plural = 'Logs de Idempotencia'
+        indexes = [
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"Log {self.idempotency_key} - {self.status_code}"
 
 
 
