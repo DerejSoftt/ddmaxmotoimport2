@@ -18,6 +18,7 @@ from .models import (
     Devolucion,
     Cuota,
     DetalleDevolucion,
+    IdempotencyLog,
     MovimientoFinanciero,
 )
 from django.contrib import messages
@@ -2307,18 +2308,26 @@ Productos:
 @transaction.atomic
 def registrar_pago_cxc(request):
     """
-    Registra un pago sobre una CuentaPorCobrar.
-
-    Flujo:
-        1. Valida monto y estado de la cuenta
-        2. Crea PagoCuentaPorCobrar
-        3. Actualiza CuentaPorCobrar (monto_pagado + estado)
-        4. Aplica el pago a las cuotas más antiguas primero (select_for_update)
-        5. Crea MovimientoFinanciero
-        6. Crea ComprobantePago
+    Registra un pago sobre una CuentaPorCobrar con control de idempotencia.
     """
     try:
         data = json.loads(request.body)
+        idempotency_key = data.get("idempotency_key")
+
+        # ── 0. CONTROL DE IDEMPOTENCIA ──────────────────────────────────
+        if not idempotency_key:
+            return JsonResponse(
+                {"success": False, "message": "Clave de idempotencia requerida"},
+                status=400
+            )
+
+        # Verificar si ya existe un log para esta clave
+        log_previo = IdempotencyLog.objects.filter(idempotency_key=idempotency_key).first()
+        if log_previo:
+            cached_response = json.loads(log_previo.response_body)
+            cached_response["idempotency_cached"] = True
+            return JsonResponse(cached_response, status=log_previo.status_code)
+
         cuenta_id = data.get("cuenta_id")
         monto = safe_decimal(data.get("monto", 0))
         metodo = data.get("metodo_pago", "efectivo")
@@ -2327,16 +2336,19 @@ def registrar_pago_cxc(request):
 
         if monto <= 0:
             return JsonResponse(
-                {"success": False, "message": "El monto debe ser mayor a 0"}
+                {"success": False, "message": "El monto debe ser mayor a 0"},
+                status=400
             )
 
-        cuenta = get_object_or_404(
-            CuentaPorCobrar, id=cuenta_id, anulada=False, eliminada=False
+        # select_for_update en la cuenta para evitar colisiones de saldo
+        cuenta = CuentaPorCobrar.objects.select_for_update().get(
+            id=cuenta_id, anulada=False, eliminada=False
         )
 
         if cuenta.estado == "pagada":
             return JsonResponse(
-                {"success": False, "message": "Esta cuenta ya está pagada"}
+                {"success": False, "message": "Esta cuenta ya está pagada"},
+                status=400
             )
 
         saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
@@ -2345,7 +2357,8 @@ def registrar_pago_cxc(request):
                 {
                     "success": False,
                     "message": f"El monto excede el saldo pendiente: RD${saldo_pendiente:,.2f}",
-                }
+                },
+                status=400
             )
 
         # ── 1. GUARDAR EL PAGO ───────────────────────────────────────────
@@ -2356,6 +2369,7 @@ def registrar_pago_cxc(request):
             referencia=referencia,
             observaciones=notas,
             fecha_pago=timezone.now(),
+            idempotency_key=idempotency_key,
         )
 
         # ── 2. ACTUALIZAR CUENTA POR COBRAR ─────────────────────────────
@@ -2367,32 +2381,25 @@ def registrar_pago_cxc(request):
         elif cuenta.monto_pagado > 0:
             cuenta.estado = "parcial"
 
-        cuenta.save(update_fields=["monto_pagado",
-                    "estado", "fecha_actualizacion"])
+        cuenta.save(update_fields=["monto_pagado", "estado", "fecha_actualizacion"])
 
-        # ── 3. ACTUALIZAR CUOTAS (la más antigua primero) ────────────────
-        # select_for_update() bloquea las filas hasta que termine
-        # la transacción. Evita que dos pagos simultáneos corrompan
-        # el mismo registro (race condition).
+        # ── 3. ACTUALIZAR CUOTAS ─────────────────────────────────────────
         monto_restante = monto
         cuotas_actualizadas = []
-
         cuotas_pendientes = (
             Cuota.objects.select_for_update()
             .filter(venta=cuenta.venta, estado__in=["pendiente", "parcial"])
-            .order_by("fecha_vencimiento")  # la más antigua manda
+            .order_by("fecha_vencimiento")
         )
 
         for cuota in cuotas_pendientes:
             if monto_restante <= 0:
                 break
-
             aplicar = min(monto_restante, cuota.monto_pendiente)
-            cuota.aplicar_pago(aplicar)  # muta en memoria, sin save()
+            cuota.aplicar_pago(aplicar)
             monto_restante -= aplicar
             cuotas_actualizadas.append(cuota)
 
-        # Un solo UPDATE para todas las cuotas modificadas — no N saves
         if cuotas_actualizadas:
             Cuota.objects.bulk_update(
                 cuotas_actualizadas,
@@ -2412,9 +2419,7 @@ def registrar_pago_cxc(request):
             metodo_pago=metodo,
             descripcion=(
                 f"Pago CxC — Factura {cuenta.venta.numero_factura} — "
-                f"Cliente: {cuenta.cliente.full_name} — "
-                f"Saldo anterior: RD${saldo_pendiente:,.2f} — "
-                f"Saldo nuevo: RD${nuevo_saldo:,.2f}"
+                f"Cliente: {cuenta.cliente.full_name}"
             ),
             referencia=referencia or f"PAGO-{pago.id}",
             creado_por=request.user,
@@ -2428,20 +2433,32 @@ def registrar_pago_cxc(request):
             tipo_comprobante="recibo",
         )
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": "Pago registrado correctamente",
-                "nuevo_saldo": float(nuevo_saldo),
-                "estado_cuenta": cuenta.estado,
-                "cuotas_actualizadas": len(cuotas_actualizadas),
-                "pago_id": pago.id,
-            }
+        response_data = {
+            "success": True,
+            "message": "Pago registrado correctamente",
+            "nuevo_saldo": float(nuevo_saldo),
+            "estado_cuenta": cuenta.estado,
+            "pago_id": pago.id,
+        }
+
+        # ── 6. PERSISTIR RESPUESTA PARA IDEMPOTENCIA ─────────────────────
+        IdempotencyLog.objects.create(
+            idempotency_key=idempotency_key,
+            response_body=json.dumps(response_data),
+            status_code=200,
+            user=request.user
         )
 
+        return JsonResponse(response_data)
+
     except Exception as e:
+        # En caso de error, no guardamos log para permitir reintentos corregidos
+        # a menos que sea un error de negocio que queramos cachear.
+        # Aquí simplificamos y solo retornamos el error.
+        print(f"Error en registrar_pago_cxc: {str(e)}")
         return JsonResponse(
-            {"success": False, "message": f"Error al registrar pago: {str(e)}"}
+            {"success": False, "message": f"Error al registrar pago: {str(e)}"},
+            status=500
         )
 
 
