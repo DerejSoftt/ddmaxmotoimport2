@@ -2322,7 +2322,8 @@ def registrar_pago_cxc(request):
             )
 
         # Verificar si ya existe un log para esta clave
-        log_previo = IdempotencyLog.objects.filter(idempotency_key=idempotency_key).first()
+        log_previo = IdempotencyLog.objects.filter(
+            idempotency_key=idempotency_key).first()
         if log_previo:
             cached_response = json.loads(log_previo.response_body)
             cached_response["idempotency_cached"] = True
@@ -2381,7 +2382,8 @@ def registrar_pago_cxc(request):
         elif cuenta.monto_pagado > 0:
             cuenta.estado = "parcial"
 
-        cuenta.save(update_fields=["monto_pagado", "estado", "fecha_actualizacion"])
+        cuenta.save(update_fields=["monto_pagado",
+                    "estado", "fecha_actualizacion"])
 
         # ── 3. ACTUALIZAR CUOTAS ─────────────────────────────────────────
         monto_restante = monto
@@ -2457,7 +2459,8 @@ def registrar_pago_cxc(request):
         # Aquí simplificamos y solo retornamos el error.
         print(f"Error en registrar_pago_cxc: {str(e)}")
         return JsonResponse(
-            {"success": False, "message": f"Error al registrar pago: {str(e)}"},
+            {"success": False,
+                "message": f"Error al registrar pago: {str(e)}"},
             status=500
         )
 
