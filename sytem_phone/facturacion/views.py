@@ -4531,7 +4531,14 @@ def registrar_pago(request):
                     {"success": False, "message": "Esta cuenta ya está pagada"}
                 )
 
-            saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
+            # Usar el mismo cálculo de saldo que la vista de CxC para evitar
+            # inconsistencias entre frontend (saldo efectivo) y backend.
+            monto_total_base = _get_effective_total_amount(cuenta)
+            monto_pagado_base = _get_effective_paid_amount(cuenta)
+            saldo_pendiente = monto_total_base - monto_pagado_base
+            if saldo_pendiente < 0:
+                saldo_pendiente = Decimal("0.00")
+
             if monto > saldo_pendiente:
                 return JsonResponse(
                     {
@@ -4551,8 +4558,13 @@ def registrar_pago(request):
             )
 
             # ── 2. ACTUALIZAR CUENTA POR COBRAR ─────────────────────────────
-            cuenta.monto_pagado += monto
-            nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+            cuenta.monto_pagado = monto_pagado_base + monto
+            if cuenta.monto_pagado > monto_total_base:
+                cuenta.monto_pagado = monto_total_base
+
+            nuevo_saldo = monto_total_base - cuenta.monto_pagado
+            if nuevo_saldo < 0:
+                nuevo_saldo = Decimal("0.00")
 
             if nuevo_saldo <= 0:
                 cuenta.estado = "pagada"
@@ -4635,7 +4647,7 @@ def registrar_pago(request):
                     "comprobante_numero": comprobante.numero_comprobante,
                     "comprobante_id": comprobante.id,
                     "nuevo_saldo_pendiente": float(nuevo_saldo),
-                    "monto_total_original": float(cuenta.monto_total),
+                    "monto_total_original": float(monto_total_base),
                     "monto_pagado_total": float(cuenta.monto_pagado),
                     "estado_actual": cuenta.estado,
                     "cuotas_actualizadas": len(cuotas_actualizadas),
