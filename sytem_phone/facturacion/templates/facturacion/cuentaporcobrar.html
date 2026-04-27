@@ -1358,6 +1358,7 @@
         </div>
         <div class="modal-body">
           <form id="paymentForm">
+            {% csrf_token %}
             <input type="hidden" id="paymentAccountId" />
             <input type="hidden" id="paymentMode" value="cuotas" />
             <div class="payment-form-group">
@@ -1776,21 +1777,36 @@
 
       // Función para obtener el token CSRF
       function getCSRFToken() {
+        const isValidToken = (token) =>
+          typeof token === "string" && (token.length === 32 || token.length === 64);
+
         const name = "csrftoken";
         let cookieValue = null;
+
         if (document.cookie && document.cookie !== "") {
           const cookies = document.cookie.split(";");
           for (let i = 0; i < cookies.length; i++) {
             const cookie = cookies[i].trim();
             if (cookie.substring(0, name.length + 1) === name + "=") {
-              cookieValue = decodeURIComponent(
-                cookie.substring(name.length + 1),
-              );
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
               break;
             }
           }
         }
-        return cookieValue;
+
+        if (isValidToken(cookieValue)) {
+          return cookieValue;
+        }
+
+        // Fallback: token renderizado por Django dentro del formulario.
+        const formToken = document.querySelector(
+          "#paymentForm input[name='csrfmiddlewaretoken']",
+        )?.value;
+        if (isValidToken(formToken)) {
+          return formToken;
+        }
+
+        return null;
       }
 
       // ===== FUNCIONES PARA AGRUPAR POR CLIENTE =====
@@ -2485,6 +2501,10 @@
         const account = accounts.find((acc) => acc.id === id);
         if (!account) return;
 
+        // Clave estable por apertura del modal para evitar pagos duplicados.
+        window.currentPaymentIdempotencyKey =
+          window.currentPaymentIdempotencyKey || crypto.randomUUID();
+
         // Verificar que la cuenta no esté anulada o pagada
         if (account.status === "anulada" || account.status === "pagada") {
           Swal.fire({
@@ -2585,6 +2605,7 @@
         document.getElementById("paymentModal").classList.remove("active");
         document.body.style.overflow = "auto";
         document.getElementById("paymentForm").reset();
+        window.currentPaymentIdempotencyKey = null;
       }
 
       function submitPayment() {
@@ -2696,12 +2717,27 @@
               },
             });
 
+            const csrfToken = getCSRFToken();
+            if (!csrfToken) {
+              Swal.fire({
+                title: "Error CSRF",
+                text: "No se pudo obtener el token de seguridad. Recargue la página e intente nuevamente.",
+                icon: "error",
+                confirmButtonColor: "#dc3545",
+              });
+              return;
+            }
+
+            const idempotencyKey =
+              window.currentPaymentIdempotencyKey || crypto.randomUUID();
+            window.currentPaymentIdempotencyKey = idempotencyKey;
+
             // Enviar pago al servidor
-            fetch("registrar-pago/", {
+            fetch("/api/pago-cxc/", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "X-CSRFToken": getCSRFToken(),
+                "X-CSRFToken": csrfToken,
               },
               body: JSON.stringify({
                 cuenta_id: accountId,
@@ -2709,9 +2745,15 @@
                 metodo_pago: method,
                 referencia: reference,
                 observaciones: observations,
+                idempotency_key: idempotencyKey,
               }),
             })
-              .then((response) => response.json())
+              .then((response) => {
+                if (response.status === 401) {
+                  throw new Error("AUTH_REQUIRED");
+                }
+                return response.json();
+              })
               .then((data) => {
                 if (data.success) {
                   // Mostrar información del comprobante generado
@@ -2792,6 +2834,17 @@
               })
               .catch((error) => {
                 console.error("Error:", error);
+                if (error && error.message === "AUTH_REQUIRED") {
+                  Swal.fire({
+                    title: "Sesión requerida",
+                    text: "Su sesión expiró o no ha iniciado sesión. Inicie sesión nuevamente para registrar pagos.",
+                    icon: "warning",
+                    confirmButtonColor: "#667eea",
+                  }).then(() => {
+                    window.location.href = "/";
+                  });
+                  return;
+                }
                 Swal.fire({
                   title: "Error de conexión",
                   text: "Error al registrar el pago. Verifique su conexión e intente nuevamente.",

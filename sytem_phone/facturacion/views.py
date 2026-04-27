@@ -2304,12 +2304,17 @@ Productos:
 
 @csrf_exempt
 @require_POST
-@login_required
 @transaction.atomic
 def registrar_pago_cxc(request):
     """
     Registra un pago sobre una CuentaPorCobrar con control de idempotencia.
     """
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "message": "Debe iniciar sesión para registrar pagos"},
+            status=401,
+        )
+
     try:
         data = json.loads(request.body)
         idempotency_key = data.get("idempotency_key")
@@ -2321,10 +2326,26 @@ def registrar_pago_cxc(request):
                 status=400
             )
 
-        # Verificar si ya existe un log para esta clave
-        log_previo = IdempotencyLog.objects.filter(
-            idempotency_key=idempotency_key).first()
-        if log_previo:
+        # Reservar la clave al inicio para evitar ejecuciones duplicadas.
+        log_previo, created = IdempotencyLog.objects.get_or_create(
+            idempotency_key=idempotency_key,
+            defaults={
+                "response_body": "",
+                "status_code": 102,
+                "user": request.user,
+            },
+        )
+        if not created:
+            if log_previo.status_code == 102 or not log_previo.response_body:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Esta solicitud ya está en proceso. Espere un momento e intente nuevamente.",
+                        "idempotency_cached": True,
+                    },
+                    status=409,
+                )
+
             cached_response = json.loads(log_previo.response_body)
             cached_response["idempotency_cached"] = True
             return JsonResponse(cached_response, status=log_previo.status_code)
@@ -2428,7 +2449,7 @@ def registrar_pago_cxc(request):
         )
 
         # ── 5. COMPROBANTE ───────────────────────────────────────────────
-        ComprobantePago.objects.create(
+        comprobante = ComprobantePago.objects.create(
             pago=pago,
             cuenta=cuenta,
             cliente=cuenta.cliente,
@@ -2441,14 +2462,15 @@ def registrar_pago_cxc(request):
             "nuevo_saldo": float(nuevo_saldo),
             "estado_cuenta": cuenta.estado,
             "pago_id": pago.id,
+            "comprobante_id": comprobante.id,
+            "comprobante_numero": comprobante.numero_comprobante,
         }
 
         # ── 6. PERSISTIR RESPUESTA PARA IDEMPOTENCIA ─────────────────────
-        IdempotencyLog.objects.create(
-            idempotency_key=idempotency_key,
+        IdempotencyLog.objects.filter(idempotency_key=idempotency_key).update(
             response_body=json.dumps(response_data),
             status_code=200,
-            user=request.user
+            user=request.user,
         )
 
         return JsonResponse(response_data)
@@ -2458,6 +2480,7 @@ def registrar_pago_cxc(request):
         # a menos que sea un error de negocio que queramos cachear.
         # Aquí simplificamos y solo retornamos el error.
         print(f"Error en registrar_pago_cxc: {str(e)}")
+        transaction.set_rollback(True)
         return JsonResponse(
             {"success": False,
                 "message": f"Error al registrar pago: {str(e)}"},
@@ -4673,154 +4696,255 @@ def registrar_pago(request):
 def generar_comprobante_pdf(request, comprobante_id):
     try:
         comprobante = get_object_or_404(ComprobantePago, id=comprobante_id)
-        # Crear respuesta HTTP con tipo PDF
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = (
             f'attachment; filename="comprobante_{comprobante.numero_comprobante}.pdf"'
         )
-        # Configurar el PDF para 80mm de ancho (aprox. 226 puntos)
-        width = 226  # 80mm en puntos (1mm = 2.83 puntos)
-        height = 1200  # Alto suficiente para el contenido y firmas
-        # Crear el objeto PDF con tamaño personalizado
+
+        # Papel térmico 80mm, alto largo para evitar corte de contenido.
+        width = 226
+        height = 1200
         p = canvas.Canvas(response, pagesize=(width, height))
-        # Configurar márgenes y fuentes para impresora térmica
-        margin_left = 10
-        y_position = height - 20  # Empezar desde la parte superior
-        line_height = 14
-        small_line_height = 10
-        # Obtener información de totales usando el monto real de la cuenta
+
+        left = 10
+        right = width - 10
+        y = height - 18
+        line_h = 12
+
         monto_original = Decimal(
             comprobante.cuenta.monto_total or Decimal("0.00"))
         monto_pagado_acumulado = _get_effective_paid_amount(comprobante.cuenta)
         saldo_pendiente = monto_original - monto_pagado_acumulado
         if saldo_pendiente < 0:
             saldo_pendiente = Decimal("0.00")
-        # Función para centrar texto
 
-        def draw_centered_text(text, y, font_size=12, bold=False):
-            if bold:
-                p.setFont("Helvetica-Bold", font_size)
-            else:
-                p.setFont("Helvetica", font_size)
-            text_width = p.stringWidth(text, "Helvetica", font_size)
-            x = (width - text_width) / 2
-            p.drawString(x, y, text)
-            return y - line_height
-
-        # Función para texto normal alineado a la izquierda
-
-        def draw_left_text(text, y, font_size=10, bold=False):
-            if bold:
-                p.setFont("Helvetica-Bold", font_size)
-            else:
-                p.setFont("Helvetica", font_size)
-            p.drawString(margin_left, y, text)
-            return y - line_height
-
-        # Encabezado del comprobante
-        y_position = draw_centered_text(
-            "DDMAX - MOTO IMPORT", y_position, 8, True
-        )  # Tamaño reducido
-        y_position = draw_centered_text(
-            "COMPROBANTE DE PAGO", y_position, 10, True)
-        y_position -= line_height / 2  # Espacio adicional
-        # Línea separadora
-        p.line(margin_left, y_position, width - margin_left, y_position)
-        y_position -= line_height
-        # Información del comprobante
-        y_position = draw_left_text(
-            f"Comprobante: {comprobante.numero_comprobante}", y_position, 9
+        factura_num = (
+            comprobante.cuenta.venta.numero_factura
+            if comprobante.cuenta and comprobante.cuenta.venta
+            else "N/A"
         )
-        y_position = draw_left_text(
-            f"Fecha: {comprobante.fecha_emision.strftime('%d/%m/%Y %H:%M')}",
-            y_position,
-            9,
-        )
-        y_position = draw_left_text(
-            f"Cliente: {comprobante.cliente.full_name}", y_position, 9
-        )
-        # Información de la factura si existe
-        if comprobante.cuenta.venta:
-            y_position = draw_left_text(
-                f"Factura: {comprobante.cuenta.venta.numero_factura}", y_position, 9
+        cliente_nombre = comprobante.cliente.full_name if comprobante.cliente else "Cliente"
+        tipo_pago = comprobante.tipo_comprobante.capitalize()
+        metodo_pago = comprobante.pago.get_metodo_pago_display() if comprobante.pago else "N/A"
+        referencia = comprobante.pago.referencia if comprobante.pago and comprobante.pago.referencia else "N/A"
+        fecha_pago = comprobante.pago.fecha_pago if comprobante.pago else comprobante.fecha_emision
+        balance_anterior = saldo_pendiente + \
+            (comprobante.pago.monto if comprobante.pago else Decimal("0.00"))
+        monto_pago = comprobante.pago.monto if comprobante.pago else Decimal(
+            "0.00")
+        usuario_despacho = "Sistema"
+        if comprobante.cuenta and comprobante.cuenta.venta and comprobante.cuenta.venta.vendedor:
+            usuario_despacho = (
+                comprobante.cuenta.venta.vendedor.get_full_name()
+                or comprobante.cuenta.venta.vendedor.username
             )
-        y_position -= line_height / 2
-        # Línea separadora
-        p.line(margin_left, y_position, width - margin_left, y_position)
-        y_position -= line_height
-        # Información del pago
-        y_position = draw_centered_text(
-            "DETALLE DEL PAGO", y_position, 10, True)
-        y_position -= small_line_height
-        y_position = draw_left_text(
-            f"Monto Pagado: RD$ {comprobante.pago.monto:,.2f}", y_position, 9, True
-        )
-        y_position = draw_left_text(
-            f"Método: {comprobante.pago.get_metodo_pago_display()}", y_position, 9
-        )
-        if comprobante.pago.referencia:
-            y_position = draw_left_text(
-                f"Referencia: {comprobante.pago.referencia}", y_position, 8
+
+        firma = get_random_string(24)
+
+        movimiento_uuid = None
+        if comprobante.pago:
+            movimiento = (
+                comprobante.pago.movimientos_financieros
+                .filter(origen="PAGO_CXC", estado="ACTIVO")
+                .order_by("-fecha_registro")
+                .first()
             )
-        y_position -= line_height / 2
-        # Línea separadora
-        p.line(margin_left, y_position, width - margin_left, y_position)
-        y_position -= line_height
-        # Información de totales
-        y_position = draw_centered_text(
-            "RESUMEN DE CUENTA", y_position, 10, True)
-        y_position -= small_line_height
-        y_position = draw_left_text(
-            f"Monto Original: RD$ {monto_original:,.2f}", y_position, 9
+            if movimiento and getattr(movimiento, "uuid", None):
+                movimiento_uuid = str(movimiento.uuid)
+
+        firma_comprobante = movimiento_uuid or firma
+
+        def format_datetime_rd_12h(dt_value):
+            """Convierte datetime a zona RD y lo formatea en 12 horas."""
+            if not dt_value:
+                return "N/A"
+
+            if timezone.is_naive(dt_value):
+                dt_value = TZ_RD.localize(dt_value)
+            else:
+                dt_value = dt_value.astimezone(TZ_RD)
+
+            return dt_value.strftime("%d/%m/%Y %I:%M %p")
+
+        fecha_emision_text = format_datetime_rd_12h(comprobante.fecha_emision)
+        fecha_pago_text = format_datetime_rd_12h(fecha_pago)
+
+        def wrap_text(text, font_name, font_size, max_width):
+            text = str(text or "")
+            words = text.split()
+            if not words:
+                return [""]
+
+            lines = []
+            current = words[0]
+            for word in words[1:]:
+                candidate = f"{current} {word}"
+                if p.stringWidth(candidate, font_name, font_size) <= max_width:
+                    current = candidate
+                else:
+                    lines.append(current)
+                    current = word
+            lines.append(current)
+            return lines
+
+        def draw_center(text, y_pos, size=10, bold=False):
+            font_name = "Helvetica-Bold" if bold else "Helvetica"
+            p.setFont(font_name, size)
+            tw = p.stringWidth(text, font_name, size)
+            p.drawString((width - tw) / 2, y_pos, text)
+            return y_pos - line_h
+
+        def draw_center_wrapped(text, y_pos, size=9, bold=False):
+            font_name = "Helvetica-Bold" if bold else "Helvetica"
+            max_width = right - left
+            lines = wrap_text(text, font_name, size, max_width)
+            p.setFont(font_name, size)
+            for line in lines:
+                tw = p.stringWidth(line, font_name, size)
+                p.drawString((width - tw) / 2, y_pos, line)
+                y_pos -= line_h
+            return y_pos
+
+        def draw_left_pair(label, value, y_pos, label_size=9, value_size=9, value_x=90):
+            value_text = str(value or "")
+            label_text = f"{label}:"
+
+            p.setFont("Helvetica-Bold", label_size)
+            computed_value_x = left + \
+                p.stringWidth(label_text, "Helvetica-Bold", label_size) + 8
+            value_start_x = max(value_x, computed_value_x)
+            max_value_width = right - value_start_x
+
+            p.drawString(left, y_pos, label_text)
+
+            lines = wrap_text(value_text, "Helvetica",
+                              value_size, max_value_width)
+            p.setFont("Helvetica", value_size)
+            p.drawString(value_start_x, y_pos, lines[0])
+            y_pos -= line_h
+
+            for extra_line in lines[1:]:
+                p.drawString(value_start_x, y_pos, extra_line)
+                y_pos -= line_h
+
+            return y_pos
+
+        def find_logo_path():
+            candidates = [
+                os.path.join(settings.BASE_DIR, "facturacion",
+                             "static", "image", "logos.png"),
+                os.path.join(settings.BASE_DIR, "facturacion",
+                             "static", "image", "logo.png"),
+                os.path.join(settings.BASE_DIR, "facturacion",
+                             "static", "image", "logo2.png"),
+                os.path.join(settings.BASE_DIR, "facturacion",
+                             "static", "image", "logo3.png"),
+            ]
+            for path in candidates:
+                if os.path.exists(path):
+                    return path
+            return None
+
+        # Logo centrado.
+        logo_path = find_logo_path()
+        if logo_path:
+            try:
+                logo = ImageReader(logo_path)
+                logo_w = 70
+                logo_h = 52
+                p.drawImage(logo, (width - logo_w) / 2, y - logo_h, width=logo_w,
+                            height=logo_h, preserveAspectRatio=True, mask='auto')
+                y -= 58
+            except Exception:
+                y -= 6
+
+        # Cabecera estilo ticket.
+        y = draw_center("DDMAXMOTOIMPORT", y, 14, True)
+        y = draw_center("RNC: 00000000", y, 10)
+        y = draw_center_wrapped(
+            "Direccion: Castanuelas, calle 30 de mayo frente a la bomba", y, 8
         )
-        y_position = draw_left_text(
-            f"Pagado Acumulado: RD$ {monto_pagado_acumulado:,.2f}", y_position, 9
+        y = draw_center("Telefono: 849-362-1791", y, 10)
+        y -= 2
+        p.line(left, y, right, y)
+        y -= 18
+
+        y = draw_center("COMPROBANTE DE PAGO", y, 10, True)
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(left, y, "Generado:")
+        p.setFont("Helvetica", 9)
+        p.drawString(left + 56, y, fecha_emision_text)
+        y -= line_h
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(left, y, "Recibo:")
+        p.setFont("Helvetica", 9)
+        p.drawString(left + 56, y, f"#{comprobante.id}")
+        y -= 6
+        p.line(left, y, right, y)
+        y -= 18
+
+        y = draw_left_pair("Comprobante", comprobante.numero_comprobante, y)
+        y = draw_left_pair("Fecha pago", fecha_pago_text, y)
+        y = draw_left_pair("Tipo", tipo_pago, y)
+        y = draw_left_pair("Cliente", cliente_nombre, y)
+        y = draw_left_pair("Factura", factura_num, y)
+        y = draw_left_pair("Monto pagado", f"RD$ {monto_pago:,.2f}", y)
+        y = draw_left_pair("Balance anterior",
+                           f"RD$ {balance_anterior:,.2f}", y)
+        y = draw_left_pair("Balance actual", f"RD$ {saldo_pendiente:,.2f}", y)
+        y = draw_left_pair("Metodo pago", metodo_pago, y)
+        y = draw_left_pair("Referencia", referencia, y)
+        y = draw_left_pair("Despachado por", usuario_despacho, y)
+
+        y -= 10
+        p.line(left, y, right, y)
+        y -= 16
+
+        p.setFont("Helvetica-Bold", 13)
+        p.drawString(left, y, "TOTAL PAGADO")
+        total_txt = f"RD$ {monto_pago:,.2f}"
+        tw = p.stringWidth(total_txt, "Helvetica-Bold", 13)
+        title_w = p.stringWidth("TOTAL PAGADO", "Helvetica-Bold", 13)
+        if title_w + 10 + tw > (right - left):
+            y -= line_h
+            p.drawString(right - tw, y, total_txt)
+        else:
+            p.drawString(right - tw, y, total_txt)
+
+        y -= 20
+        p.line(left, y, right, y)
+        y -= 18
+
+        # Firma del cliente + nombre debajo + cédula en blanco para escribir manualmente.
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(left, y, "Firma del cliente")
+        y -= 16
+        p.line(left + 8, y, right - 8, y)
+        y -= 16
+        y = draw_center(cliente_nombre, y, 9)
+
+        p.setFont("Helvetica", 9)
+        p.drawString(left, y, "Cedula:")
+        # Línea en blanco para que el cliente escriba su cédula a mano.
+        p.line(left + 40, y - 1, right - 8, y - 1)
+        y -= 26
+
+        # Firma de negocio.
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(left, y, "Firma del negocio")
+        y -= 16
+        p.line(left + 8, y, right - 8, y)
+        y -= 24
+
+        y = draw_center("Gracias por su pago", y, 12)
+        p.setFont("Helvetica-Oblique", 9)
+        firma_txt = f"Firma: {firma_comprobante}"
+        p.drawString(
+            (width - p.stringWidth(firma_txt, "Helvetica-Oblique", 9)) / 2,
+            y,
+            firma_txt,
         )
-        y_position = draw_left_text(
-            f"Saldo Pendiente: RD$ {saldo_pendiente:,.2f}", y_position, 9, True
-        )
-        y_position -= line_height
-        # Línea separadora final
-        p.line(margin_left, y_position, width - margin_left, y_position)
-        y_position -= line_height * 2  # Más espacio antes de las firmas
-        # SECCIÓN DE FIRMAS
-        y_position = draw_centered_text(
-            "FIRMA DEL CLIENTE", y_position, 9, True)
-        y_position -= small_line_height
-        # Línea para firma del cliente
-        p.line(margin_left + 40, y_position,
-               width - margin_left - 40, y_position)
-        y_position -= line_height
-        # Espacio para firma y cédula del cliente
-        #
-        y_position -= line_height * 1.2  # Espacio adicional antes de la cédula
-        y_position = draw_left_text(
-            "Cédula: _________________________", y_position, 8)
-        y_position -= line_height * 1.5
-        # FIRMA DE LA EMPRESA
-        y_position = draw_centered_text(
-            "FIRMA DE LA EMPRESA", y_position, 9, True)
-        y_position -= small_line_height
-        # Línea para firma de la empresa
-        p.line(margin_left + 40, y_position,
-               width - margin_left - 40, y_position)
-        y_position -= line_height
-        # Información de la empresa
-        y_position = draw_centered_text(
-            "DDMAX - MOTO IMPORT", y_position, 8, True)
-        y_position -= line_height * 1.5
-        # Mensaje de agradecimiento
-        y_position = draw_centered_text(
-            "¡Gracias por su pago!", y_position, 10, True)
-        y_position -= small_line_height
-        # Información de contacto de la empresa (más pequeña)
-        y_position = draw_centered_text("DDMAX - MOTO IMPORT", y_position, 7)
-        y_position = draw_centered_text("Tel: (809) 656-3374", y_position, 7)
-        # Agregar código de barras o QR si es necesario (opcional)
-        y_position -= line_height
-        draw_centered_text(
-            f"Ref: {comprobante.numero_comprobante}", y_position, 7)
-        # Finalizar el PDF
+
         p.showPage()
         p.save()
         return response
