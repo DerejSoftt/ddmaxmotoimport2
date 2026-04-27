@@ -524,6 +524,15 @@
         box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
       }
 
+      .btn-payall-disabled {
+        background: linear-gradient(135deg, #c9ced3 0%, #a8b0b8 100%) !important;
+        color: #eef1f4 !important;
+        box-shadow: none !important;
+        cursor: not-allowed !important;
+        opacity: 0.75;
+        pointer-events: none;
+      }
+
       .btn-info {
         background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
         color: white;
@@ -737,6 +746,33 @@
         font-size: 0.85rem;
         margin-top: 5px;
         display: none;
+      }
+
+      .payment-mode-toggle {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .payment-mode-btn {
+        border: 2px solid #d8dee6;
+        background: #f7f9fc;
+        color: #4a5568;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .payment-mode-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: #fff;
+      }
+
+      .payment-mode-btn:disabled {
+        opacity: 0.8;
       }
 
       /* Expandable Row Styles */
@@ -1323,6 +1359,28 @@
         <div class="modal-body">
           <form id="paymentForm">
             <input type="hidden" id="paymentAccountId" />
+            <input type="hidden" id="paymentMode" value="cuotas" />
+            <div class="payment-form-group">
+              <label>Tipo de Pago *</label>
+              <div class="payment-mode-toggle">
+                <button
+                  type="button"
+                  id="paymentModeCuotasBtn"
+                  class="payment-mode-btn active"
+                  onclick="setPaymentMode('cuotas')"
+                >
+                  Cuotas
+                </button>
+                <button
+                  type="button"
+                  id="paymentModeAbonoBtn"
+                  class="payment-mode-btn"
+                  onclick="setPaymentMode('abono')"
+                >
+                  Abono
+                </button>
+              </div>
+            </div>
             <div class="payment-form-group">
               <label for="paymentInstallmentsSelect">Cantidad de Cuotas a Pagar *</label>
               <select id="paymentInstallmentsSelect" class="filter-input select" required>
@@ -1581,6 +1639,30 @@
         };
       }
 
+      function getNormalizedAccountStatus(account) {
+        if (account?.status === "anulada") {
+          return "anulada";
+        }
+
+        const { paidAmount, pendingBalance } = getAccountAmounts(account);
+        const hasOverdueInstallments = Number(account?.overdueInstallments || 0) > 0;
+        const hasOverdueDays = Number(account?.daysOverdue || 0) > 0;
+
+        if (pendingBalance <= 0.009) {
+          return "pagada";
+        }
+
+        if (account?.status === "vencida" || hasOverdueInstallments || hasOverdueDays) {
+          return "vencida";
+        }
+
+        if (account?.status === "parcial" || paidAmount > 0) {
+          return "parcial";
+        }
+
+        return "pendiente";
+      }
+
       function populateInstallmentsSelect(account, pendingBalance) {
         const select = document.getElementById("paymentInstallmentsSelect");
         if (!select) return { selectedAmount: pendingBalance, selectedCount: 1 };
@@ -1630,6 +1712,9 @@
       }
 
       function syncAmountWithSelectedInstallments() {
+        const mode = document.getElementById("paymentMode")?.value || "cuotas";
+        if (mode !== "cuotas") return;
+
         const select = document.getElementById("paymentInstallmentsSelect");
         const amountInput = document.getElementById("paymentAmountInput");
         const amountValueInput = document.getElementById("paymentAmountValue");
@@ -1643,6 +1728,50 @@
           }
           document.getElementById("paymentAmountError").style.display = "none";
         }
+      }
+
+      function setPaymentMode(mode) {
+        const modeInput = document.getElementById("paymentMode");
+        const cuotasBtn = document.getElementById("paymentModeCuotasBtn");
+        const abonoBtn = document.getElementById("paymentModeAbonoBtn");
+        const installmentsSelect = document.getElementById("paymentInstallmentsSelect");
+        const amountInput = document.getElementById("paymentAmountInput");
+        const amountValueInput = document.getElementById("paymentAmountValue");
+        const errorElement = document.getElementById("paymentAmountError");
+
+        if (!modeInput || !cuotasBtn || !abonoBtn || !installmentsSelect || !amountInput) {
+          return;
+        }
+
+        modeInput.value = mode;
+        cuotasBtn.classList.toggle("active", mode === "cuotas");
+        abonoBtn.classList.toggle("active", mode === "abono");
+
+        if (mode === "abono") {
+          installmentsSelect.disabled = true;
+          installmentsSelect.removeAttribute("required");
+
+          amountInput.readOnly = false;
+          amountInput.value = "";
+          amountInput.placeholder = "Ingrese monto libre (ej: 8000)";
+
+          if (amountValueInput) {
+            amountValueInput.value = "";
+          }
+
+          if (errorElement) {
+            errorElement.style.display = "none";
+          }
+
+          return;
+        }
+
+        installmentsSelect.disabled = false;
+        installmentsSelect.setAttribute("required", "required");
+
+        amountInput.readOnly = true;
+        amountInput.placeholder = "";
+        syncAmountWithSelectedInstallments();
       }
 
       // Función para obtener el token CSRF
@@ -1669,8 +1798,10 @@
         const clientsMap = {};
 
         accountsData.forEach((account) => {
+          const normalizedStatus = getNormalizedAccountStatus(account);
+
           // Filtrar cuentas anuladas y eliminadas
-          if (account.status === "anulada" || account.eliminada) {
+          if (normalizedStatus === "anulada" || account.eliminada) {
             return;
           }
 
@@ -1682,6 +1813,7 @@
               clientPhone: account.clientPhone,
               invoices: [],
               totalPending: 0,
+              pendingInvoices: 0,
               status: "pagada",
               isExpanded: false,
             };
@@ -1710,29 +1842,32 @@
             totalAmount: montoTotalCuenta,
             paidAmount: montoPagado,
             pendingBalance: pendingBalance,
-            status: account.status,
+            status: normalizedStatus,
             observations: account.observations,
             isExpanded: isInvoiceExpanded,
-            anulada: account.status === "anulada",
+            anulada: normalizedStatus === "anulada",
             puede_eliminar: account.puede_eliminar || false,
           });
 
-          // Sumar el saldo pendiente real (siempre positivo)
-          clientsMap[clientKey].totalPending += pendingBalance;
+          // Sumar solo saldos realmente pendientes
+          if (pendingBalance > 0.009) {
+            clientsMap[clientKey].totalPending += pendingBalance;
+            clientsMap[clientKey].pendingInvoices += 1;
 
-          // Actualizar estado general
-          if (account.status === "vencida") {
-            clientsMap[clientKey].status = "vencida";
-          } else if (
-            account.status === "pendiente" &&
-            clientsMap[clientKey].status !== "vencida"
-          ) {
-            clientsMap[clientKey].status = "pendiente";
-          } else if (
-            account.status === "parcial" &&
-            clientsMap[clientKey].status === "pagada"
-          ) {
-            clientsMap[clientKey].status = "parcial";
+            // Prioridad: vencida > parcial > pendiente > pagada
+            if (normalizedStatus === "vencida") {
+              clientsMap[clientKey].status = "vencida";
+            } else if (
+              normalizedStatus === "parcial" &&
+              clientsMap[clientKey].status !== "vencida"
+            ) {
+              clientsMap[clientKey].status = "parcial";
+            } else if (
+              normalizedStatus === "pendiente" &&
+              clientsMap[clientKey].status === "pagada"
+            ) {
+              clientsMap[clientKey].status = "pendiente";
+            }
           }
         });
 
@@ -1749,8 +1884,10 @@
         let totalReceivableAmount = 0;
 
         accountsData.forEach((account) => {
+          const normalizedStatus = getNormalizedAccountStatus(account);
+
           // Excluir cuentas anuladas y eliminadas de las estadísticas
-          if (account.status === "anulada" || account.eliminada) {
+          if (normalizedStatus === "anulada" || account.eliminada) {
             return;
           }
 
@@ -1759,14 +1896,14 @@
 
           totalReceivableAmount += pendingBalance;
 
-          if (account.status === "pendiente") {
+          if (normalizedStatus === "pendiente" || normalizedStatus === "parcial") {
             pendingAmount += pendingBalance;
-          } else if (account.status === "vencida") {
+          } else if (normalizedStatus === "vencida") {
             overdueAmount += pendingBalance;
           }
 
           // Pagos del mes actual
-          if (account.status === "pagada") {
+          if (normalizedStatus === "pagada") {
             const saleDate = new Date(account.saleDate);
             const now = new Date();
             if (
@@ -1849,7 +1986,7 @@
             <tr class="client-row" data-client-key="${client.clientName}-${client.clientPhone}">
                 <td><strong>${client.clientName}</strong></td>
                 <td>${client.clientPhone}</td>
-                <td>${client.invoices.length} factura(s)</td>
+                <td>${client.pendingInvoices} factura(s)</td>
                 <td class="currency"><strong>RD$ ${Math.abs(client.totalPending).toLocaleString("es-DO")}</strong></td>
                 <td>
                     <span class="status-badge ${getStatusClass(client.status)}">
@@ -1862,7 +1999,7 @@
                             <i class='bx bx-${isClientExpanded ? "minus" : "plus"}'></i>
                             ${isClientExpanded ? "Ocultar" : "Mostrar"}
                         </button>
-                        <button class="btn btn-success" onclick="payAllInvoices('${client.clientName}-${client.clientPhone}')" title="Pagar todas" disabled style="background-color: #cccccc; cursor: not-allowed; opacity: 0.6;">
+                        <button class="btn btn-success btn-payall-disabled" title="Pagar todas (deshabilitado)" disabled aria-disabled="true" tabindex="-1">
                             <i class='bx bx-dollar'></i>
                             Pagar Todo
                         </button>
@@ -1893,7 +2030,7 @@
                                 : ""
                             }
                         </td>
-                        <td class="currency">RD$ ${Math.abs(invoice.totalAmount).toLocaleString("es-DO")}</td>
+                        <td class="currency">RD$ ${Math.abs(invoice.pendingBalance).toLocaleString("es-DO")}</td>
                         <td>
                             <span class="status-badge ${getStatusClass(invoice.status)}">
                                 ${getStatusName(invoice.status)}
@@ -1905,7 +2042,9 @@
                                     <i class='bx bx-info-circle'></i>
                                 </button>
                                 ${
-                                  invoice.pendingBalance > 0
+                                  invoice.pendingBalance > 0 &&
+                                  invoice.status !== "pagada" &&
+                                  invoice.status !== "anulada"
                                     ? `
                                 <button class="btn btn-success" onclick="openPaymentModal(${invoice.id})" title="Registrar Pago">
                                     <i class='bx bx-dollar'></i>
@@ -1916,7 +2055,8 @@
 
                                 ${
                                   invoice.pendingBalance > 0 &&
-                                  invoice.status !== "anulada"
+                                  invoice.status !== "anulada" &&
+                                  invoice.status !== "pagada"
                                     ? `
                                 <button class="btn btn-warning" onclick="openDiscountModal(${invoice.id})" title="Ajuste de Saldo">
                                     <i class='bx bx-money'></i>
@@ -2143,8 +2283,10 @@
         const dateTo = document.getElementById("dateTo").value;
 
         filteredAccounts = accounts.filter((account) => {
+          const normalizedStatus = getNormalizedAccountStatus(account);
+
           // Excluir cuentas anuladas y eliminadas del filtrado
-          if (account.status === "anulada" || account.eliminada) {
+          if (normalizedStatus === "anulada" || account.eliminada) {
             return false;
           }
 
@@ -2160,8 +2302,18 @@
             account.clientPhone.toLowerCase().includes(searchTerm);
 
           // Filtro por estado
+          const statusFilterMap = {
+            pending: ["pendiente", "parcial"],
+            overdue: ["vencida"],
+            paid: ["pagada"],
+            pendiente: ["pendiente"],
+            parcial: ["parcial"],
+            vencida: ["vencida"],
+            pagada: ["pagada"],
+          };
+          const allowedStatuses = statusFilterMap[statusFilter] || [statusFilter];
           const matchesStatus =
-            !statusFilter || account.status === statusFilter;
+            !statusFilter || allowedStatuses.includes(normalizedStatus);
 
           // Filtro por fecha
           let matchesDateFrom = true;
@@ -2281,7 +2433,9 @@
         const payButton = document.getElementById("payFromDetailsBtn");
         payButton.setAttribute("data-account-id", account.id);
         payButton.style.display =
-          pendingBalance <= 0 || account.status === "anulada"
+          pendingBalance <= 0 ||
+          account.status === "anulada" ||
+          account.status === "pagada"
             ? "none"
             : "inline-flex";
 
@@ -2331,11 +2485,14 @@
         const account = accounts.find((acc) => acc.id === id);
         if (!account) return;
 
-        // Verificar que la cuenta no esté anulada
-        if (account.status === "anulada") {
+        // Verificar que la cuenta no esté anulada o pagada
+        if (account.status === "anulada" || account.status === "pagada") {
           Swal.fire({
-            title: "Cuenta Anulada",
-            text: "No se puede realizar pagos en una cuenta anulada",
+            title: account.status === "pagada" ? "Cuenta Pagada" : "Cuenta Anulada",
+            text:
+              account.status === "pagada"
+                ? "Esta cuenta ya está completamente pagada"
+                : "No se puede realizar pagos en una cuenta anulada",
             icon: "error",
             confirmButtonColor: "#dc3545",
           });
@@ -2378,6 +2535,9 @@
         }
 
         document.getElementById("paymentAmountError").style.display = "none";
+
+        // Reiniciar siempre en modo Cuotas al abrir el modal
+        setPaymentMode("cuotas");
 
         // Agregar información adicional al modal
         const modalBody = document.querySelector("#paymentModal .modal-body");
@@ -2429,11 +2589,16 @@
 
       function submitPayment() {
         const accountId = document.getElementById("paymentAccountId").value;
+        const paymentMode = document.getElementById("paymentMode")?.value || "cuotas";
         const rawAmountValue =
-          document.getElementById("paymentAmountValue")?.value ||
-          document
-            .getElementById("paymentAmountInput")
-            .value.replace(/[^\d.-]/g, "");
+          paymentMode === "abono"
+            ? document
+                .getElementById("paymentAmountInput")
+                .value.replace(/[^\d.-]/g, "")
+            : document.getElementById("paymentAmountValue")?.value ||
+              document
+                .getElementById("paymentAmountInput")
+                .value.replace(/[^\d.-]/g, "");
         const amount = parseFloat(rawAmountValue);
         const method = document.getElementById("paymentMethod").value;
         const reference = document.getElementById("paymentReference").value;
@@ -2481,13 +2646,17 @@
           document.getElementById("paymentInstallmentsSelect")?.value || 0,
         );
         const maxAllowedAmount =
-          selectedInstallmentsAmount > 0
+          paymentMode === "abono"
+            ? currentPendingBalance
+            : selectedInstallmentsAmount > 0
             ? Math.min(selectedInstallmentsAmount, currentPendingBalance)
             : currentPendingBalance;
 
         if (amount > maxAllowedAmount) {
           document.getElementById("paymentAmountError").textContent =
-            `El monto excede el monto seleccionado por cuotas: RD$ ${maxAllowedAmount.toLocaleString("es-DO")}`;
+            paymentMode === "abono"
+              ? `El monto excede el saldo pendiente: RD$ ${maxAllowedAmount.toLocaleString("es-DO")}`
+              : `El monto excede el monto seleccionado por cuotas: RD$ ${maxAllowedAmount.toLocaleString("es-DO")}`;
           document.getElementById("paymentAmountError").style.display = "block";
           return;
         }
@@ -3271,7 +3440,12 @@
           document.getElementById("paymentAmountInput");
         if (paymentAmountInput) {
           paymentAmountInput.addEventListener("input", function () {
-            const amount = parseFloat(this.value);
+            const paymentMode = document.getElementById("paymentMode")?.value || "cuotas";
+            const rawAmount =
+              paymentMode === "abono"
+                ? this.value.replace(/[^\d.-]/g, "")
+                : document.getElementById("paymentAmountValue")?.value || this.value;
+            const amount = parseFloat(rawAmount);
             const accountId = document.getElementById("paymentAccountId").value;
             const account = accounts.find((acc) => acc.id == accountId);
 
@@ -3282,21 +3456,33 @@
                 document.getElementById("paymentInstallmentsSelect")?.value || 0,
               );
               const maxAmount =
-                selectedInstallmentsAmount > 0
+                paymentMode === "abono"
+                  ? saldoPendiente
+                  : selectedInstallmentsAmount > 0
                   ? Math.min(selectedInstallmentsAmount, saldoPendiente)
                   : saldoPendiente;
 
               const errorElement =
                 document.getElementById("paymentAmountError");
 
-              if (amount > maxAmount) {
-                errorElement.textContent = `El monto no puede exceder el monto por cuotas: RD$ ${maxAmount.toLocaleString("es-DO")}`;
-                errorElement.style.display = "block";
-              } else if (amount <= 0) {
+              if (!amount || Number.isNaN(amount) || amount <= 0) {
                 errorElement.textContent = "El monto debe ser mayor a 0";
+                errorElement.style.display = "block";
+              } else if (amount > maxAmount) {
+                errorElement.textContent =
+                  paymentMode === "abono"
+                    ? `El monto no puede exceder el saldo pendiente: RD$ ${maxAmount.toLocaleString("es-DO")}`
+                    : `El monto no puede exceder el monto por cuotas: RD$ ${maxAmount.toLocaleString("es-DO")}`;
                 errorElement.style.display = "block";
               } else {
                 errorElement.style.display = "none";
+
+                if (paymentMode === "abono") {
+                  const amountValueInput = document.getElementById("paymentAmountValue");
+                  if (amountValueInput) {
+                    amountValueInput.value = amount.toFixed(2);
+                  }
+                }
               }
             }
           });
