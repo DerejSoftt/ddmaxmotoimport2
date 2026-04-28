@@ -178,8 +178,8 @@ def _net_income(start_date, end_date, use_movimientos=None):
                 Decimal('0.00'), output_field=DecimalField()))
         )['total']
 
-        # EGRESOS: Anulaciones + Devoluciones + Ajustes
-        egresos = qs.filter(tipo='EGRESO').aggregate(
+        # EGRESOS para dashboard: Anulaciones + Devoluciones (omitir AJUSTE CxC)
+        egresos = qs.filter(tipo='EGRESO').exclude(origen='AJUSTE').aggregate(
             total=Coalesce(Sum('monto'), Value(
                 Decimal('0.00'), output_field=DecimalField()))
         )['total']
@@ -235,15 +235,9 @@ def _net_income(start_date, end_date, use_movimientos=None):
         ).aggregate(total=Coalesce(Sum('monto'), Value(
             Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
 
-        # EGRESOS: Rebajas de Deuda
-        rebajas = RebajaDeuda.objects.filter(
-            fecha_rebaja__gte=start_utc,
-            fecha_rebaja__lte=end_utc
-        ).aggregate(total=Coalesce(Sum('monto_rebaja'), Value(
-            Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
-
         ingresos_total = contado + credito + pagos_cxc
-        egresos_total = anulaciones + devoluciones + rebajas
+        # Dashboard: no restar rebajas/descuentos de CxC de las cards.
+        egresos_total = anulaciones + devoluciones
         total = ingresos_total - egresos_total
 
 # Helper: ingreso neto por día en una lista de fechas
@@ -300,13 +294,13 @@ def _net_income_per_day(dates, use_movimientos=None):
             if mov_fecha_rd in daily_balance:
                 daily_balance[mov_fecha_rd] += mov['monto']
 
-        # EGRESOS (restar)
+        # EGRESOS para dashboard (restar), omitiendo AJUSTE CxC
         movs_egreso = MovimientoFinanciero.objects.filter(
             fecha_operacion__gte=start_utc,
             fecha_operacion__lte=end_utc,
             estado='ACTIVO',
             tipo='EGRESO'
-        ).values('fecha_operacion', 'monto')
+        ).exclude(origen='AJUSTE').values('fecha_operacion', 'monto')
 
         for mov in movs_egreso:
             # Convertir fecha UTC a fecha RD
@@ -400,21 +394,6 @@ def _net_income_per_day(dates, use_movimientos=None):
                 TZ_RD).date()
             if dev_fecha_rd in daily_balance:
                 daily_balance[dev_fecha_rd] -= dev['total']
-
-        # Restar EGRESOS: Rebajas
-        rebajas = RebajaDeuda.objects.filter(
-            fecha_rebaja__gte=start_utc,
-            fecha_rebaja__lte=end_utc
-        ).values('fecha_rebaja').annotate(
-            total=Coalesce(Sum('monto_rebaja'), Value(
-                Decimal('0.00'), output_field=DecimalField()))
-        )
-
-        for rebaja in rebajas:
-            # Convertir fecha UTC a fecha RD
-            rebaja_fecha_rd = rebaja['fecha_rebaja'].astimezone(TZ_RD).date()
-            if rebaja_fecha_rd in daily_balance:
-                daily_balance[rebaja_fecha_rd] -= rebaja['total']
 
     return daily_balance
 
@@ -2367,13 +2346,19 @@ def registrar_pago_cxc(request):
             id=cuenta_id, anulada=False, eliminada=False
         )
 
-        if cuenta.estado == "pagada":
+        # Calcular saldo real para evitar falsos "pagada" por estado desactualizado.
+        monto_total_base = _get_effective_total_amount(cuenta)
+        monto_pagado_base = _get_effective_paid_amount(cuenta)
+        saldo_pendiente = monto_total_base - monto_pagado_base
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal("0.00")
+
+        if saldo_pendiente <= 0:
             return JsonResponse(
                 {"success": False, "message": "Esta cuenta ya está pagada"},
                 status=400
             )
 
-        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
         if monto > saldo_pendiente:
             return JsonResponse(
                 {
@@ -2395,8 +2380,13 @@ def registrar_pago_cxc(request):
         )
 
         # ── 2. ACTUALIZAR CUENTA POR COBRAR ─────────────────────────────
-        cuenta.monto_pagado += monto
-        nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+        cuenta.monto_pagado = monto_pagado_base + monto
+        if cuenta.monto_pagado > monto_total_base:
+            cuenta.monto_pagado = monto_total_base
+
+        nuevo_saldo = monto_total_base - cuenta.monto_pagado
+        if nuevo_saldo < 0:
+            nuevo_saldo = Decimal("0.00")
 
         if nuevo_saldo <= 0:
             cuenta.estado = "pagada"
@@ -4860,11 +4850,11 @@ def generar_comprobante_pdf(request, comprobante_id):
 
         # Cabecera estilo ticket.
         y = draw_center("DDMAXMOTOIMPORT", y, 14, True)
-        y = draw_center("RNC: 00000000", y, 10)
+        y = draw_center("RNC: 1-33-56904-3", y, 10)
         y = draw_center_wrapped(
-            "Direccion: Castanuelas, calle 30 de mayo frente a la bomba", y, 8
+            "C/Principal, #35 Castañuelas", y, 8
         )
-        y = draw_center("Telefono: 849-362-1791", y, 10)
+        y = draw_center("Telefono: 809 656-3374", y, 10)
         y -= 2
         p.line(left, y, right, y)
         y -= 18
