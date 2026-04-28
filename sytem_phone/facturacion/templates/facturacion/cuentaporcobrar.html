@@ -2030,6 +2030,8 @@
               const isInvoiceExpanded = invoice.isExpanded;
               const hasMultipleProducts =
                 invoice.products && invoice.products.length > 1;
+              const normalizedInvoiceStatus = getNormalizedAccountStatus(invoice);
+              const { pendingBalance: invoicePendingBalance } = getAccountAmounts(invoice);
 
               tableRowsHTML += `
                     <tr class="invoice-row expanded" data-client-key="${client.clientName}-${client.clientPhone}" data-invoice-id="${invoice.id}">
@@ -2046,10 +2048,10 @@
                                 : ""
                             }
                         </td>
-                        <td class="currency">RD$ ${Math.abs(invoice.pendingBalance).toLocaleString("es-DO")}</td>
+                        <td class="currency">RD$ ${Math.abs(invoicePendingBalance).toLocaleString("es-DO")}</td>
                         <td>
-                            <span class="status-badge ${getStatusClass(invoice.status)}">
-                                ${getStatusName(invoice.status)}
+                          <span class="status-badge ${getStatusClass(normalizedInvoiceStatus)}">
+                            ${getStatusName(normalizedInvoiceStatus)}
                             </span>
                         </td>
                         <td>
@@ -2058,9 +2060,9 @@
                                     <i class='bx bx-info-circle'></i>
                                 </button>
                                 ${
-                                  invoice.pendingBalance > 0 &&
-                                  invoice.status !== "pagada" &&
-                                  invoice.status !== "anulada"
+                                    invoicePendingBalance > 0 &&
+                                    normalizedInvoiceStatus !== "pagada" &&
+                                    normalizedInvoiceStatus !== "anulada"
                                     ? `
                                 <button class="btn btn-success" onclick="openPaymentModal(${invoice.id})" title="Registrar Pago">
                                     <i class='bx bx-dollar'></i>
@@ -2070,9 +2072,9 @@
                                 }
 
                                 ${
-                                  invoice.pendingBalance > 0 &&
-                                  invoice.status !== "anulada" &&
-                                  invoice.status !== "pagada"
+                                    invoicePendingBalance > 0 &&
+                                    normalizedInvoiceStatus !== "anulada" &&
+                                    normalizedInvoiceStatus !== "pagada"
                                     ? `
                                 <button class="btn btn-warning" onclick="openDiscountModal(${invoice.id})" title="Ajuste de Saldo">
                                     <i class='bx bx-money'></i>
@@ -2082,7 +2084,7 @@
                                 }
                                 <!-- BOTÓN DE ELIMINAR - SOLO PARA CUENTAS PAGADAS -->
                                 ${
-                                  invoice.status === "pagada"
+                                    normalizedInvoiceStatus === "pagada"
                                     ? `
                                 <button class="btn btn-danger" onclick="eliminarCuentaPagada(${invoice.id})" title="Eliminar Cuenta Pagada">
                                     <i class='bx bx-trash'></i>
@@ -2437,11 +2439,12 @@
         document.getElementById("detailPendingAmount").textContent =
           `RD$ ${pendingBalance.toLocaleString("es-DO")}`;
 
+        const detailNormalizedStatus = getNormalizedAccountStatus(account);
         document.getElementById("detailStatus").textContent = getStatusName(
-          account.status,
+          detailNormalizedStatus,
         );
         document.getElementById("detailStatus").className =
-          `detail-value status-badge ${getStatusClass(account.status)}`;
+          `detail-value status-badge ${getStatusClass(detailNormalizedStatus)}`;
         document.getElementById("detailObservations").textContent =
           account.observations || "N/A";
 
@@ -2450,8 +2453,8 @@
         payButton.setAttribute("data-account-id", account.id);
         payButton.style.display =
           pendingBalance <= 0 ||
-          account.status === "anulada" ||
-          account.status === "pagada"
+          detailNormalizedStatus === "anulada" ||
+          detailNormalizedStatus === "pagada"
             ? "none"
             : "inline-flex";
 
@@ -2500,17 +2503,18 @@
         console.log("Abriendo modal de pago para cuenta:", id);
         const account = accounts.find((acc) => acc.id === id);
         if (!account) return;
+        const normalizedStatus = getNormalizedAccountStatus(account);
 
         // Clave estable por apertura del modal para evitar pagos duplicados.
         window.currentPaymentIdempotencyKey =
           window.currentPaymentIdempotencyKey || crypto.randomUUID();
 
         // Verificar que la cuenta no esté anulada o pagada
-        if (account.status === "anulada" || account.status === "pagada") {
+        if (normalizedStatus === "anulada" || normalizedStatus === "pagada") {
           Swal.fire({
-            title: account.status === "pagada" ? "Cuenta Pagada" : "Cuenta Anulada",
+            title: normalizedStatus === "pagada" ? "Cuenta Pagada" : "Cuenta Anulada",
             text:
-              account.status === "pagada"
+              normalizedStatus === "pagada"
                 ? "Esta cuenta ya está completamente pagada"
                 : "No se puede realizar pagos en una cuenta anulada",
             icon: "error",

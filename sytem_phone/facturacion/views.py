@@ -178,8 +178,8 @@ def _net_income(start_date, end_date, use_movimientos=None):
                 Decimal('0.00'), output_field=DecimalField()))
         )['total']
 
-        # EGRESOS: Anulaciones + Devoluciones + Ajustes
-        egresos = qs.filter(tipo='EGRESO').aggregate(
+        # EGRESOS para dashboard: Anulaciones + Devoluciones (omitir AJUSTE CxC)
+        egresos = qs.filter(tipo='EGRESO').exclude(origen='AJUSTE').aggregate(
             total=Coalesce(Sum('monto'), Value(
                 Decimal('0.00'), output_field=DecimalField()))
         )['total']
@@ -235,15 +235,9 @@ def _net_income(start_date, end_date, use_movimientos=None):
         ).aggregate(total=Coalesce(Sum('monto'), Value(
             Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
 
-        # EGRESOS: Rebajas de Deuda
-        rebajas = RebajaDeuda.objects.filter(
-            fecha_rebaja__gte=start_utc,
-            fecha_rebaja__lte=end_utc
-        ).aggregate(total=Coalesce(Sum('monto_rebaja'), Value(
-            Decimal('0.00'), output_field=DecimalField())))['total'] or Decimal('0.00')
-
         ingresos_total = contado + credito + pagos_cxc
-        egresos_total = anulaciones + devoluciones + rebajas
+        # Dashboard: no restar rebajas/descuentos de CxC de las cards.
+        egresos_total = anulaciones + devoluciones
         total = ingresos_total - egresos_total
 
 # Helper: ingreso neto por día en una lista de fechas
@@ -300,13 +294,13 @@ def _net_income_per_day(dates, use_movimientos=None):
             if mov_fecha_rd in daily_balance:
                 daily_balance[mov_fecha_rd] += mov['monto']
 
-        # EGRESOS (restar)
+        # EGRESOS para dashboard (restar), omitiendo AJUSTE CxC
         movs_egreso = MovimientoFinanciero.objects.filter(
             fecha_operacion__gte=start_utc,
             fecha_operacion__lte=end_utc,
             estado='ACTIVO',
             tipo='EGRESO'
-        ).values('fecha_operacion', 'monto')
+        ).exclude(origen='AJUSTE').values('fecha_operacion', 'monto')
 
         for mov in movs_egreso:
             # Convertir fecha UTC a fecha RD
@@ -400,21 +394,6 @@ def _net_income_per_day(dates, use_movimientos=None):
                 TZ_RD).date()
             if dev_fecha_rd in daily_balance:
                 daily_balance[dev_fecha_rd] -= dev['total']
-
-        # Restar EGRESOS: Rebajas
-        rebajas = RebajaDeuda.objects.filter(
-            fecha_rebaja__gte=start_utc,
-            fecha_rebaja__lte=end_utc
-        ).values('fecha_rebaja').annotate(
-            total=Coalesce(Sum('monto_rebaja'), Value(
-                Decimal('0.00'), output_field=DecimalField()))
-        )
-
-        for rebaja in rebajas:
-            # Convertir fecha UTC a fecha RD
-            rebaja_fecha_rd = rebaja['fecha_rebaja'].astimezone(TZ_RD).date()
-            if rebaja_fecha_rd in daily_balance:
-                daily_balance[rebaja_fecha_rd] -= rebaja['total']
 
     return daily_balance
 
@@ -2367,13 +2346,19 @@ def registrar_pago_cxc(request):
             id=cuenta_id, anulada=False, eliminada=False
         )
 
-        if cuenta.estado == "pagada":
+        # Calcular saldo real para evitar falsos "pagada" por estado desactualizado.
+        monto_total_base = _get_effective_total_amount(cuenta)
+        monto_pagado_base = _get_effective_paid_amount(cuenta)
+        saldo_pendiente = monto_total_base - monto_pagado_base
+        if saldo_pendiente < 0:
+            saldo_pendiente = Decimal("0.00")
+
+        if saldo_pendiente <= 0:
             return JsonResponse(
                 {"success": False, "message": "Esta cuenta ya está pagada"},
                 status=400
             )
 
-        saldo_pendiente = cuenta.monto_total - cuenta.monto_pagado
         if monto > saldo_pendiente:
             return JsonResponse(
                 {
@@ -2395,8 +2380,13 @@ def registrar_pago_cxc(request):
         )
 
         # ── 2. ACTUALIZAR CUENTA POR COBRAR ─────────────────────────────
-        cuenta.monto_pagado += monto
-        nuevo_saldo = cuenta.monto_total - cuenta.monto_pagado
+        cuenta.monto_pagado = monto_pagado_base + monto
+        if cuenta.monto_pagado > monto_total_base:
+            cuenta.monto_pagado = monto_total_base
+
+        nuevo_saldo = monto_total_base - cuenta.monto_pagado
+        if nuevo_saldo < 0:
+            nuevo_saldo = Decimal("0.00")
 
         if nuevo_saldo <= 0:
             cuenta.estado = "pagada"
@@ -3171,7 +3161,14 @@ def obtener_clientes(request):
         # Convertir a lista y formatear fechas
         clientes_list = list(clientes)
         for cliente in clientes_list:
-            cliente["fecha_registro"] = cliente["fecha_registro"].isoformat()
+            fecha = cliente.get("fecha_registro")
+            if fecha:
+                # enviar ISO para compatibilidad y una versión formateada en TZ RD (12h dd/mm/YYYY)
+                cliente["fecha_registro"] = fecha.isoformat()
+                cliente["date_registered"] = timezone.localtime(
+                    fecha, TZ_RD).strftime("%d/%m/%Y %I:%M %p")
+            else:
+                cliente["date_registered"] = None
 
         return JsonResponse({"success": True, "clientes": clientes_list})
 
@@ -4160,198 +4157,208 @@ def cuentaporcobrar(request):
 
 @csrf_exempt
 def generar_pdf_deudas(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
+    if request.method != "POST":
+        return HttpResponse("Método no permitido", status=405)
 
-            response = HttpResponse(content_type="application/pdf")
-            filename = f"deudas_clientes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    try:
+        data = json.loads(request.body)
 
-            # Crear el objeto PDF
-            p = canvas.Canvas(response, pagesize=letter)
-            width, height = letter
+        # Importar localmente para no tocar el encabezado del archivo
+        from io import BytesIO
+        from decimal import Decimal
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.lib.units import mm
 
-            # Margenes
-            left_margin = 50
-            right_margin = width - 50
-            top_margin = height - 50
+        # Fecha actual en TZ_RD y formato 12h
+        now_rd = timezone.localtime(timezone.now(), TZ_RD)
+        fecha_str = now_rd.strftime("%d/%m/%Y %I:%M %p")
 
-            # Título
-            p.setFont("Helvetica-Bold", 16)
-            p.setFillColorRGB(0.2, 0.2, 0.4)  # Azul oscuro
-            p.drawCentredString(width / 2, top_margin,
-                                "Reporte de Deudas por Cliente")
+        clientes = data.get("clientes", [])
+        total_clientes = data.get("total_clientes", len(clientes))
+        total_general = Decimal(data.get("total_general", 0) or 0)
 
-            # Fecha de generación
-            p.setFont("Helvetica", 10)
-            p.setFillColorRGB(0.4, 0.4, 0.4)  # Gris oscuro
-            fecha_gen = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            p.drawCentredString(width / 2, top_margin - 25,
-                                f"Generado el: {fecha_gen}")
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(letter),
+            leftMargin=20 * mm,
+            rightMargin=20 * mm,
+            topMargin=18 * mm,
+            bottomMargin=18 * mm,
+        )
 
-            # Línea separadora
-            p.setLineWidth(1)
-            p.setStrokeColorRGB(0.8, 0.8, 0.8)  # Gris claro
-            p.line(left_margin, top_margin - 40, right_margin, top_margin - 40)
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            "Title",
+            parent=styles["Heading1"],
+            alignment=1,
+            fontSize=16,
+            textColor=colors.HexColor("#1f4e79"),
+            spaceAfter=6,
+        )
+        subtitle_style = ParagraphStyle(
+            "Subtitle",
+            parent=styles["Normal"],
+            alignment=1,
+            fontSize=9,
+            textColor=colors.grey,
+            spaceAfter=12,
+        )
+        normal_right = ParagraphStyle(
+            "right", parent=styles["Normal"], alignment=2)
 
-            # Información de resumen
-            p.setFont("Helvetica-Bold", 11)
-            p.setFillColorRGB(0, 0, 0)  # Negro
-            total_clientes = data.get("total_clientes", 0)
-            total_general = data.get("total_general", 0)
-            p.drawString(
-                left_margin,
-                top_margin - 65,
-                f"Total Clientes con Deudas: {total_clientes}",
-            )
-            p.drawString(
-                left_margin + 300,
-                top_margin - 65,
-                f"Deuda Total: RD$ {total_general:,.2f}",
-            )
+        elements = []
 
-            # Posición inicial para la tabla
-            y = top_margin - 90
+        # Header: logo + report title
+        logo_path = None
+        possible = [
+            os.path.join(settings.STATIC_ROOT or "", "image", "logom3.png"),
+            os.path.join(settings.BASE_DIR, "facturacion",
+                         "static", "image", "logom3.png"),
+            os.path.join(os.path.dirname(__file__),
+                         "static", "image", "logom3.png"),
+        ]
+        for p in possible:
+            if p and os.path.exists(p):
+                logo_path = p
+                break
 
-            # Encabezados de la tabla
-            p.setFont("Helvetica-Bold", 10)
-            p.setFillColorRGB(1, 1, 1)  # Blanco
-            p.setStrokeColorRGB(0.4, 0.4, 0.4)  # Gris para bordes
+        header_data = []
+        if logo_path:
+            try:
+                img = Image(logo_path, width=60, height=30)
+                header_data.append([img, Paragraph(
+                    "<b>DDMAX Moto Import</b><br/><i>Reporte de Deudas por Cliente</i>", styles["Normal"])])
+            except Exception:
+                header_data.append(
+                    [Paragraph("<b>DDMAX Moto Import</b>", styles["Normal"]), ""])
+        else:
+            header_data.append(
+                [Paragraph("<b>DDMAX Moto Import</b>", styles["Normal"]), ""])
 
-            # Dibujar fondo de encabezados (azul)
-            p.setFillColorRGB(0.2, 0.4, 0.8)  # Azul
-            p.rect(
-                left_margin, y - 20, right_margin - left_margin, 25, fill=1, stroke=0
-            )
+        # Ajustar anchos del header según el ancho utilizable del documento
+        header_col_left = 60  # puntos aproximados para el logo
+        header_table = Table(header_data, colWidths=[
+                             header_col_left, doc.width - header_col_left])
+        header_table.setStyle(
+            TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "LEFT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ])
+        )
 
-            # Texto de encabezados
-            p.setFillColorRGB(1, 1, 1)  # Blanco
-            p.drawString(left_margin + 10, y - 15, "Cliente")
-            p.drawString(left_margin + 200, y - 15, "Teléfono")
-            p.drawString(left_margin + 300, y - 15, "Facturas Pendientes")
-            p.drawString(left_margin + 450, y - 15, "Monto Total Pendiente")
+        elements.append(header_table)
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph(f"Generado el: {fecha_str}", subtitle_style))
 
-            # Bordes de encabezado
-            p.setLineWidth(1)
-            p.setStrokeColorRGB(1, 1, 1)  # Blanco para bordes del encabezado
-            p.rect(left_margin, y - 20, right_margin - left_margin, 25)
+        # Summary line (usar ancho utilizable para mantener proporciones)
+        summary = Table([
+            [f"Total Clientes con Deudas: {total_clientes}",
+                f"Deuda Total: RD$ {total_general:,.2f}"]
+        ], colWidths=[doc.width * 0.65, doc.width * 0.35])
+        summary.setStyle(
+            TableStyle([
+                ("ALIGN", (0, 0), (0, 0), "LEFT"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+            ])
+        )
+        elements.append(summary)
+        elements.append(Spacer(1, 8))
 
-            # Línea debajo del encabezado
-            p.setStrokeColorRGB(0, 0, 0)  # Negro
-            p.line(left_margin, y - 20, right_margin, y - 20)
+        # Table header + rows
+        table_data = []
+        table_header = [
+            Paragraph("<b>Cliente</b>", styles["Normal"]),
+            Paragraph("<b>Teléfono</b>", styles["Normal"]),
+            Paragraph("<b>Facturas Pendientes</b>", styles["Normal"]),
+            Paragraph("<b>Monto Total Pendiente</b>", styles["Normal"]),
+        ]
+        table_data.append(table_header)
 
-            # Datos de la tabla
-            p.setFont("Helvetica", 9)
-            y -= 45  # Mover hacia abajo para los datos
+        for cliente in clientes:
+            nombre = cliente.get("cliente", "-")
+            telefono = cliente.get("telefono", "-")
+            cantidad = cliente.get("cantidad_facturas", 0)
+            monto = Decimal(cliente.get("monto_total_pendiente", 0) or 0)
+            table_data.append([
+                Paragraph(str(nombre), styles["Normal"]),
+                Paragraph(str(telefono), styles["Normal"]),
+                Paragraph(str(cantidad), styles["Normal"]),
+                Paragraph(f"RD$ {monto:,.2f}", normal_right),
+            ])
 
-            # Alternar colores de filas
-            # Blanco  # Gris muy claro
-            row_colors = [(1, 1, 1), (0.95, 0.95, 0.95)]
+        # Calcular anchos de columna relativos al ancho utilizable
+        colWidths = [doc.width * 0.55, doc.width *
+                     0.2, doc.width * 0.1, doc.width * 0.15]
+        tbl = Table(table_data, colWidths=colWidths, repeatRows=1)
+        tbl.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e79")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (2, 1), (2, -1), "CENTER"),
+                ("ALIGN", (3, 1), (3, -1), "RIGHT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#dddddd")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#bbbbbb")),
+            ])
+        )
 
-            clientes = data.get("clientes", [])
-            for i, cliente in enumerate(clientes):
-                # Cambiar color de fondo cada fila
-                color_index = i % 2
-                p.setFillColorRGB(*row_colors[color_index])
+        # Alternate row background
+        for i in range(1, len(table_data)):
+            if i % 2 == 0:
+                tbl.setStyle(TableStyle(
+                    [("BACKGROUND", (0, i), (-1, i), colors.whitesmoke)]))
 
-                # Dibujar fondo de la fila
-                p.rect(
-                    left_margin,
-                    y - 15,
-                    right_margin - left_margin,
-                    20,
-                    fill=1,
-                    stroke=0,
-                )
+        elements.append(tbl)
+        elements.append(Spacer(1, 8))
 
-                # Dibujar bordes de la celda
-                p.setStrokeColorRGB(0.8, 0.8, 0.8)  # Gris claro para bordes
-                p.setLineWidth(0.5)
-                p.rect(left_margin, y - 15, right_margin - left_margin, 20)
+        # Total row
+        total_table = Table([
+            ["", "", Paragraph("<b>TOTAL GENERAL:</b>", styles["Normal"]),
+             Paragraph(f"<b>RD$ {total_general:,.2f}</b>", normal_right)]
+        ], colWidths=colWidths)
+        total_table.setStyle(
+            TableStyle([
+                ("SPAN", (0, 0), (1, 0)),
+                ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+                ("ALIGN", (3, 0), (3, 0), "RIGHT"),
+                ("BACKGROUND", (2, 0), (3, 0), colors.HexColor("#f8f0f0")),
+                ("FONTNAME", (2, 0), (3, 0), "Helvetica-Bold"),
+            ])
+        )
+        elements.append(total_table)
 
-                # Texto de la fila
-                p.setFillColorRGB(0, 0, 0)  # Negro
-                p.drawString(left_margin + 10, y - 10,
-                             cliente.get("cliente", "N/A"))
-                p.drawString(left_margin + 200, y - 10,
-                             cliente.get("telefono", "N/A"))
-                p.drawString(
-                    left_margin + 300, y -
-                    10, str(cliente.get("cantidad_facturas", 0))
-                )
-                p.drawString(
-                    left_margin + 450,
-                    y - 10,
-                    f"RD$ {cliente.get('monto_total_pendiente', 0):,.2f}",
-                )
+        # Footer drawing
+        def _footer(canvas_obj, doc_obj):
+            canvas_obj.saveState()
+            footer_text = "DDMAX Moto Import - Sistema de Cuentas por Cobrar"
+            canvas_obj.setFont("Helvetica", 8)
+            canvas_obj.setFillColor(colors.grey)
+            canvas_obj.drawString(doc_obj.leftMargin, 12, footer_text)
+            page_num = f"Página {canvas_obj.getPageNumber()}"
+            canvas_obj.drawRightString(
+                doc_obj.pagesize[0] - doc_obj.rightMargin, 12, page_num)
+            canvas_obj.restoreState()
 
-                # Mover a la siguiente fila
-                y -= 25
+        doc.build(elements, onFirstPage=_footer, onLaterPages=_footer)
 
-                # Verificar si necesitamos nueva página
-                if y < 100 and i < len(clientes) - 1:
-                    p.showPage()
-                    p.setFont("Helvetica", 9)
-                    y = height - 50
+        buffer.seek(0)
+        response = HttpResponse(buffer.read(), content_type="application/pdf")
+        filename = f"deudas_clientes_{now_rd.strftime('%Y%m%d_%I%M%S%p')}.pdf"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
 
-                    # Encabezado de nueva página
-                    p.setFont("Helvetica-Bold", 10)
-                    p.setFillColorRGB(0.2, 0.4, 0.8)
-                    p.rect(
-                        left_margin,
-                        y - 20,
-                        right_margin - left_margin,
-                        25,
-                        fill=1,
-                        stroke=0,
-                    )
-
-                    p.setFillColorRGB(1, 1, 1)
-                    p.drawString(left_margin + 10, y - 15, "Cliente")
-                    p.drawString(left_margin + 200, y - 15, "Teléfono")
-                    p.drawString(left_margin + 300, y -
-                                 15, "Facturas Pendientes")
-                    p.drawString(left_margin + 450, y - 15,
-                                 "Monto Total Pendiente")
-
-                    p.setStrokeColorRGB(1, 1, 1)
-                    p.rect(left_margin, y - 20, right_margin - left_margin, 25)
-                    p.setStrokeColorRGB(0, 0, 0)
-                    p.line(left_margin, y - 20, right_margin, y - 20)
-
-                    y -= 45
-
-            # Línea de total
-            p.setLineWidth(1)
-            p.setStrokeColorRGB(0, 0, 0)
-            p.line(left_margin, y, right_margin, y)
-            y -= 20
-
-            # Total general
-            p.setFont("Helvetica-Bold", 12)
-            p.setFillColorRGB(0.9, 0.2, 0.2)  # Rojo para el total
-            p.drawString(left_margin + 300, y, "TOTAL GENERAL:")
-            p.drawString(left_margin + 450, y, f"RD$ {total_general:,.2f}")
-
-            # Pie de página
-            p.setFont("Helvetica-Oblique", 8)
-            p.setFillColorRGB(0.4, 0.4, 0.4)
-            p.drawString(
-                left_margin, 30, f"DDMAX Moto Import - Sistema de Cuentas por Cobrar"
-            )
-            p.drawString(right_margin - 100, 30, f"Página 1")
-
-            # Cerrar el objeto PDF
-            p.showPage()
-            p.save()
-
-            return response
-
-        except Exception as e:
-            return HttpResponse(f"Error al generar el PDF: {str(e)}", status=500)
-
-    return HttpResponse("Método no permitido", status=405)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return HttpResponse(f"Error al generar el PDF: {str(e)}\n{tb}", status=500)
 
 
 @csrf_exempt
@@ -4832,13 +4839,11 @@ def generar_comprobante_pdf(request, comprobante_id):
         def find_logo_path():
             candidates = [
                 os.path.join(settings.BASE_DIR, "facturacion",
-                             "static", "image", "logos.png"),
+                             "static", "image", "logom3.png"),
                 os.path.join(settings.BASE_DIR, "facturacion",
                              "static", "image", "logo.png"),
                 os.path.join(settings.BASE_DIR, "facturacion",
                              "static", "image", "logo2.png"),
-                os.path.join(settings.BASE_DIR, "facturacion",
-                             "static", "image", "logo3.png"),
             ]
             for path in candidates:
                 if os.path.exists(path):
@@ -4860,11 +4865,11 @@ def generar_comprobante_pdf(request, comprobante_id):
 
         # Cabecera estilo ticket.
         y = draw_center("DDMAXMOTOIMPORT", y, 14, True)
-        y = draw_center("RNC: 00000000", y, 10)
+        y = draw_center("RNC: 1-33-56904-3", y, 10)
         y = draw_center_wrapped(
-            "Direccion: Castanuelas, calle 30 de mayo frente a la bomba", y, 8
+            "C/Principal, #35 Castañuelas", y, 8
         )
-        y = draw_center("Telefono: 849-362-1791", y, 10)
+        y = draw_center("Telefono: 809 656-3374", y, 10)
         y -= 2
         p.line(left, y, right, y)
         y -= 18
