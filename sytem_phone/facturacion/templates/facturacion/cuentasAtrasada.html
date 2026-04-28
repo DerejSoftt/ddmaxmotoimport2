@@ -1332,7 +1332,10 @@
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
 
-                    window.open(blobUrl, '_blank');
+                    // Solo abrir en nueva pestaña después de 1.5 segundos (para que se descargue primero)
+                    setTimeout(() => {
+                        window.open(blobUrl, '_blank');
+                    }, 1500);
 
                     setTimeout(() => {
                         window.URL.revokeObjectURL(blobUrl);

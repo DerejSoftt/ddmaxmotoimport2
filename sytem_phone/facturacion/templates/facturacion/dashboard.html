@@ -1258,22 +1258,9 @@
           daily: 0,
           monthly: 0,
           weekly: [],
-          monthlyTrend: [],
+          month_labels: [],
+          monthly_values: [],
           weekLabels: [],
-          monthLabels: [
-            "Ene",
-            "Feb",
-            "Mar",
-            "Abr",
-            "May",
-            "Jun",
-            "Jul",
-            "Ago",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dic",
-          ],
         },
         inventory: {
           totalStock: 0,
@@ -1520,17 +1507,11 @@
         if (salesCanvas && salesCanvas.getContext) {
           const salesCtx = salesCanvas.getContext("2d");
 
-          // Usar datos con validación
-          const monthlyData = dashboardData.sales.monthlyTrend || [
+          // Usar datos directamente del servidor
+          const monthlyData = dashboardData.sales.monthly_values || [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
           ];
-
-          // Generar etiquetas con año para mayor claridad
-          const today = new Date();
-          const currentYear = today.getFullYear();
-          const currentMonth = today.getMonth();
-
-          const monthNames = [
+          const monthLabels = dashboardData.sales.month_labels || [
             "Ene",
             "Feb",
             "Mar",
@@ -1544,20 +1525,6 @@
             "Nov",
             "Dic",
           ];
-          const monthLabels = [];
-
-          // Generar últimos 12 meses con año
-          for (let i = 11; i >= 0; i--) {
-            let month = currentMonth - i;
-            let year = currentYear;
-
-            if (month < 0) {
-              month += 12;
-              year -= 1;
-            }
-
-            monthLabels.push(`${monthNames[month]} ${year}`);
-          }
 
           console.log("Datos para gráfico:", { monthlyData, monthLabels });
 
