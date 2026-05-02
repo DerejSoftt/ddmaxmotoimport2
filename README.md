@@ -1,342 +1,209 @@
-![Logotipo de la aplicación](img-doc/derejmotium.png)
+<div align="center">
+  <img src="img-doc/derejmotium.png" alt="Logotipo de la aplicación" width="300"/>
 
-# Documentación Técnica del Sistema de Facturación y Gestión
+  # 🏍️📱 DerejMotiun: Sistema de Facturación y Gestión Integral
 
-## 1. Introducción
+  **Plataforma profesional para la operación comercial de motocicletas y dispositivos móviles.**
 
-El proyecto **DerejMotiun** es una plataforma integral para la operación diaria de una casa comercial de motocicletas y dispositivos móviles. Centraliza la gestión de inventario, ciclo de ventas, control de caja, créditos, cobranzas, devoluciones y generación de comprobantes. Está construido sobre **Django 5.2** con un backend basado en **MySQL** y una única app denominada `facturacion`, que concentra modelos, vistas, plantillas y recursos estáticos propios del negocio.
+  ![Django](https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django)
+  ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+  ![MySQL](https://img.shields.io/badge/MySQL-00000F?style=for-the-badge&logo=mysql&logoColor=white)
+  ![Bootstrap](https://img.shields.io/badge/Bootstrap-563D7C?style=for-the-badge&logo=bootstrap&logoColor=white)
+  ![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+</div>
 
-## 2. Tecnologías y dependencias clave
+<hr/>
 
-- **Django 5.2** para el framework web y ORM.
-- **MySQL** como motor relacional principal (configurado mediante variables de entorno en [settings.py](sytem_phone/sytem_phone/settings.py)).
-- **ReportLab** para la emisión de comprobantes PDF y otros reportes impresos.
-- **Pandas** para cálculos agregados del dashboard.
-- **WhiteNoise** para servir archivos estáticos en despliegues productivos.
-- **python-dotenv** (`load_dotenv`) para inyectar secretos y credenciales sin exponerlos en el repositorio.
+## 📖 Índice
+- [1. Visión General](#1-visión-general)
+- [2. Características Principales](#2-características-principales)
+- [3. Tecnologías y Dependencias](#3-tecnologías-y-dependencias)
+- [4. Arquitectura de la Base de Datos](#4-arquitectura-de-la-base-de-datos)
+- [5. Flujo Operativo](#5-flujo-operativo)
+- [6. Estructura del Proyecto](#6-estructura-del-proyecto)
+- [7. Guía de Instalación y Despliegue](#7-guía-de-instalación-y-despliegue)
+- [8. Seguridad y Permisos](#8-seguridad-y-permisos)
+- [9. Próximos Pasos (Roadmap)](#9-próximos-pasos-roadmap)
 
-## 3. Arquitectura general
+---
 
+## 🚀 1. Visión General
+
+**DerejMotiun** es una plataforma centralizada y profesional diseñada para optimizar y controlar la operación diaria de casas comerciales especializadas en motocicletas y dispositivos móviles. Gestiona eficientemente el ciclo completo de ventas (contado, crédito y financiamiento), manteniendo un control riguroso del inventario, flujos de caja y gestión de cobranzas.
+
+---
+
+## ✨ 2. Características Principales
+
+*   **📦 Gestión de Inventario Granular:** Control preciso por IMEI, marca, color y estado. Cálculo automático de ITBIS, costos y márgenes de ganancia garantizando rentabilidad.
+*   **🛒 Ciclo de Ventas y Facturación:** Soporte integral para ventas al contado, a crédito y financiamientos con cálculo de tasas, plazos y cuotas.
+*   **💰 Control de Créditos y Cobranzas:** Seguimiento de estados de crédito (Cuentas por Cobrar), cálculo de saldos en tiempo real, registro de abonos y rebajas de deuda.
+*   **🏦 Gestión de Caja Centralizada:** Control estricto de apertura y cierre por usuario, con arqueos diarios y detección de discrepancias monetarias.
+*   **🔄 Auditoría y Devoluciones:** Trazabilidad completa mediante bitácoras de `MovimientoStock`, soportando devoluciones que restauran el inventario dinámicamente.
+*   **📊 Dashboard Analítico Avanzado:** Paneles interactivos con métricas diarias/mensuales, evolución de ventas, stock crítico y cuentas vencidas (potenciado con análisis de datos en **Pandas**).
+*   **📄 Generación de Comprobantes:** Emisión nativa en formato PDF y exportación de reportes adaptados para impresoras térmicas y Tickets (gracias a **ReportLab**).
+
+---
+
+## 🛠️ 3. Tecnologías y Dependencias
+
+El proyecto se sustenta en un stack robusto, seguro y moderno, asegurando escalabilidad a largo plazo:
+
+| Capa | Tecnología Principal | Propósito en el Sistema |
+| :--- | :--- | :--- |
+| **Backend** | Python 3.10+, Django 5.2 | Lógica core del negocio, ORM avanzado, enrutamiento y Controladores. |
+| **Base de Datos** | MySQL | Motor relacional robusto con garantías transaccionales (ACID). |
+| **Procesamiento y Reportes**| ReportLab, Pandas | Procesamiento analítico avanzado y generación dinámica de documentos. |
+| **Infraestructura**| WhiteNoise, python-dotenv | Gestión optimizada de assets estáticos y protección de credenciales en entornos. |
+| **Frontend** | HTML5, CSS3, JS (AJAX) | Interfaces dinámicas e interactivas construidas sobre Django Templates. |
+
+---
+
+## 🗄️ 4. Arquitectura de la Base de Datos
+
+El diseño de datos está altamente normalizado para evitar redundancia y garantizar integridad. A continuación, el diagrama Entidad-Relación principal:
+
+```mermaid
+erDiagram
+    PROVEEDOR ||--o{ ENTRADA_PRODUCTO : suministra
+    CLIENTE ||--o{ VENTA : realiza
+    CLIENTE ||--o{ CUENTA_POR_COBRAR : adeuda
+    VENTA ||--o{ DETALLE_VENTA : contiene
+    VENTA ||--|| CUENTA_POR_COBRAR : genera
+    ENTRADA_PRODUCTO ||--o{ DETALLE_VENTA : incluido_en
+    ENTRADA_PRODUCTO ||--o{ MOVIMIENTO_STOCK : rastreado_por
+    CUENTA_POR_COBRAR ||--o{ PAGO_CUENTA : recibe
+    PAGO_CUENTA ||--|| COMPROBANTE_PAGO : emite
+    VENTA ||--o{ DEVOLUCION : origina
 ```
-sytem_phone/
-│   manage.py
-│   requirements.txt
-│
-├── facturacion/
-│   ├── models.py
-│   ├── views.py
-│   ├── urls.py
-│   ├── templates/
-│   │   └── facturacion/
-│   │       ├── facturacion.html
-│   │       ├── dashboard.html
-│   │       ├── entrada.html
-│   │       ├── cuentaporcobrar.html
-│   │       ├── cuentasAtrasada.html
-│   │       ├── cierredecaja.html
-│   │       ├── devoluciones.html
-│   │       ├── comprobante_venta.html
-│   │       ├── cuadre.html
-│   │       ├── ventas.html
-│   │       ├── listadecliente.html
-│   │       ├── registrodecliente.html
-│   │       ├── roles.html
-│   │       ├── anular.html
-│   │       ├── imprimir_termica.html
-│   │       ├── ticket_chef.html
-│   │       ├── salida.html
-│   │       ├── historial_pedidos.html
-│   ├── migrations/
-│   ├── templatetags/
-│   ├── tests.py
-│   ├── admin.py
-│   ├── apps.py
-│
-├── sytem_phone/
-│   ├── settings.py
-│   ├── urls.py
-│   ├── wsgi.py
-│   ├── asgi.py
-│
-├── staticfiles/
-│   └── image/
-├── img-doc/
-│   └── derejmotium.png
-├── null/
-│   ├── agregarroles.html
-│   ├── agregarsucursales.html
-│   ├── facturacion.html
-│   ├── gestioncaja.html
-│   ├── inicio-caja.html
-│   ├── inv.html
-│   ├── login-espacio.html
-│   ├── login-nieve.html
-│   ├── prue.html
-│   ├── settings.json
-│   ├── sucursales.html
-│   ├── usuario.html
-│   └── ventas.html
+
+### Entidades Core
+*   **`EntradaProducto`**: Inventario. Autogenera identificadores (códigos) únicos.
+*   **`Venta` & `DetalleVenta`**: Gestionan la salida de inventario y generan las deudas/pagos correspondientes.
+*   **`CuentaPorCobrar`**: Motor financiero para operaciones a crédito. Cuenta con mecanismos de prevención de borrado (Soft Delete) y gestión manual (`RebajaDeuda`).
+*   **`Caja` & `CierreCaja`**: Administran el ciclo operativo de tesorería por sesión de usuario.
+
+---
+
+## 🔄 5. Flujo Operativo del Sistema
+
+```mermaid
+graph TD
+    A[Recepción de Mercancía] --> B(Ingreso al Inventario / EntradaProducto)
+    B --> C{Apertura de Caja del Día}
+    C --> D[Proceso de Venta POS]
+    D --> E{¿Modalidad de Pago?}
+    E -->|Contado| F[Emisión de Factura y Descuento de Stock]
+    E -->|Crédito/Financiamiento| G[Apertura de Cuenta por Cobrar]
+    G --> H[Seguimiento de Abonos y Cobranzas]
+    F --> I{Cierre de Jornada}
+    H --> I
+    I --> J[Arqueo de Caja y Reportes]
 ```
 
-## 4. Modelo de datos principal
+---
 
-| Modelo                | Rol principal                                                                                                  | Relacionamientos destacados                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `Proveedor`           | Catálogo de suplidores con datos de contacto, país y términos de pago.                                         | Consumido por `EntradaProducto`.                                                      |
-| `EntradaProducto`     | Inventario granular (IMEI, marca, color, estado, costos, margen). Calcula ITBIS y margen automáticamente.      | FK a `Proveedor`; enlazado con `DetalleVenta`, `MovimientoStock` y `Devolucion`.      |
-| `Cliente`             | Registro de clientes con límite de crédito y datos de contacto.                                                | Asociado a `Venta`, `CuentaPorCobrar` y `ComprobantePago`.                            |
-| `Venta`               | Encapsula cada transacción de venta, soportando contado, crédito y financiamiento (tasa, plazo, cuota, total). | Relación 1:N con `DetalleVenta`; 1:1 con `CuentaPorCobrar` en créditos.               |
-| `DetalleVenta`        | Desglose de productos vendidos, cantidades y precios unitarios.                                                | FK a `Venta` y `EntradaProducto`.                                                     |
-| `CuentaPorCobrar`     | Control de créditos, con estados y cálculo de saldo. Incluye soporte de rebajas y soft delete.                 | 1:1 con `Venta`, N:1 con `Cliente`; asociado a `PagoCuentaPorCobrar` y `RebajaDeuda`. |
-| `PagoCuentaPorCobrar` | Registro de abonos (efectivo, tarjeta, transferencia) y observaciones.                                         | FK a `CuentaPorCobrar` y `ComprobantePago`.                                           |
-| `RebajaDeuda`         | Bitácora de ajustes manuales al saldo de una cuenta.                                                           | FK a `CuentaPorCobrar` y `User`.                                                      |
-| `Caja` y `CierreCaja` | Control de apertura/cierre de caja, con montos iniciales y discrepancias.                                      | Vinculados a usuarios.                                                                |
-| `MovimientoStock`     | Auditoría de entradas, salidas, devoluciones y ajustes.                                                        | FK a `EntradaProducto` y `User`.                                                      |
-| `Devolucion`          | Registra devoluciones vinculadas a una `Venta` y reinstala stock si aplica.                                    | FK a `EntradaProducto`.                                                               |
-| `ComprobantePago`     | Emite comprobantes numerados para pagos o descuentos.                                                          | 1:1 con `PagoCuentaPorCobrar`.                                                        |
+## 📂 6. Estructura del Proyecto
 
-## 5. Módulos funcionales
+La arquitectura se centra en una aplicación principal (`facturacion`) dentro del entorno del proyecto (`sytem_phone`).
 
-### 5.1 Autenticación y roles
+```text
+ddmaxmotoimport2/
+├── sytem_phone/                  # Directorio raíz del proyecto Django
+│   ├── manage.py                 # CLI de administración de Django
+│   ├── requirements.txt          # Dependencias y bibliotecas de Python
+│   ├── .env                      # Credenciales seguras (¡Nunca versionar!)
+│   ├── sytem_phone/              # Configuraciones de Settings, ASGI, WSGI y URLs
+│   ├── facturacion/              # ⚡ NÚCLEO DE NEGOCIO (App Django)
+│   │   ├── models.py             # Definición de esquema de base de datos
+│   │   ├── views.py              # Controladores de facturación, caja e inventario
+│   │   ├── urls.py               # Enrutamiento local de la app
+│   │   ├── templates/facturacion/# UI: HTML Templates (dashboard, POS, cierre, etc)
+│   │   ├── static/               # Assets (Imágenes, estilos, JS)
+│   │   └── tests.py              # Suite de validación y TDD
+│   ├── migrar_cuotas.py          # Script utilitario de base de datos
+│   └── migrar_movimientos.py     # Script utilitario de histórico de inventario
+└── README.md                     # Este documento
+```
 
-- Vista `index` maneja login utilizando `django.contrib.auth`. Redirige a `iniciocaja` tras autenticarse.
-- Decoradores `login_required` protegen todas las vistas operativas. `superuser_required` restringe endpoints críticos.
-- Vista `roles` y plantillas asociadas permiten administrar permisos básicos.
+---
 
-### 5.2 Dashboard y analítica
+## ⚙️ 7. Guía de Instalación y Despliegue
 
-- Métricas diarias/mensuales, ventas contado, créditos, acumulados mensuales, evolución semanal, inventario disponible, productos con stock bajo, cuentas vencidas, top productos y últimas ventas.
+### Requisitos Mínimos Previos
+*   Python 3.10 o superior instalado.
+*   Servidor MySQL operativo (idealmente con soporte de zona horaria activo).
+*   Git para control de versiones.
 
-### 5.3 Gestión de inventario
+### Configuración Paso a Paso
 
-- Catálogo editable vía AJAX, control de stock, generación de códigos únicos y trazabilidad.
-- `EntradaProducto.save()` genera códigos únicos, calcula ITBIS, costo total y margen. Cada variación de cantidad dispara `MovimientoStock`.
+1. **Clonar Repositorio e Inicializar Entorno Virtual:**
+   ```bash
+   git clone <URL_DEL_REPOSITORIO>
+   cd ddmaxmotoimport2/sytem_phone
+   python -m venv venv
+   
+   # Activar en Windows:
+   venv\Scripts\activate
+   # Activar en Linux/Mac:
+   source venv/bin/activate
+   ```
 
-### 5.4 Clientes
-
-- Registro, gestión y validación de crédito. Endpoints REST para integraciones.
-
-### 5.5 Pedidos y facturación
-
-- Formulario de ventas, validación de totales, descuentos, tipos de venta y facturación.
-- Cada `DetalleVenta` descuenta stock y registra movimientos. El view final retorna respuesta JSON con desglose de totales.
-- Cierre de caja, arqueos diarios y consolidación de datos.
-
-### 5.6 Devoluciones y anulaciones
-
-- Control de devoluciones, restauración de stock y trazabilidad.
-- Anulación de ventas y comprobantes.
-
-### 5.7 Reporting y utilitarios
-
-- Reportes PDF, exportaciones CSV, consultas tipo POS.
-
-### 5.8 Organización de views.py
-
-- Bloques temáticos: autenticación, dashboard, inventario, clientes, ventas, caja, cuentas por cobrar, devoluciones, utilitarios.
-
-## 6. Flujo operativo end-to-end
-
-1. Ingreso de mercancía y registro de productos.
-2. Habilitación de caja por usuario.
-3. Venta: selección de cliente, validación de stock, configuración de pago, creación de venta y actualización de dashboard.
-4. Créditos: creación de cuenta por cobrar, registro de pagos y rebajas.
-5. Devoluciones/anulaciones: reversión de ventas o productos, restauración de inventario.
-6. Cierre: consolidación de datos y arqueos diarios.
-
-## 7. Integraciones internas y archivos relevantes
-
-- Rutas centralizadas en [urls.py](sytem_phone/facturacion/urls.py).
-- Plantillas por funcionalidad en [templates/facturacion](sytem_phone/facturacion/templates/facturacion/).
-- Assets en [facturacion/static/](sytem_phone/facturacion/static/) y compilados en [staticfiles/](sytem_phone/facturacion/staticfiles/).
-
-## 8. Seguridad y cumplimiento
-
-- Variables de entorno en `.env` (no versionado).
-- CSRF habilitado globalmente; uso de `@csrf_exempt` solo cuando es imprescindible.
-- Validaciones server-side para montos, stock y crédito.
-- Soft delete en modelos críticos.
-
-## 9. Despliegue y configuración
-
-1. **Requisitos:**
-   - Python 3.10+
-   - Django 5.2
-   - MySQL
-   - Paquetes adicionales: `mysqlclient`, `pillow`, `reportlab`, `asgiref`, `sqlparse`, `tzdata`, `charset-normalizer`, `pandas`.
-
-2. **Instalación de dependencias:**
-
+2. **Instalación de Librerías y Dependencias:**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Ejemplo de archivo .env:**
-
-   ```bash
-   SECRET_KEY="tu_clave_secreta"
-   DB_NAME="nombre_base_datos"
-   DB_USER="usuario"
-   DB_PASSWORD="contraseña"
+3. **Inyección de Secretos (Variables de Entorno):**
+   Crear un archivo `.env` en la ruta `ddmaxmotoimport2/sytem_phone/` con el siguiente contenido base:
+   ```ini
+   SECRET_KEY="tu_super_clave_secreta_django"
+   DEBUG=True  # Cambiar a False en Producción
+   DB_NAME="derejmotium_db"
+   DB_USER="tu_usuario_mysql"
+   DB_PASSWORD="tu_password_mysql"
    DB_HOST="localhost"
    DB_PORT="3306"
    ALLOWED_HOSTS="localhost,127.0.0.1"
    CSRF_TRUSTED_ORIGINS="http://localhost,http://127.0.0.1"
-   DEBUG=True
    ```
 
-4. **Migraciones:**
-
+4. **Construcción de la Base de Datos:**
    ```bash
    python manage.py makemigrations
    python manage.py migrate
    ```
 
-5. **Creación de superusuario:**
-
+5. **Alta del Administrador Maestro:**
    ```bash
    python manage.py createsuperuser
    ```
 
-6. **Ejecución del servidor:**
+6. **Lanzamiento del Servidor:**
    ```bash
    python manage.py runserver
    ```
-
-## 10. Métricas y mejoras futuras sugeridas
-
-- **KPI adicionales**: rotación de inventario, margen por marca, aging de cuentas.
-- **Alertas proactivas**: notificaciones por correo o WhatsApp para cuentas vencidas o stock crítico.
-- **API pública**: encapsular endpoints clave en una API REST (Django REST Framework) para integraciones externas.
-- **Pruebas automatizadas**: ampliar [tests.py](sytem_phone/facturacion/tests.py) con casos de venta, rebaja de deuda y devoluciones.
+   > 🌐 El sistema estará disponible en tu navegador en: [http://localhost:8000](http://localhost:8000)
 
 ---
 
-## Modelos Clave
+## 🛡️ 8. Seguridad y Permisos
 
-- **Proveedor:** Catálogo de suplidores con datos de contacto, país y términos de pago.
-- **EntradaProducto:** Inventario granular (IMEI, marca, color, estado, costos, margen).
-- **Cliente:** Registro de clientes con límite de crédito y datos de contacto.
-- **Venta:** Encapsula cada transacción de venta, soportando contado, crédito y financiamiento.
-- **DetalleVenta:** Desglose de productos vendidos, cantidades y precios unitarios.
-- **CuentaPorCobrar:** Control de créditos, estados y cálculo de saldo.
-- **PagoCuentaPorCobrar:** Registro de abonos y observaciones.
-- **RebajaDeuda:** Bitácora de ajustes manuales al saldo de una cuenta.
-- **Caja y CierreCaja:** Control de apertura/cierre de caja.
-- **MovimientoStock:** Auditoría de entradas, salidas, devoluciones y ajustes.
-- **Devolucion:** Registra devoluciones vinculadas a una venta.
-- **ComprobantePago:** Emite comprobantes numerados para pagos o descuentos.
-
-## Templates
-
-La aplicación cuenta con templates personalizados para cada funcionalidad, con diseño moderno y sidebar fijo. Ejemplos:
-
-- `facturacion.html`: Panel de facturación.
-- `dashboard.html`: Dashboard de métricas.
-- `entrada.html`: Registro de entradas de productos.
-- `cuentaporcobrar.html`: Gestión de cuentas por cobrar.
-- `cuentasAtrasada.html`: Reporte de cuentas vencidas.
-- `cierredecaja.html`: Cierre de caja.
-- `devoluciones.html`: Devoluciones y anulaciones.
-- `comprobante_venta.html`: Comprobante de venta.
-- `cuadre.html`: Arqueo de caja.
-- `ventas.html`: Visualización de ventas.
-- `listadecliente.html`: Listado de clientes.
-- `registrodecliente.html`: Registro de clientes.
-- `roles.html`: Gestión de usuarios y permisos.
-- `anular.html`: Anulación de ventas.
-- `imprimir_termica.html`: Factura para impresión térmica.
-- `ticket_chef.html`: Ticket para cocina.
-- `salida.html`: Registro de salidas de productos.
-- `historial_pedidos.html`: Historial de pedidos pagados.
+*   **Sólida Autenticación:** Integra el sistema base `django.contrib.auth`. Vistas bloqueadas sin sesión iniciada.
+*   **Autorización Escalada:** Las acciones críticas y endpoints sensibles se protegen mediante el decorador `@superuser_required` y un gestor dinámico de roles en la vista `roles.html`.
+*   **Validaciones y CSRF:** El framework protege todas las peticiones POST vía tokens CSRF, validando además del lado del servidor montos, límites de crédito e inventario negativo.
+*   **Gestión Segura de Datos:** Las deudas y ventas anuladas pasan por un flujo de "Soft Delete" preservando la integridad histórica en auditorías.
 
 ---
 
-## Instalación
+## 🔮 9. Próximos Pasos (Roadmap)
 
-1. **Requisitos:**
-   - Python 3.10+
-   - Django 5.2
-   - MySQL
-   - Paquetes adicionales: `mysqlclient`, `pillow`, `reportlab`, `asgiref`, `sqlparse`, `tzdata`, `charset-normalizer`, `pandas`.
+*   [ ] **Capa API REST:** Exportación del negocio a una API usando `Django REST Framework` (DRF) para alimentar futuras apps móviles nativas.
+*   [ ] **Automatización de Notificaciones:** Sistema de alertas asíncronas vía WhatsApp / Email usando `Celery` para notificar a clientes de atrasos de cuotas.
+*   [ ] **Mejora de Cobertura de Código:** Expandir el framework de pruebas automatizadas (`tests.py`) en escenarios complejos de devaluación y devoluciones.
+*   [ ] **Modernización Frontend:** Adopción progresiva de componentes de estado (React o Vue) en el Punto de Venta (POS) para una reactividad instantánea.
 
-2. **Instalación de dependencias:**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configuración de base de datos:**
-   - Edita las variables de entorno en `.env` para definir `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`.
-   - El sistema utiliza MySQL con configuración estricta y soporte para zona horaria.
-
-4. **Migraciones:**
-
-   ```bash
-   python manage.py makemigrations
-   python manage.py migrate
-   ```
-
-5. **Creación de superusuario:**
-
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-6. **Ejecución del servidor:**
-   ```bash
-   python manage.py runserver
-   ```
-
----
-
-## Uso
-
-- Accede al sistema desde el navegador en `http://localhost:8000`.
-- Inicia sesión con usuario registrado.
-- Utiliza el dashboard para visualizar métricas.
-- Gestiona inventario, ventas, facturación, devoluciones y clientes desde el menú lateral.
-- Imprime facturas y tickets desde las vistas correspondientes.
-
----
-
-## Seguridad y Roles
-
-- El sistema implementa autenticación y autorización basada en usuarios, grupos y permisos de Django.
-- Los roles permiten segmentar el acceso a funcionalidades críticas.
-
----
-
-## Pruebas
-
-- El archivo `tests.py` está preparado para pruebas unitarias con Django TestCase.
-- Se recomienda implementar pruebas para cada modelo y vista crítica.
-
----
-
-## Personalización
-
-- Los templates pueden ser adaptados para branding propio.
-- El sistema soporta ampliación de modelos y vistas para nuevas funcionalidades.
-
----
-
-## Dependencias
-
-Ver archivo [requirements.txt](sytem_phone/requirements.txt) para la lista completa.
-
----
-
-## Configuración
-
-- Variables de entorno para seguridad y base de datos.
-- Soporte para archivos estáticos y media.
-- Configuración de zona horaria: `America/Santo_Domingo`.
-
----
-
-## Contacto y Soporte
-
-Para soporte, contactar al desarrollador o consultar la documentación de Django.
-
----
+<br>
+<div align="center">
+  <i>Desarrollado y mantenido para redefinir el ecosistema comercial retail.</i>
+</div>
