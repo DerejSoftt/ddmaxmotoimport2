@@ -3553,6 +3553,10 @@ def entrada(request):
 
             observaciones = request.POST.get("observaciones", "").strip()
 
+            # Si el IMEI está vacío, lo guardamos como None para no violar la restricción unique
+            if not imei_serial:
+                imei_serial = None
+
             # Validaciones básicas
             required_fields = [
                 ("numero_factura", numero_factura, "Número de factura"),
@@ -3561,7 +3565,6 @@ def entrada(request):
                 ("nombre_producto", nombre_producto, "Nombre del producto"),
                 ("marca", marca, "Marca"),
                 ("modelo", modelo, "Modelo"),
-                ("imei_serial", imei_serial, "IMEI/Serial"),
                 ("estado", estado, "Estado"),
                 ("cantidad", cantidad, "Cantidad"),
                 ("costo_compra", costo_compra, "Costo de compra"),
@@ -3586,15 +3589,16 @@ def entrada(request):
                 messages.error(request, "El costo de venta debe ser mayor a 0")
                 return redirect("entrada")
 
-            # Verificar si el IMEI ya existe
-            if EntradaProducto.objects.filter(
+            # Verificar si el IMEI ya existe (solo si se proporcionó uno)
+            if imei_serial and EntradaProducto.objects.filter(
                 imei_serial=imei_serial, activo=True
             ).exists():
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'errors': {'imei_serial': ["El IMEI/Serial ya existe en la base de datos"]}})
                 messages.error(
-                    request, "El IMEI/Serial ya existe en la base de datos")
+                    request, "El IMEI/Chasis ya existe en la base de datos")
                 return redirect("entrada")
+
 
             # Verificar si el número de factura ya existe
             if EntradaProducto.objects.filter(
@@ -3606,6 +3610,10 @@ def entrada(request):
                     request, "El número de factura ya existe en la base de datos"
                 )
                 return redirect("entrada")
+
+            # Se removió la validación de que el número de factura sea único 
+            # para permitir registrar múltiples productos bajo la misma factura del proveedor.
+
 
             # Obtener el proveedor
             try:
