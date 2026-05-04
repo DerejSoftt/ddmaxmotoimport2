@@ -3593,12 +3593,27 @@ def entrada(request):
             if imei_serial and EntradaProducto.objects.filter(
                 imei_serial=imei_serial, activo=True
             ).exists():
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'errors': {'imei_serial': ["El IMEI/Serial ya existe en la base de datos"]}})
                 messages.error(
                     request, "El IMEI/Chasis ya existe en la base de datos")
                 return redirect("entrada")
 
+
+            # Verificar si el número de factura ya existe
+            if EntradaProducto.objects.filter(
+                numero_factura=numero_factura, activo=True
+            ).exists():
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'errors': {'numero_factura': ["El número de factura ya existe en la base de datos"]}})
+                messages.error(
+                    request, "El número de factura ya existe en la base de datos"
+                )
+                return redirect("entrada")
+
             # Se removió la validación de que el número de factura sea único 
             # para permitir registrar múltiples productos bajo la misma factura del proveedor.
+
 
             # Obtener el proveedor
             try:
@@ -3638,6 +3653,9 @@ def entrada(request):
 
             entrada_producto.save()
 
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': 'Producto registrado exitosamente en el inventario'})
+
             messages.success(
                 request, "✅ Producto registrado exitosamente en el inventario"
             )
@@ -3663,6 +3681,25 @@ def entrada(request):
         {"proveedores": proveedores, "fecha_actual": fecha_actual},
     )
 
+
+@csrf_exempt
+def validar_entrada_duplicada(request):
+    """Valida si el número de factura y chasis ya existen en la base de datos"""
+    if request.method == "POST":
+        numero_factura = request.POST.get("numero_factura", "").strip()
+        imei_serial = request.POST.get("imei_serial", "").strip()
+
+        errores = []
+        if numero_factura and EntradaProducto.objects.filter(numero_factura=numero_factura, activo=True).exists():
+            errores.append(f"El Número de Factura '{numero_factura}' ya está registrado.")
+            
+        if imei_serial and EntradaProducto.objects.filter(imei_serial=imei_serial, activo=True).exists():
+            errores.append(f"El Número de chasis (IMEI/Serial) '{imei_serial}' ya está registrado.")
+        
+        if errores:
+            return JsonResponse({"duplicado": True, "mensaje": "\n".join(errores)})
+        return JsonResponse({"duplicado": False})
+    return JsonResponse({"error": "Método no permitido"})
 
 @csrf_exempt
 def buscar_productos_similares(request):

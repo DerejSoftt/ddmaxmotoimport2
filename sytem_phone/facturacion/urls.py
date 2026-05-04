@@ -14,6 +14,7 @@ urlpatterns = [
     path("listadecliente", views.listadecliente, name="listadecliente"),
     path("registrodecliente", views.registrodecliente,  name="registrodecliente"),
     path("entrada", views.entrada, name="entrada"),
+    path("validar-entrada-duplicada/", views.validar_entrada_duplicada, name="validar_entrada_duplicada"),
     path('agregar-nuevo-producto/', views.agregar_nuevo_producto, name='agregar_nuevo_producto'),
     path('productos-disponibles/', views.obtener_productos_disponibles, name='obtener_productos_disponibles'),
     path('producto/<int:entrada_id>/', views.obtener_datos_entrada, name='obtener_datos_entrada'),

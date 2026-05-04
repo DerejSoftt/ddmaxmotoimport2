@@ -678,7 +678,7 @@
                         <div class="form-group">
                             <label class="form-label" for="telefono">Teléfono *</label>
                             <input type="tel" id="telefono" name="telefono" class="form-input" required 
-                                   placeholder="(809) 123-4567" 
+                                   placeholder="(000) - 000 - 0000" inputmode="numeric" maxlength="18"
                                    value="{{ valores.telefono|default_if_none:'' }}">
                             <div class="error-message" id="telefonoError"></div>
                         </div>
@@ -686,7 +686,7 @@
                         <div class="form-group">
                             <label class="form-label" for="whatsapp">WhatsApp</label>
                             <input type="tel" id="whatsapp" name="whatsapp" class="form-input" 
-                                   placeholder="(809) 987-6543" 
+                                   placeholder="(000) - 000 - 0000" inputmode="numeric" maxlength="18"
                                    value="{{ valores.whatsapp|default_if_none:'' }}">
                             <div class="error-message" id="whatsappError"></div>
                         </div>
@@ -888,16 +888,25 @@
             e.target.value = value;
         });
 
-        // Formatear números de teléfono automáticamente
-        document.getElementById('telefono').addEventListener('input', formatPhone);
-        document.getElementById('whatsapp').addEventListener('input', formatPhone);
+        // Formatear números de teléfono automáticamente (limitar a 10 dígitos)
+        const telefonoInput = document.getElementById('telefono');
+        const whatsappInput = document.getElementById('whatsapp');
+        if (telefonoInput) telefonoInput.addEventListener('input', formatPhone);
+        if (whatsappInput) whatsappInput.addEventListener('input', formatPhone);
 
         function formatPhone(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length >= 10) {
-                value = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+            let digits = e.target.value.replace(/\D/g, '');
+            // Limitar a 10 dígitos
+            if (digits.length > 10) digits = digits.slice(0, 10);
+            let formatted = digits;
+            if (digits.length >= 7) {
+                formatted = '(' + digits.slice(0,3) + ') - ' + digits.slice(3,6) + ' - ' + digits.slice(6,10);
+            } else if (digits.length >= 4) {
+                formatted = '(' + digits.slice(0,3) + ') - ' + digits.slice(3);
+            } else if (digits.length > 0) {
+                formatted = '(' + digits;
             }
-            e.target.value = value;
+            e.target.value = formatted;
         }
 
         // Validación en tiempo real
@@ -961,9 +970,13 @@
                     if (!value) {
                         errorMessage = 'El teléfono es requerido';
                         isValid = false;
-                    } else if (!/^[\d\s\-()]+$/.test(value)) {
-                        errorMessage = 'Formato de teléfono inválido';
-                        isValid = false;
+                    } else {
+                        // Verificar que tenga 10 dígitos
+                        const digits = value.replace(/\D/g, '');
+                        if (digits.length !== 10) {
+                            errorMessage = 'El teléfono debe tener 10 dígitos';
+                            isValid = false;
+                        }
                     }
                     break;
 
@@ -981,6 +994,15 @@
                     } else if (value.length < 2) {
                         errorMessage = 'La ciudad debe tener al menos 2 caracteres';
                         isValid = false;
+                    }
+                    break;
+                case 'whatsapp':
+                    if (value) {
+                        const digits = value.replace(/\D/g, '');
+                        if (digits.length !== 10) {
+                            errorMessage = 'El WhatsApp debe tener 10 dígitos';
+                            isValid = false;
+                        }
                     }
                     break;
             }

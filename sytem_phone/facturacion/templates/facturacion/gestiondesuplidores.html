@@ -833,7 +833,7 @@
             <div class="content-container">
                 <div class="search-bar">
                     <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar por nombre, RNC, email o ciudad...">
-                    <a href="{% url 'agregar_proveedor' %}" class="btn btn-primary">
+                    <a href="{% url 'registrosuplidores' %}" class="btn btn-primary">
                         <i class='bx bx-plus'></i>
                         Agregar Suplidor
                     </a>
@@ -872,10 +872,10 @@
                                 <td>
                                     <div class="actions">
                                     <div class="actions">
-                                        <button class="btn btn-success" onclick="editSupplier('{{ proveedor_id }}')" title="Editor">
+                                        <button class="btn btn-success" onclick="editSupplier('{{ proveedor.id }}')" title="Editor">
                                             <i class="bx bx-edit"></i>
                                         </button>
-                                        <button class="btn btn-danger" onclick="confirmDelete('{{ proveedor_id }}')" title="Eliminar">
+                                        <button class="btn btn-danger" onclick="confirmDelete('{{ proveedor.id }}')" title="Eliminar">
                                             <i class="bx bx-trash"></i>
                                         </button>
                                     </div>
@@ -897,6 +897,7 @@
     </div>
 
     <!-- Modal para Editar Suplidor -->
+    <!-- Add modal removed: use registrosuplidores page for registering suppliers -->
     <div class="modal" id="editModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1112,6 +1113,8 @@
             }
         }
 
+        // Add modal removed; registration handled in registrosuplidores page
+
         
         // Función para cargar clientes desde la base de datos
         async function cargarClientes() {
@@ -1247,11 +1250,11 @@
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', function(e) {
                     if (e.target === modal) {
-                        if (modal.id === 'editModal') {
-                            closeEditModal();
-                        } else if (modal.id === 'deleteModal') {
-                            closeDeleteModal();
-                        }
+                            if (modal.id === 'editModal') {
+                                closeEditModal();
+                            } else if (modal.id === 'deleteModal') {
+                                closeDeleteModal();
+                            }
                     }
                 });
             });

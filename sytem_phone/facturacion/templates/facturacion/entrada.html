@@ -971,8 +971,8 @@
                             <div class="form-group">
                                 <label class="form-label" for="purchaseCost">Costo de Compra *</label>
                                 <div class="currency-input">
-                                    <input type="number" id="purchaseCost" name="costo_compra" class="form-input" required 
-                                           min="0" step="0.01" placeholder="0.00">
+                                    <input type="text" id="purchaseCost" name="costo_compra" class="form-input" required 
+                                           placeholder="0.00">
                                 </div>
                                 <div class="error-message" id="costo_compraError"></div>
                             </div>
@@ -988,7 +988,7 @@
                             <div class="form-group">
                                 <label class="form-label" for="itbisAmount">Monto ITBIS</label>
                                 <div class="currency-input">
-                                    <input type="number" id="itbisAmount" name="monto_itbis" class="form-input calculated-field" 
+                                    <input type="text" id="itbisAmount" name="monto_itbis" class="form-input calculated-field" 
                                            readonly placeholder="0.00">
                                 </div>
                             </div>
@@ -996,7 +996,7 @@
                             <div class="form-group">
                                 <label class="form-label" for="totalCost">Costo Total</label>
                                 <div class="currency-input">
-                                    <input type="number" id="totalCost" name="costo_total" class="form-input calculated-field" 
+                                    <input type="text" id="totalCost" name="costo_total" class="form-input calculated-field" 
                                            readonly placeholder="0.00">
                                 </div>
                             </div>
@@ -1004,8 +1004,8 @@
                             <div class="form-group">
                                 <label class="form-label" for="saleCost">Costo de Venta *</label>
                                 <div class="currency-input">
-                                    <input type="number" id="saleCost" name="costo_venta" class="form-input" required 
-                                           min="0" step="0.01" placeholder="0.00">
+                                    <input type="text" id="saleCost" name="costo_venta" class="form-input" required 
+                                           placeholder="0.00">
                                 </div>
                                 <div class="error-message" id="costo_ventaError"></div>
                             </div>
@@ -1144,20 +1144,70 @@
             });
         });
 
+        // Funciones para formato de moneda
+        function parseCurrency(value) {
+            return parseFloat(value.toString().replace(/,/g, '')) || 0;
+        }
+
+        function formatCurrency(value) {
+            let num = value.toString().replace(/,/g, '');
+            if (isNaN(num)) return '0.00';
+            return parseFloat(num).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function formatCurrencyInput(e) {
+            const input = e.target;
+            let cursorPosition = input.selectionStart;
+            let originalLength = input.value.length;
+            
+            let value = input.value;
+            
+            // Remover todo excepto números y un punto
+            value = value.replace(/[^\d.]/g, '');
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('').replace(/\./g, '');
+            }
+            
+            const newParts = value.split('.');
+            let integerPart = newParts[0];
+            let decimalPart = newParts.length > 1 ? '.' + newParts[1].substring(0, 2) : '';
+            
+            // Añadir comas a los miles
+            if (integerPart) {
+                integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            }
+            
+            const formattedValue = integerPart + decimalPart;
+            
+            input.value = formattedValue;
+            
+            // Mantener posición del cursor
+            let newLength = formattedValue.length;
+            cursorPosition = cursorPosition + (newLength - originalLength);
+            
+            // Evitar errores si se llama desde código sin setSelectionRange disponible
+            if (input.setSelectionRange) {
+                input.setSelectionRange(cursorPosition, cursorPosition);
+            }
+            
+            calculateCosts();
+        }
+
         // Cálculos automáticos
         function calculateCosts() {
-            const purchaseCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
+            const purchaseCost = parseCurrency(document.getElementById('purchaseCost').value);
             const itbisRate = parseFloat(document.getElementById('itbisRate').value) || 0;
-            const saleCost = parseFloat(document.getElementById('saleCost').value) || 0;
+            const saleCost = parseCurrency(document.getElementById('saleCost').value);
             const quantity = parseInt(document.getElementById('quantity').value) || 1;
 
             // Calcular ITBIS
             const itbisAmount = (purchaseCost * itbisRate) / 100;
-            document.getElementById('itbisAmount').value = itbisAmount.toFixed(2);
+            document.getElementById('itbisAmount').value = formatCurrency(itbisAmount);
 
             // Calcular costo total
             const totalCost = purchaseCost + itbisAmount;
-            document.getElementById('totalCost').value = totalCost.toFixed(2);
+            document.getElementById('totalCost').value = formatCurrency(totalCost);
 
             // Calcular margen de ganancia
             if (saleCost > 0 && totalCost > 0) {
@@ -1169,9 +1219,17 @@
         }
 
         // Event listeners para cálculos automáticos
-        document.getElementById('purchaseCost').addEventListener('input', calculateCosts);
+        document.getElementById('purchaseCost').addEventListener('input', formatCurrencyInput);
+        document.getElementById('purchaseCost').addEventListener('blur', function() {
+            if(this.value) this.value = formatCurrency(parseCurrency(this.value));
+        });
+
+        document.getElementById('saleCost').addEventListener('input', formatCurrencyInput);
+        document.getElementById('saleCost').addEventListener('blur', function() {
+            if(this.value) this.value = formatCurrency(parseCurrency(this.value));
+        });
+
         document.getElementById('itbisRate').addEventListener('input', calculateCosts);
-        document.getElementById('saleCost').addEventListener('input', calculateCosts);
         document.getElementById('quantity').addEventListener('input', calculateCosts);
 
         // Formatear NCF automáticamente
@@ -1303,6 +1361,10 @@
 
         // Validación del formulario
         function validateForm() {
+            // Limpiar errores visuales previos
+            document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.form-input').forEach(el => el.style.borderColor = '#e1e8ed');
+
             let isValid = true;
 
             const requiredFields = [
@@ -1331,18 +1393,14 @@
                         fieldElement.style.borderColor = '#dc3545';
                     }
                     isValid = false;
-                } else {
-                    if (fieldElement) {
-                        fieldElement.style.borderColor = '#e1e8ed';
-                    }
                 }
             });
 
             // IMEI ya no es requerido estrictamente ni se valida longitud obligatoria
 
             // Validación de costos
-            const purchaseCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
-            const saleCost = parseFloat(document.getElementById('saleCost').value) || 0;
+            const purchaseCost = parseCurrency(document.getElementById('purchaseCost').value);
+            const saleCost = parseCurrency(document.getElementById('saleCost').value);
 
             if (purchaseCost <= 0) {
                 const errorElement = document.getElementById('costo_compraError');
@@ -1375,7 +1433,7 @@
         }
 
         // Manejo del envío del formulario principal
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             // Validar campos
@@ -1386,9 +1444,41 @@
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<div class="loading-spinner"></div> Procesando...';
 
-                // Enviar formulario manualmente
                 const formData = new FormData(this);
+                
+                // Remover formato de moneda antes de enviar
+                formData.set('costo_compra', parseCurrency(document.getElementById('purchaseCost').value));
+                formData.set('costo_venta', parseCurrency(document.getElementById('saleCost').value));
 
+                // Validar duplicados ANTES de enviar nada
+                try {
+                    const validacion = await fetch('{% url "validar_entrada_duplicada" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                        }
+                    });
+                    const validacionData = await validacion.json();
+
+                    if (validacionData.duplicado) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Coincidencia Encontrada',
+                            text: validacionData.mensaje,
+                            confirmButtonColor: '#667eea',
+                            confirmButtonText: 'Revisar datos'
+                        });
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bx bx-save"></i> Registrar Producto';
+                        return; // Detener el envío
+                    }
+                } catch (error) {
+                    console.error('Error al validar duplicados:', error);
+                }
+
+                // Si no hay duplicados, enviar el formulario
                 fetch(this.action, {
                     method: 'POST',
                     body: formData,
@@ -1407,8 +1497,14 @@
                 .then(data => {
                     if (data) {
                         if (data.success) {
-                            // Mostrar mensaje de éxito
-                            toastr.success('Producto registrado exitosamente en el inventario');
+                            // Mostrar mensaje de éxito con SweetAlert
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Éxito!',
+                                text: 'Producto registrado exitosamente en el inventario.',
+                                confirmButtonColor: '#28a745',
+                                confirmButtonText: 'Aceptar'
+                            });
                             // Limpiar formulario después de éxito
                             limpiarFormulario();
                         } else if (data.errors) {
