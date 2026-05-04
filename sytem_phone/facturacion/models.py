@@ -137,7 +137,7 @@ class EntradaProducto(models.Model):
     marca = models.CharField(max_length=20, choices=MARCAS)
     modelo = models.CharField(max_length=100)
     capacidad = models.CharField(max_length=10, choices=CAPACIDADES, blank=True, null=True)
-    imei_serial = models.CharField(max_length=50, unique=True)
+    imei_serial = models.CharField(max_length=50, unique=True, null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS)
     color = models.CharField(max_length=20, choices=COLORES, blank=True, null=True)
     cantidad = models.PositiveIntegerField(default=1)

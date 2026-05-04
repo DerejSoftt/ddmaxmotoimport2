@@ -916,7 +916,7 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label" for="imei">Número de chasis *</label>
+                                <label class="form-label" for="imei">Número de chasis (Opcional)</label>
                                 <input type="text" id="imei" name="imei_serial" class="form-input" 
                                        placeholder="">
                                 <div class="error-message" id="imei_serialError"></div>
@@ -1312,7 +1312,6 @@
                 {id: 'productName', name: 'nombre_producto', errorId: 'nombre_productoError'},
                 {id: 'brand', name: 'marca', errorId: 'marcaError'},
                 {id: 'model', name: 'modelo', errorId: 'modeloError'},
-                {id: 'imei', name: 'imei_serial', errorId: 'imei_serialError'},
                 {id: 'condition', name: 'estado', errorId: 'estadoError'},
                 {id: 'quantity', name: 'cantidad', errorId: 'cantidadError'},
                 {id: 'purchaseCost', name: 'costo_compra', errorId: 'costo_compraError'},
@@ -1339,16 +1338,7 @@
                 }
             });
 
-            // Validación adicional para IMEI
-            const imeiValue = document.getElementById('imei').value.trim();
-            if (imeiValue && imeiValue.length < 10) {
-                const errorElement = document.getElementById('imei_serialError');
-                if (errorElement) {
-                    errorElement.textContent = 'El IMEI/Serial debe tener al menos 10 dígitos';
-                    errorElement.style.display = 'block';
-                }
-                isValid = false;
-            }
+            // IMEI ya no es requerido estrictamente ni se valida longitud obligatoria
 
             // Validación de costos
             const purchaseCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
