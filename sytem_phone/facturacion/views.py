@@ -4752,8 +4752,7 @@ def generar_comprobante_pdf(request, comprobante_id):
         y = height - 18
         line_h = 12
 
-        monto_original = Decimal(
-            comprobante.cuenta.monto_total or Decimal("0.00"))
+        monto_original = _get_effective_total_amount(comprobante.cuenta)
         monto_pagado_acumulado = _get_effective_paid_amount(comprobante.cuenta)
         saldo_pendiente = monto_original - monto_pagado_acumulado
         if saldo_pendiente < 0:
@@ -4769,8 +4768,8 @@ def generar_comprobante_pdf(request, comprobante_id):
         metodo_pago = comprobante.pago.get_metodo_pago_display() if comprobante.pago else "N/A"
         referencia = comprobante.pago.referencia if comprobante.pago and comprobante.pago.referencia else "N/A"
         fecha_pago = comprobante.pago.fecha_pago if comprobante.pago else comprobante.fecha_emision
-        balance_anterior = saldo_pendiente + \
-            (comprobante.pago.monto if comprobante.pago else Decimal("0.00"))
+        monto_pago = comprobante.pago.monto if comprobante.pago else Decimal("0.00")
+        balance_anterior = saldo_pendiente + monto_pago
         monto_pago = comprobante.pago.monto if comprobante.pago else Decimal(
             "0.00")
         usuario_despacho = "Sistema"
