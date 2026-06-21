@@ -240,6 +240,8 @@ def _net_income(start_date, end_date, use_movimientos=None):
         egresos_total = anulaciones + devoluciones
         total = ingresos_total - egresos_total
 
+        return total
+
 # Helper: ingreso neto por día en una lista de fechas
 # -----------------------------------------------------------------------------
 
